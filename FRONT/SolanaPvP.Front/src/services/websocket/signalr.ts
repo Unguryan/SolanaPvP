@@ -1,0 +1,213 @@
+// SignalR WebSocket service
+import * as signalR from "@microsoft/signalr";
+import { API_CONFIG, WEBSOCKET } from "@/constants/config";
+
+export class SignalRService {
+  private connection: signalR.HubConnection | null = null;
+  private reconnectAttempts = 0;
+  private reconnectTimer: number | null = null;
+  private pingTimer: number | null = null;
+
+  // Event handlers
+  private eventHandlers: Map<string, Function[]> = new Map();
+
+  constructor() {
+    this.initializeConnection();
+  }
+
+  private initializeConnection() {
+    this.connection = new signalR.HubConnectionBuilder()
+      .withUrl(`${API_CONFIG.WS_URL}/ws`)
+      .withAutomaticReconnect([0, 2000, 10000, 30000])
+      .build();
+
+    this.setupEventHandlers();
+    this.setupConnectionHandlers();
+  }
+
+  private setupEventHandlers() {
+    if (!this.connection) return;
+
+    // Match events
+    this.connection.on("matchCreated", (match) => {
+      this.emit("matchCreated", match);
+    });
+
+    this.connection.on("matchJoined", (match) => {
+      this.emit("matchJoined", match);
+    });
+
+    this.connection.on("matchResolved", (match) => {
+      this.emit("matchResolved", match);
+    });
+
+    this.connection.on("matchRefunded", (match) => {
+      this.emit("matchRefunded", match);
+    });
+
+    // Invitation events
+    this.connection.on("invitationReceived", (invitation) => {
+      this.emit("invitationReceived", invitation);
+    });
+
+    this.connection.on("invitationAccepted", (invitation) => {
+      this.emit("invitationAccepted", invitation);
+    });
+
+    this.connection.on("invitationDeclined", (invitation) => {
+      this.emit("invitationDeclined", invitation);
+    });
+
+    this.connection.on("invitationCancelled", (invitation) => {
+      this.emit("invitationCancelled", invitation);
+    });
+  }
+
+  private setupConnectionHandlers() {
+    if (!this.connection) return;
+
+    this.connection.onclose((error) => {
+      console.log("SignalR connection closed:", error);
+      this.emit("connectionClosed", error);
+      this.scheduleReconnect();
+    });
+
+    this.connection.onreconnecting((error) => {
+      console.log("SignalR reconnecting:", error);
+      this.emit("reconnecting", error);
+    });
+
+    this.connection.onreconnected((connectionId) => {
+      console.log("SignalR reconnected:", connectionId);
+      this.reconnectAttempts = 0;
+      this.emit("reconnected", connectionId);
+      this.startPing();
+    });
+  }
+
+  async connect(): Promise<void> {
+    if (!this.connection) {
+      this.initializeConnection();
+    }
+
+    if (this.connection?.state === signalR.HubConnectionState.Connected) {
+      return;
+    }
+
+    try {
+      await this.connection?.start();
+      console.log("SignalR connected");
+      this.emit("connected");
+      this.startPing();
+    } catch (error) {
+      console.error("SignalR connection failed:", error);
+      this.emit("connectionFailed", error);
+      this.scheduleReconnect();
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    if (this.connection) {
+      this.stopPing();
+      await this.connection.stop();
+      this.connection = null;
+    }
+  }
+
+  private scheduleReconnect() {
+    if (this.reconnectAttempts >= WEBSOCKET.MAX_RECONNECT_ATTEMPTS) {
+      console.log("Max reconnection attempts reached");
+      this.emit("maxReconnectAttemptsReached");
+      return;
+    }
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
+
+    const delay =
+      WEBSOCKET.RECONNECT_INTERVAL * Math.pow(2, this.reconnectAttempts);
+    this.reconnectAttempts++;
+
+    this.reconnectTimer = window.setTimeout(() => {
+      this.connect();
+    }, delay);
+  }
+
+  private startPing() {
+    this.stopPing();
+    this.pingTimer = window.setInterval(() => {
+      if (this.connection?.state === signalR.HubConnectionState.Connected) {
+        this.connection.invoke("Ping");
+      }
+    }, WEBSOCKET.PING_INTERVAL);
+  }
+
+  private stopPing() {
+    if (this.pingTimer) {
+      window.clearInterval(this.pingTimer);
+      this.pingTimer = null;
+    }
+  }
+
+  // Hub methods
+  async joinLobby(): Promise<void> {
+    if (this.connection?.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke("JoinLobby");
+    }
+  }
+
+  async leaveLobby(): Promise<void> {
+    if (this.connection?.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke("LeaveLobby");
+    }
+  }
+
+  async joinMatchGroup(matchPda: string): Promise<void> {
+    if (this.connection?.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke("JoinMatchGroup", matchPda);
+    }
+  }
+
+  async leaveMatchGroup(matchPda: string): Promise<void> {
+    if (this.connection?.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke("LeaveMatchGroup", matchPda);
+    }
+  }
+
+  // Event subscription
+  on(event: string, handler: Function): void {
+    if (!this.eventHandlers.has(event)) {
+      this.eventHandlers.set(event, []);
+    }
+    this.eventHandlers.get(event)!.push(handler);
+  }
+
+  off(event: string, handler: Function): void {
+    const handlers = this.eventHandlers.get(event);
+    if (handlers) {
+      const index = handlers.indexOf(handler);
+      if (index > -1) {
+        handlers.splice(index, 1);
+      }
+    }
+  }
+
+  private emit(event: string, data?: any): void {
+    const handlers = this.eventHandlers.get(event);
+    if (handlers) {
+      handlers.forEach((handler) => handler(data));
+    }
+  }
+
+  // Connection state
+  get isConnected(): boolean {
+    return this.connection?.state === signalR.HubConnectionState.Connected;
+  }
+
+  get connectionState(): signalR.HubConnectionState | undefined {
+    return this.connection?.state;
+  }
+}
+
+export const signalRService = new SignalRService();
