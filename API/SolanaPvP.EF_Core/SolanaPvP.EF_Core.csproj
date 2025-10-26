@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Repositories\" />
+    <Folder Include="Context\" />
+    <Folder Include="DBOs\" />
+    <Folder Include="Mappers\" />
+  </ItemGroup>
+
+</Project>
