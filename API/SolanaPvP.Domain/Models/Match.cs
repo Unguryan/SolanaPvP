@@ -1,0 +1,25 @@
+using SolanaPvP.Domain.Enums;
+
+namespace SolanaPvP.Domain.Models;
+
+public class Match
+{
+    public string MatchPda { get; set; } = string.Empty;
+    public GameModeType GameMode { get; set; }
+    public MatchType MatchType { get; set; }
+    public long StakeLamports { get; set; }
+    public MatchStatus Status { get; set; }
+    public long DeadlineTs { get; set; }
+    public int? WinnerSide { get; set; } // 0=Side1, 1=Side2
+    public string CreateTx { get; set; } = string.Empty;
+    public string? JoinTx { get; set; }
+    public string? PayoutTx { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? JoinedAt { get; set; }
+    public DateTime? ResolvedAt { get; set; }
+
+    // Navigation properties
+    public ICollection<MatchParticipant> Participants { get; set; } = new List<MatchParticipant>();
+    public GameData? GameData { get; set; }
+    public ICollection<Event> Events { get; set; } = new List<Event>();
+}

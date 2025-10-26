@@ -8,6 +8,15 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.1.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SolanaPvP.Application\SolanaPvP.Application.csproj" />
+    <ProjectReference Include="..\SolanaPvP.EF_Core\SolanaPvP.EF_Core.csproj" />
+    <ProjectReference Include="..\SolanaPvP.Infrastructure\SolanaPvP.Infrastructure.csproj" />
+    <ProjectReference Include="..\SolanaPvP.SolanaRPC\SolanaPvP.SolanaRPC.csproj" />
   </ItemGroup>
 
 </Project>

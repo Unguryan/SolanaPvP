@@ -1,0 +1,18 @@
+using Microsoft.EntityFrameworkCore;
+using SolanaPvP.Domain.Enums;
+
+namespace SolanaPvP.EF_Core.DBOs;
+
+[PrimaryKey(nameof(Id))]
+public class GameDataDBO
+{
+    public int Id { get; set; }
+    public string MatchPda { get; set; } = string.Empty;
+    public GameModeType GameMode { get; set; }
+    public int Side0TotalScore { get; set; }
+    public int Side1TotalScore { get; set; }
+    public DateTime GeneratedAt { get; set; }
+
+    // Navigation properties
+    public MatchDBO Match { get; set; } = null!;
+}

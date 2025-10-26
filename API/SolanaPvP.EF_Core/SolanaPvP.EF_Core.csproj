@@ -7,10 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Repositories\" />
-    <Folder Include="Context\" />
-    <Folder Include="DBOs\" />
-    <Folder Include="Mappers\" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SolanaPvP.Domain\SolanaPvP.Domain.csproj" />
   </ItemGroup>
 
 </Project>

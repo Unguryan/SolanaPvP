@@ -7,9 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Internal\Models\" />
-    <Folder Include="Internal\Services\" />
-    <Folder Include="Services\" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="System.Net.WebSockets.Client" Version="4.3.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SolanaPvP.Application\SolanaPvP.Application.csproj" />
   </ItemGroup>
 
 </Project>
