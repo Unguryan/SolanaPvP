@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using SolanaPvP.API_Project.Extensions;
 using SolanaPvP.API_Project.Hubs;
+using SolanaPvP.API_Project.Middleware;
 using SolanaPvP.API_Project.Workers;
 using SolanaPvP.Application.Interfaces.Repositories;
 using SolanaPvP.Application.Interfaces.Services;
@@ -36,12 +38,15 @@ builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRefundTaskRepository, RefundTaskRepository>();
+builder.Services.AddScoped<IMatchInvitationRepository, MatchInvitationRepository>();
 
 // Register services
 builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddScoped<IGameDataGenerator, GameDataGenerator>();
 builder.Services.AddScoped<IRefundScheduler, RefundScheduler>();
 builder.Services.AddScoped<IIndexerStateManager, IndexerStateManager>();
+builder.Services.AddScoped<IUsernameService, UsernameService>();
+builder.Services.AddScoped<IInvitationService, InvitationService>();
 
 // Register SolanaRPC services
 builder.Services.AddScoped<IEventParser, EventParser>();
@@ -78,6 +83,9 @@ app.UseCors(policy =>
           .AllowAnyMethod()
           .AllowAnyHeader();
 });
+
+// Add custom middleware
+app.UseMiddleware<PubkeyMiddleware>();
 
 // Map controllers
 app.MapControllers();

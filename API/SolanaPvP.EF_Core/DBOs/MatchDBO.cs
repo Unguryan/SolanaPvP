@@ -19,9 +19,12 @@ public class MatchDBO
     public DateTime CreatedAt { get; set; }
     public DateTime? JoinedAt { get; set; }
     public DateTime? ResolvedAt { get; set; }
+    public bool IsPrivate { get; set; } = false;
+    public int? InvitationId { get; set; }
 
     // Navigation properties
     public ICollection<MatchParticipantDBO> Participants { get; set; } = new List<MatchParticipantDBO>();
     public GameDataDBO? GameData { get; set; }
     public ICollection<EventDBO> Events { get; set; } = new List<EventDBO>();
+    public MatchInvitationDBO? Invitation { get; set; }
 }

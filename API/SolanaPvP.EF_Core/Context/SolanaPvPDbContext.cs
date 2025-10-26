@@ -15,6 +15,7 @@ public class SolanaPvPDbContext : DbContext
     public DbSet<EventDBO> Events { get; set; }
     public DbSet<RefundTaskDBO> RefundTasks { get; set; }
     public DbSet<UserDBO> Users { get; set; }
+    public DbSet<MatchInvitationDBO> MatchInvitations { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,6 +33,8 @@ public class SolanaPvPDbContext : DbContext
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.CreatedAt);
             entity.HasIndex(e => e.DeadlineTs);
+            entity.HasIndex(e => e.IsPrivate);
+            entity.HasIndex(e => e.InvitationId);
         });
 
         // MatchParticipant configuration
@@ -105,9 +108,41 @@ public class SolanaPvPDbContext : DbContext
         {
             entity.HasKey(e => e.Pubkey);
             entity.Property(e => e.Pubkey).HasMaxLength(44);
+            entity.Property(e => e.Username).HasMaxLength(50).IsRequired();
             
+            entity.HasIndex(e => e.Username).IsUnique();
             entity.HasIndex(e => e.FirstSeen);
             entity.HasIndex(e => e.LastSeen);
+        });
+
+        // MatchInvitation configuration
+        modelBuilder.Entity<MatchInvitationDBO>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.InviterPubkey).HasMaxLength(44).IsRequired();
+            entity.Property(e => e.InviteePubkey).HasMaxLength(44).IsRequired();
+            entity.Property(e => e.MatchPda).HasMaxLength(44);
+            
+            entity.HasIndex(e => e.InviterPubkey);
+            entity.HasIndex(e => e.InviteePubkey);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.ExpiresAt);
+            
+            entity.HasOne(e => e.Inviter)
+                .WithMany(u => u.SentInvitations)
+                .HasForeignKey(e => e.InviterPubkey)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            entity.HasOne(e => e.Invitee)
+                .WithMany(u => u.ReceivedInvitations)
+                .HasForeignKey(e => e.InviteePubkey)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            entity.HasOne(e => e.Match)
+                .WithOne(m => m.Invitation)
+                .HasForeignKey<MatchInvitationDBO>(e => e.MatchPda)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

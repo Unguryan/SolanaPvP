@@ -22,9 +22,12 @@ public static class MatchMapper
             CreatedAt = dbo.CreatedAt,
             JoinedAt = dbo.JoinedAt,
             ResolvedAt = dbo.ResolvedAt,
+            IsPrivate = dbo.IsPrivate,
+            InvitationId = dbo.InvitationId,
             Participants = dbo.Participants.Select(p => p.ToDomain()).ToList(),
             GameData = dbo.GameData?.ToDomain(),
-            Events = dbo.Events.Select(e => e.ToDomain()).ToList()
+            Events = dbo.Events.Select(e => e.ToDomain()).ToList(),
+            Invitation = dbo.Invitation?.ToDomain()
         };
     }
 
@@ -45,9 +48,12 @@ public static class MatchMapper
             CreatedAt = domain.CreatedAt,
             JoinedAt = domain.JoinedAt,
             ResolvedAt = domain.ResolvedAt,
+            IsPrivate = domain.IsPrivate,
+            InvitationId = domain.InvitationId,
             Participants = domain.Participants.Select(p => p.ToDBO()).ToList(),
             GameData = domain.GameData?.ToDBO(),
-            Events = domain.Events.Select(e => e.ToDBO()).ToList()
+            Events = domain.Events.Select(e => e.ToDBO()).ToList(),
+            Invitation = domain.Invitation?.ToDBO()
         };
     }
 }

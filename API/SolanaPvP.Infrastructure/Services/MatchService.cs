@@ -19,9 +19,27 @@ public class MatchService : IMatchService
     public async Task<PagedResult<MatchView>> GetMatchesAsync(MatchFilter filter, Paging paging)
     {
         var skip = (paging.Page - 1) * paging.PageSize;
-        var matches = await _matchRepository.GetMatchesAsync(filter.Status, skip, paging.PageSize);
+        var matches = await _matchRepository.GetMatchesAsync(filter.Status, skip, paging.PageSize, filter.IsPrivate);
         
         var total = await GetTotalMatchesCountAsync(filter);
+        
+        var matchViews = matches.Select(ConvertToMatchView).ToList();
+
+        return new PagedResult<MatchView>
+        {
+            Items = matchViews,
+            Total = total,
+            Page = paging.Page,
+            PageSize = paging.PageSize
+        };
+    }
+
+    public async Task<PagedResult<MatchView>> GetActiveMatchesAsync(Paging paging)
+    {
+        var skip = (paging.Page - 1) * paging.PageSize;
+        var matches = await _matchRepository.GetActiveMatchesAsync(skip, paging.PageSize);
+        
+        var total = await GetTotalActiveMatchesCountAsync();
         
         var matchViews = matches.Select(ConvertToMatchView).ToList();
 
@@ -53,13 +71,90 @@ public class MatchService : IMatchService
         return new UserProfile
         {
             Pubkey = user.Pubkey,
+            Username = user.Username,
             Wins = user.Wins,
             Losses = user.Losses,
             TotalEarningsLamports = user.TotalEarningsLamports,
             MatchesPlayed = user.MatchesPlayed,
             FirstSeen = user.FirstSeen,
             LastSeen = user.LastSeen,
+            LastUsernameChange = user.LastUsernameChange,
+            CanChangeUsername = await _userRepository.CanChangeUsernameAsync(pubkey),
             RecentMatches = recentMatches
+        };
+    }
+
+    public async Task<UserProfile?> GetUserByUsernameAsync(string username)
+    {
+        var user = await _userRepository.GetByUsernameAsync(username);
+        if (user == null) return null;
+
+        // Get recent matches for this user
+        var recentMatches = await GetUserRecentMatchesAsync(user.Pubkey, 10);
+
+        return new UserProfile
+        {
+            Pubkey = user.Pubkey,
+            Username = user.Username,
+            Wins = user.Wins,
+            Losses = user.Losses,
+            TotalEarningsLamports = user.TotalEarningsLamports,
+            MatchesPlayed = user.MatchesPlayed,
+            FirstSeen = user.FirstSeen,
+            LastSeen = user.LastSeen,
+            LastUsernameChange = user.LastUsernameChange,
+            CanChangeUsername = await _userRepository.CanChangeUsernameAsync(user.Pubkey),
+            RecentMatches = recentMatches
+        };
+    }
+
+    public async Task<LeaderboardResult> GetLeaderboardAsync(LeaderboardType type, LeaderboardPeriod period, Paging paging)
+    {
+        var skip = (paging.Page - 1) * paging.PageSize;
+        
+        // This is a simplified implementation - in a real scenario, you'd want to optimize these queries
+        var users = await _userRepository.GetAllUsersAsync();
+        
+        var leaderboardEntries = users
+            .Select(u => new LeaderboardEntry
+            {
+                Pubkey = u.Pubkey,
+                Username = u.Username,
+                Wins = u.Wins,
+                Losses = u.Losses,
+                TotalMatches = u.MatchesPlayed,
+                WinRate = u.MatchesPlayed > 0 ? (double)u.Wins / u.MatchesPlayed : 0,
+                TotalEarningsLamports = u.TotalEarningsLamports,
+                MonthlyEarningsLamports = GetMonthlyEarnings(u) // This would need proper implementation
+            })
+            .Where(e => e.TotalMatches > 0) // Only include users who have played matches
+            .ToList();
+
+        // Sort based on leaderboard type
+        leaderboardEntries = type switch
+        {
+            LeaderboardType.WinRate => leaderboardEntries.OrderByDescending(e => e.WinRate).ThenByDescending(e => e.TotalMatches).ToList(),
+            LeaderboardType.TotalEarnings => leaderboardEntries.OrderByDescending(e => e.TotalEarningsLamports).ToList(),
+            LeaderboardType.MonthlyEarnings => leaderboardEntries.OrderByDescending(e => e.MonthlyEarningsLamports).ToList(),
+            _ => leaderboardEntries.OrderByDescending(e => e.WinRate).ToList()
+        };
+
+        // Add ranks
+        for (int i = 0; i < leaderboardEntries.Count; i++)
+        {
+            leaderboardEntries[i].Rank = i + 1;
+        }
+
+        var pagedEntries = leaderboardEntries.Skip(skip).Take(paging.PageSize).ToList();
+
+        return new LeaderboardResult
+        {
+            Entries = pagedEntries,
+            Total = leaderboardEntries.Count,
+            Page = paging.Page,
+            PageSize = paging.PageSize,
+            Type = type,
+            Period = period
         };
     }
 
@@ -67,8 +162,21 @@ public class MatchService : IMatchService
     {
         // This is a simplified implementation
         // In a real scenario, you might want to add a Count method to the repository
-        var allMatches = await _matchRepository.GetMatchesAsync(filter.Status, 0, int.MaxValue);
+        var allMatches = await _matchRepository.GetMatchesAsync(filter.Status, 0, int.MaxValue, filter.IsPrivate);
         return allMatches.Count();
+    }
+
+    private async Task<int> GetTotalActiveMatchesCountAsync()
+    {
+        var allActiveMatches = await _matchRepository.GetActiveMatchesAsync(0, int.MaxValue);
+        return allActiveMatches.Count();
+    }
+
+    private long GetMonthlyEarnings(User user)
+    {
+        // This is a placeholder - in a real implementation, you'd calculate monthly earnings
+        // based on match results from the current month
+        return user.TotalEarningsLamports / 12; // Simplified: divide total by 12
     }
 
     private async Task<List<MatchView>> GetUserRecentMatchesAsync(string pubkey, int limit)

@@ -17,9 +17,12 @@ public class Match
     public DateTime CreatedAt { get; set; }
     public DateTime? JoinedAt { get; set; }
     public DateTime? ResolvedAt { get; set; }
+    public bool IsPrivate { get; set; } = false; // True for invitation-based matches
+    public int? InvitationId { get; set; } // Reference to the invitation that created this match
 
     // Navigation properties
     public ICollection<MatchParticipant> Participants { get; set; } = new List<MatchParticipant>();
     public GameData? GameData { get; set; }
     public ICollection<Event> Events { get; set; } = new List<Event>();
+    public MatchInvitation? Invitation { get; set; }
 }

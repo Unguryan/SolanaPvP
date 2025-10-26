@@ -24,6 +24,20 @@ public class UserRepository : IUserRepository
         return dbo?.ToDomain();
     }
 
+    public async Task<User?> GetByUsernameAsync(string username)
+    {
+        var dbo = await _context.Users
+            .Include(u => u.MatchParticipants)
+            .FirstOrDefaultAsync(u => u.Username == username);
+
+        return dbo?.ToDomain();
+    }
+
+    public async Task<bool> IsUsernameAvailableAsync(string username)
+    {
+        return !await _context.Users.AnyAsync(u => u.Username == username);
+    }
+
     public async Task<User> CreateOrUpdateAsync(User user)
     {
         var existingDbo = await _context.Users.FindAsync(user.Pubkey);
@@ -37,11 +51,13 @@ public class UserRepository : IUserRepository
         }
         else
         {
+            existingDbo.Username = user.Username;
             existingDbo.Wins = user.Wins;
             existingDbo.Losses = user.Losses;
             existingDbo.TotalEarningsLamports = user.TotalEarningsLamports;
             existingDbo.MatchesPlayed = user.MatchesPlayed;
             existingDbo.LastSeen = user.LastSeen;
+            existingDbo.LastUsernameChange = user.LastUsernameChange;
             
             _context.Users.Update(existingDbo);
             await _context.SaveChangesAsync();
@@ -69,5 +85,41 @@ public class UserRepository : IUserRepository
 
         _context.Users.Update(user);
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<bool> ChangeUsernameAsync(string pubkey, string newUsername)
+    {
+        var user = await _context.Users.FindAsync(pubkey);
+        if (user == null) return false;
+
+        // Check if username is available
+        if (!await IsUsernameAvailableAsync(newUsername))
+        {
+            return false;
+        }
+
+        user.Username = newUsername;
+        user.LastUsernameChange = DateTime.UtcNow;
+        
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> CanChangeUsernameAsync(string pubkey)
+    {
+        var user = await _context.Users.FindAsync(pubkey);
+        if (user == null) return false;
+
+        if (user.LastUsernameChange == null) return true;
+
+        var timeSinceLastChange = DateTime.UtcNow - user.LastUsernameChange.Value;
+        return timeSinceLastChange.TotalHours >= 24;
+    }
+
+    public async Task<IEnumerable<User>> GetAllUsersAsync()
+    {
+        var dbos = await _context.Users.ToListAsync();
+        return dbos.Select(dbo => dbo.ToDomain());
     }
 }

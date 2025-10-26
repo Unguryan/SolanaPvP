@@ -5,8 +5,11 @@ namespace SolanaPvP.Application.Interfaces.Services;
 public interface IMatchService
 {
     Task<PagedResult<MatchView>> GetMatchesAsync(MatchFilter filter, Paging paging);
+    Task<PagedResult<MatchView>> GetActiveMatchesAsync(Paging paging);
     Task<MatchDetails?> GetMatchAsync(string matchPda);
     Task<UserProfile?> GetUserAsync(string pubkey);
+    Task<UserProfile?> GetUserByUsernameAsync(string username);
+    Task<LeaderboardResult> GetLeaderboardAsync(LeaderboardType type, LeaderboardPeriod period, Paging paging);
 }
 
 public class PagedResult<T>
@@ -22,6 +25,7 @@ public class MatchFilter
     public int? Status { get; set; }
     public string? GameMode { get; set; }
     public string? MatchType { get; set; }
+    public bool? IsPrivate { get; set; }
 }
 
 public class Paging
@@ -94,11 +98,49 @@ public class EventView
 public class UserProfile
 {
     public string Pubkey { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
     public int Wins { get; set; }
     public int Losses { get; set; }
     public long TotalEarningsLamports { get; set; }
     public int MatchesPlayed { get; set; }
     public DateTime FirstSeen { get; set; }
     public DateTime LastSeen { get; set; }
+    public DateTime? LastUsernameChange { get; set; }
+    public bool CanChangeUsername { get; set; }
     public List<MatchView> RecentMatches { get; set; } = new();
+}
+
+public class LeaderboardResult
+{
+    public IEnumerable<LeaderboardEntry> Entries { get; set; } = new List<LeaderboardEntry>();
+    public int Total { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public LeaderboardType Type { get; set; }
+    public LeaderboardPeriod Period { get; set; }
+}
+
+public class LeaderboardEntry
+{
+    public string Pubkey { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public int Rank { get; set; }
+    public int Wins { get; set; }
+    public int Losses { get; set; }
+    public int TotalMatches { get; set; }
+    public double WinRate { get; set; }
+    public long TotalEarningsLamports { get; set; }
+    public long MonthlyEarningsLamports { get; set; }
+}
+
+public enum LeaderboardType
+{
+    WinRate = 0,        // Wins / Total Matches
+    Earnings = 1,  // Earnings in lamports
+}
+
+public enum LeaderboardPeriod
+{
+    AllTime = 0,
+    Monthly = 1
 }

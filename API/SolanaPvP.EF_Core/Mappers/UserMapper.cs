@@ -10,13 +10,17 @@ public static class UserMapper
         return new User
         {
             Pubkey = dbo.Pubkey,
+            Username = dbo.Username,
             Wins = dbo.Wins,
             Losses = dbo.Losses,
             TotalEarningsLamports = dbo.TotalEarningsLamports,
             MatchesPlayed = dbo.MatchesPlayed,
             FirstSeen = dbo.FirstSeen,
             LastSeen = dbo.LastSeen,
-            MatchParticipants = dbo.MatchParticipants.Select(p => p.ToDomain()).ToList()
+            LastUsernameChange = dbo.LastUsernameChange,
+            MatchParticipants = dbo.MatchParticipants.Select(p => p.ToDomain()).ToList(),
+            SentInvitations = dbo.SentInvitations.Select(i => i.ToDomain()).ToList(),
+            ReceivedInvitations = dbo.ReceivedInvitations.Select(i => i.ToDomain()).ToList()
         };
     }
 
@@ -25,13 +29,17 @@ public static class UserMapper
         return new UserDBO
         {
             Pubkey = domain.Pubkey,
+            Username = domain.Username,
             Wins = domain.Wins,
             Losses = domain.Losses,
             TotalEarningsLamports = domain.TotalEarningsLamports,
             MatchesPlayed = domain.MatchesPlayed,
             FirstSeen = domain.FirstSeen,
             LastSeen = domain.LastSeen,
-            MatchParticipants = domain.MatchParticipants.Select(p => p.ToDBO()).ToList()
+            LastUsernameChange = domain.LastUsernameChange,
+            MatchParticipants = domain.MatchParticipants.Select(p => p.ToDBO()).ToList(),
+            SentInvitations = domain.SentInvitations.Select(i => i.ToDBO()).ToList(),
+            ReceivedInvitations = domain.ReceivedInvitations.Select(i => i.ToDBO()).ToList()
         };
     }
 }

@@ -19,6 +19,7 @@ public class MatchesController : ControllerBase
         [FromQuery] int? status,
         [FromQuery] string? gameMode,
         [FromQuery] string? matchType,
+        [FromQuery] bool? isPrivate,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
     {
@@ -26,7 +27,8 @@ public class MatchesController : ControllerBase
         {
             Status = status,
             GameMode = gameMode,
-            MatchType = matchType
+            MatchType = matchType,
+            IsPrivate = isPrivate
         };
 
         var paging = new Paging
@@ -36,6 +38,21 @@ public class MatchesController : ControllerBase
         };
 
         var result = await _matchService.GetMatchesAsync(filter, paging);
+        return Ok(result);
+    }
+
+    [HttpGet("active")]
+    public async Task<ActionResult<PagedResult<MatchView>>> GetActiveMatches(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
+    {
+        var paging = new Paging
+        {
+            Page = page,
+            PageSize = Math.Min(pageSize, 100)
+        };
+
+        var result = await _matchService.GetActiveMatchesAsync(paging);
         return Ok(result);
     }
 

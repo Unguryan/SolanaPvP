@@ -26,7 +26,7 @@ public class MatchRepository : IMatchRepository
         return dbo?.ToDomain();
     }
 
-    public async Task<IEnumerable<Match>> GetMatchesAsync(int? status = null, int skip = 0, int take = 50)
+    public async Task<IEnumerable<Match>> GetMatchesAsync(int? status = null, int skip = 0, int take = 50, bool? isPrivate = null)
     {
         var query = _context.Matches
             .Include(m => m.Participants)
@@ -38,7 +38,28 @@ public class MatchRepository : IMatchRepository
             query = query.Where(m => (int)m.Status == status.Value);
         }
 
+        if (isPrivate.HasValue)
+        {
+            query = query.Where(m => m.IsPrivate == isPrivate.Value);
+        }
+
         var dbos = await query
+            .OrderByDescending(m => m.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+
+        return dbos.Select(dbo => dbo.ToDomain());
+    }
+
+    public async Task<IEnumerable<Match>> GetActiveMatchesAsync(int skip = 0, int take = 50)
+    {
+        var activeStatuses = new[] { MatchStatus.Waiting, MatchStatus.AwaitingRandomness };
+        
+        var dbos = await _context.Matches
+            .Include(m => m.Participants)
+            .Include(m => m.GameData)
+            .Where(m => activeStatuses.Contains(m.Status) && !m.IsPrivate)
             .OrderByDescending(m => m.CreatedAt)
             .Skip(skip)
             .Take(take)

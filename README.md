@@ -74,11 +74,32 @@ SolanaPvP/
 ### Matches
 
 - `GET /api/matches` - List matches with pagination and filtering
+- `GET /api/matches/active` - Get active matches (waiting/awaiting randomness, public only)
 - `GET /api/matches/{matchPda}` - Get match details
 
 ### Users
 
+- `GET /api/users/me` - Get current user profile (requires X-User-Pubkey header)
 - `GET /api/users/{pubkey}` - Get user profile with stats
+- `GET /api/users/username/{username}` - Get user profile by username
+- `POST /api/users/me/username` - Change current user's username (24h cooldown, requires X-User-Pubkey header)
+- `GET /api/users/username/available` - Check username availability
+
+### Leaderboard
+
+- `GET /api/leaderboard` - Get leaderboard (winrate, earnings, all-time/monthly)
+- `GET /api/leaderboard/winrate` - Get win rate leaderboard
+- `GET /api/leaderboard/earnings` - Get earnings leaderboard
+
+### Invitations
+
+- `POST /api/invitations` - Create match invitation (requires X-User-Pubkey header)
+- `GET /api/invitations/{invitationId}` - Get invitation details
+- `GET /api/invitations/me` - Get current user's invitations (requires X-User-Pubkey header)
+- `GET /api/invitations/user/{pubkey}` - Get user invitations
+- `POST /api/invitations/{invitationId}/accept` - Accept invitation (requires X-User-Pubkey header)
+- `POST /api/invitations/{invitationId}/decline` - Decline invitation (requires X-User-Pubkey header)
+- `POST /api/invitations/{invitationId}/cancel` - Cancel invitation (requires X-User-Pubkey header)
 
 ### Health
 
@@ -87,6 +108,34 @@ SolanaPvP/
 ### WebSocket
 
 - `ws://localhost:5000/ws` - SignalR hub for real-time updates
+
+## Authentication
+
+The API uses a simple header-based authentication system:
+
+### Required Headers
+
+For endpoints that require user identification, include one of these headers:
+
+- `X-User-Pubkey` (preferred) - User's Solana public key
+- `X-Pubkey` - Alternative header name
+- `User-Pubkey` - Alternative header name
+- `Pubkey` - Simple version
+
+### Example
+
+```bash
+curl -H "X-User-Pubkey: 9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM" \
+     https://localhost:5001/api/users/me
+```
+
+### Pubkey Validation
+
+The middleware validates that the pubkey:
+
+- Is 32-44 characters long (typical Solana pubkey length)
+- Contains only valid base58 characters
+- Is not empty or whitespace
 
 ## Configuration
 
