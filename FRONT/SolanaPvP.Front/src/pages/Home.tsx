@@ -40,6 +40,24 @@ export const Home: React.FC = () => {
                       Join Match
                     </Button>
                   </Link>
+                  <Link to="/demo">
+                    <Button
+                      size="lg"
+                      variant="secondary"
+                      className="bg-purple-600 text-white hover:bg-purple-700"
+                    >
+                      🎮 Try Demo Game
+                    </Button>
+                  </Link>
+                  <Link to="/showcase">
+                    <Button
+                      size="lg"
+                      variant="ghost"
+                      className="border-white text-white hover:bg-white hover:text-purple-600"
+                    >
+                      🎯 All Game Modes
+                    </Button>
+                  </Link>
                   <Link to={ROUTES.LEADERBOARD}>
                     <Button
                       size="lg"
@@ -51,12 +69,32 @@ export const Home: React.FC = () => {
                   </Link>
                 </>
               ) : (
-                <Button
-                  size="lg"
-                  className="bg-white text-blue-600 hover:bg-gray-100"
-                >
-                  Connect Wallet to Play
-                </Button>
+                <>
+                  <Button
+                    size="lg"
+                    className="bg-white text-blue-600 hover:bg-gray-100"
+                  >
+                    Connect Wallet to Play
+                  </Button>
+                  <Link to="/demo">
+                    <Button
+                      size="lg"
+                      variant="secondary"
+                      className="bg-purple-600 text-white hover:bg-purple-700"
+                    >
+                      🎮 Try Demo Game
+                    </Button>
+                  </Link>
+                  <Link to="/showcase">
+                    <Button
+                      size="lg"
+                      variant="ghost"
+                      className="border-white text-white hover:bg-white hover:text-purple-600"
+                    >
+                      🎯 All Game Modes
+                    </Button>
+                  </Link>
+                </>
               )}
             </div>
           </div>

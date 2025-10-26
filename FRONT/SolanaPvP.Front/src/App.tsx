@@ -22,6 +22,14 @@ const Profile = React.lazy(() =>
 const NotFound = React.lazy(() =>
   import("@/pages/NotFound").then((module) => ({ default: module.NotFound }))
 );
+const GameDemo = React.lazy(() =>
+  import("@/pages/GameDemo").then((module) => ({ default: module.GameDemo }))
+);
+const GameShowcase = React.lazy(() =>
+  import("@/pages/GameShowcase").then((module) => ({
+    default: module.GameShowcase,
+  }))
+);
 
 function App() {
   return (
@@ -38,6 +46,8 @@ function App() {
             <Route path={ROUTES.HOME} element={<Home />} />
             <Route path={ROUTES.MATCHES} element={<Matches />} />
             <Route path={ROUTES.GAME} element={<Game />} />
+            <Route path="/demo" element={<GameDemo />} />
+            <Route path="/showcase" element={<GameShowcase />} />
             <Route path={ROUTES.LEADERBOARD} element={<Leaderboard />} />
             <Route path={ROUTES.PROFILE} element={<Profile />} />
             <Route path={ROUTES.NOT_FOUND} element={<NotFound />} />

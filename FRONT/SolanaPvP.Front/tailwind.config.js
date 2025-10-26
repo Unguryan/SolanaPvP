@@ -49,19 +49,21 @@ module.exports = {
           hover: '#f3f4f6',
         }
       },
-      animation: {
-        'card-flip': 'cardFlip 0.6s ease-in-out',
+             animation: {
+               'card-flip': 'cardFlip 0.4s ease-in-out',
         'chest-open': 'chestOpen 0.8s ease-out',
         'score-reveal': 'scoreReveal 1s ease-out',
         'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
         'bounce-slow': 'bounce 2s infinite',
       },
-      keyframes: {
-        cardFlip: {
-          '0%': { transform: 'rotateY(0deg)' },
-          '50%': { transform: 'rotateY(90deg)' },
-          '100%': { transform: 'rotateY(0deg)' },
-        },
+             keyframes: {
+               cardFlip: {
+                 '0%': { transform: 'rotateY(0deg) scale(1)' },
+                 '25%': { transform: 'rotateY(-45deg) scale(0.95)' },
+                 '50%': { transform: 'rotateY(-90deg) scale(0.9)' },
+                 '75%': { transform: 'rotateY(-45deg) scale(0.95)' },
+                 '100%': { transform: 'rotateY(0deg) scale(1)' },
+               },
         chestOpen: {
           '0%': { transform: 'scale(1) rotate(0deg)' },
           '50%': { transform: 'scale(1.1) rotate(5deg)' },
