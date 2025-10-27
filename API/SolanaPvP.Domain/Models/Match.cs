@@ -6,7 +6,7 @@ public class Match
 {
     public string MatchPda { get; set; } = string.Empty;
     public GameModeType GameMode { get; set; }
-    public MatchType MatchType { get; set; }
+    public SolanaPvP.Domain.Enums.MatchType MatchType { get; set; }
     public long StakeLamports { get; set; }
     public MatchStatus Status { get; set; }
     public long DeadlineTs { get; set; }

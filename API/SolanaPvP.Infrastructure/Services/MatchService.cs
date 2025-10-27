@@ -134,8 +134,7 @@ public class MatchService : IMatchService
         leaderboardEntries = type switch
         {
             LeaderboardType.WinRate => leaderboardEntries.OrderByDescending(e => e.WinRate).ThenByDescending(e => e.TotalMatches).ToList(),
-            LeaderboardType.TotalEarnings => leaderboardEntries.OrderByDescending(e => e.TotalEarningsLamports).ToList(),
-            LeaderboardType.MonthlyEarnings => leaderboardEntries.OrderByDescending(e => e.MonthlyEarningsLamports).ToList(),
+            LeaderboardType.Earnings => leaderboardEntries.OrderByDescending(e => e.TotalEarningsLamports).ToList(),
             _ => leaderboardEntries.OrderByDescending(e => e.WinRate).ToList()
         };
 

@@ -20,7 +20,7 @@ public class EventParser : IEventParser
         return programId == _solanaSettings.ProgramId;
     }
 
-    public ParsedEvent? ParseProgramLog(string logLine)
+    public SolanaPvP.Application.Interfaces.SolanaRPC.ParsedEvent? ParseProgramLog(string logLine)
     {
         try
         {
@@ -56,7 +56,7 @@ public class EventParser : IEventParser
         return logLine.Substring(startIndex + "AnchorEvent: ".Length);
     }
 
-    private ParsedEvent? ParseAnchorEvent(string eventData)
+    private SolanaPvP.Application.Interfaces.SolanaRPC.ParsedEvent? ParseAnchorEvent(string eventData)
     {
         try
         {
@@ -79,7 +79,7 @@ public class EventParser : IEventParser
 
             if (kind == null) return null;
 
-            return new ParsedEvent
+            return new SolanaPvP.Application.Interfaces.SolanaRPC.ParsedEvent
             {
                 Kind = kind.Value,
                 MatchPda = matchPda,

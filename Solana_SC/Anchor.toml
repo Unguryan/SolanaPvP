@@ -1,0 +1,30 @@
+[toolchain]
+anchor_version = "0.32.1"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.devnet]
+pvp_program = "6kf6QWaHacEvoyXeqrs78JqhRavBYjm7VdnqxWjiKLWY"
+
+[programs.mainnet]
+pvp_program = "HL92RAc8cw6T2wjQeKVDjy9GcZVNvzaTe31v3p7kuKkR"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[workspace]
+members = ["programs/*"]
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[test]
+startup_wait = 5000
+shutdown_wait = 2000
+upgradeable = false

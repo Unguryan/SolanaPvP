@@ -8,7 +8,7 @@ public class MatchInvitation
     public string InviterPubkey { get; set; } = string.Empty;
     public string InviteePubkey { get; set; } = string.Empty;
     public GameModeType GameMode { get; set; }
-    public MatchType MatchType { get; set; }
+    public SolanaPvP.Domain.Enums.MatchType MatchType { get; set; }
     public long StakeLamports { get; set; }
     public InvitationStatus Status { get; set; }
     public DateTime CreatedAt { get; set; }

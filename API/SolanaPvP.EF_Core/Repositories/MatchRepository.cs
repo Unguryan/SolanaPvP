@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SolanaPvP.Domain.Models;
+using SolanaPvP.Domain.Enums;
 using SolanaPvP.EF_Core.Context;
 using SolanaPvP.EF_Core.DBOs;
 using SolanaPvP.EF_Core.Mappers;
@@ -54,7 +55,7 @@ public class MatchRepository : IMatchRepository
 
     public async Task<IEnumerable<Match>> GetActiveMatchesAsync(int skip = 0, int take = 50)
     {
-        var activeStatuses = new[] { MatchStatus.Waiting, MatchStatus.AwaitingRandomness };
+        var activeStatuses = new[] { SolanaPvP.Domain.Enums.MatchStatus.Waiting, SolanaPvP.Domain.Enums.MatchStatus.AwaitingRandomness };
         
         var dbos = await _context.Matches
             .Include(m => m.Participants)

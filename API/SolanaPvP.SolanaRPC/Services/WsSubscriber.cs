@@ -22,7 +22,7 @@ public class WsSubscriber : IWsSubscriber, IDisposable
         _solanaSettings = solanaSettings;
     }
 
-    public async Task SubscribeLogsAsync(string programId, Action<WsLogEvent> onEvent, CancellationToken cancellationToken)
+    public async Task SubscribeLogsAsync(string programId, Action<SolanaPvP.Application.Interfaces.SolanaRPC.WsLogEvent> onEvent, CancellationToken cancellationToken)
     {
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         
@@ -72,7 +72,7 @@ public class WsSubscriber : IWsSubscriber, IDisposable
         await _webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
     }
 
-    private async Task ReceiveMessagesAsync(Action<WsLogEvent> onEvent, CancellationToken cancellationToken)
+    private async Task ReceiveMessagesAsync(Action<SolanaPvP.Application.Interfaces.SolanaRPC.WsLogEvent> onEvent, CancellationToken cancellationToken)
     {
         var buffer = new byte[4096];
         
@@ -109,7 +109,7 @@ public class WsSubscriber : IWsSubscriber, IDisposable
         }
     }
 
-    private WsLogEvent? ParseWebSocketMessage(string message)
+    private SolanaPvP.Application.Interfaces.SolanaRPC.WsLogEvent? ParseWebSocketMessage(string message)
     {
         try
         {
@@ -117,7 +117,7 @@ public class WsSubscriber : IWsSubscriber, IDisposable
             if (response?.result?.value == null) return null;
 
             var value = response.result.value;
-            return new WsLogEvent
+            return new SolanaPvP.Application.Interfaces.SolanaRPC.WsLogEvent
             {
                 Signature = value.signature?.ToString() ?? string.Empty,
                 Slot = value.slot?.ToObject<long>() ?? 0,
@@ -131,7 +131,7 @@ public class WsSubscriber : IWsSubscriber, IDisposable
         }
     }
 
-    private async Task ReconnectWithBackoffAsync(string programId, Action<WsLogEvent> onEvent, CancellationToken cancellationToken)
+    private async Task ReconnectWithBackoffAsync(string programId, Action<SolanaPvP.Application.Interfaces.SolanaRPC.WsLogEvent> onEvent, CancellationToken cancellationToken)
     {
         var delay = TimeSpan.FromSeconds(1);
         var maxDelay = TimeSpan.FromMinutes(5);

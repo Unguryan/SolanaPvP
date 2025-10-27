@@ -16,7 +16,7 @@ public class RpcReader : IRpcReader
         _solanaSettings = solanaSettings;
     }
 
-    public async Task<RpcTransaction?> GetTransactionAsync(string signature)
+    public async Task<SolanaPvP.Application.Interfaces.SolanaRPC.RpcTransaction?> GetTransactionAsync(string signature)
     {
         try
         {
@@ -40,15 +40,15 @@ public class RpcReader : IRpcReader
             if (response?.result == null) return null;
 
             var result = response.result;
-            return new RpcTransaction
+            return new SolanaPvP.Application.Interfaces.SolanaRPC.RpcTransaction
             {
                 Signature = signature,
                 Slot = result.slot ?? 0,
                 Error = result.err?.ToString(),
-                Message = result.transaction?.message != null ? new RpcTransactionMessage
+                Message = result.transaction?.message != null ? new SolanaPvP.Application.Interfaces.SolanaRPC.RpcTransactionMessage
                 {
                     AccountKeys = result.transaction.message.accountKeys?.ToObject<List<string>>() ?? new List<string>(),
-                    Instructions = result.transaction.message.instructions?.ToObject<List<RpcInstruction>>() ?? new List<RpcInstruction>()
+                    Instructions = result.transaction.message.instructions?.ToObject<List<SolanaPvP.Application.Interfaces.SolanaRPC.RpcInstruction>>() ?? new List<SolanaPvP.Application.Interfaces.SolanaRPC.RpcInstruction>()
                 } : null
             };
         }
@@ -78,9 +78,16 @@ public class RpcReader : IRpcReader
             if (response?.result == null) return new List<string>();
 
             var signatures = response.result.ToObject<List<dynamic>>() ?? new List<dynamic>();
-            return signatures.Select(s => s.signature?.ToString() ?? string.Empty)
-                           .Where(s => !string.IsNullOrEmpty(s))
-                           .ToList();
+            var result = new List<string>();
+            foreach (var s in signatures)
+            {
+                var signature = ((dynamic)s).signature?.ToString();
+                if (!string.IsNullOrEmpty(signature))
+                {
+                    result.Add(signature);
+                }
+            }
+            return result;
         }
         catch (Exception)
         {

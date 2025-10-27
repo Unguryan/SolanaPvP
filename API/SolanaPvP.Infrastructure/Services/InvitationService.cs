@@ -2,15 +2,16 @@ using SolanaPvP.Application.Interfaces.Repositories;
 using SolanaPvP.Application.Interfaces.Services;
 using SolanaPvP.Domain.Enums;
 using SolanaPvP.Domain.Models;
+using SolanaPvP.EF_Core.Repositories;
 
 namespace SolanaPvP.Infrastructure.Services;
 
 public class InvitationService : IInvitationService
 {
     private readonly IMatchInvitationRepository _invitationRepository;
-    private readonly IUserRepository _userRepository;
+    private readonly SolanaPvP.Application.Interfaces.Repositories.IUserRepository _userRepository;
 
-    public InvitationService(IMatchInvitationRepository invitationRepository, IUserRepository userRepository)
+    public InvitationService(IMatchInvitationRepository invitationRepository, SolanaPvP.Application.Interfaces.Repositories.IUserRepository userRepository)
     {
         _invitationRepository = invitationRepository;
         _userRepository = userRepository;
@@ -61,7 +62,7 @@ public class InvitationService : IInvitationService
 
     public async Task<IEnumerable<MatchInvitation>> GetUserInvitationsAsync(string pubkey, InvitationStatus? status = null)
     {
-        var statusInt = status.HasValue ? (int)status.Value : null;
+        var statusInt = status.HasValue ? (int)status.Value : (int?)null;
         return await _invitationRepository.GetUserInvitationsAsync(pubkey, statusInt);
     }
 

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SolanaPvP.API_Project.Extensions;
 using SolanaPvP.Application.Interfaces.Services;
+using SolanaPvP.Domain.Models;
 using SolanaPvP.Domain.Enums;
 
 namespace SolanaPvP.API_Project.Controllers;

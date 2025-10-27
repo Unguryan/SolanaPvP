@@ -77,7 +77,7 @@ export const GameShowcase: React.FC = () => {
     setSimulationProgress({ selectedIndices: [], currentScore: 0, itemValues });
 
     // Select random items with animation delay
-    const selectedIndices = [];
+    const selectedIndices: number[] = [];
     const availableIndices = Array.from({ length: totalItems }, (_, i) => i);
 
     for (let i = 0; i < maxSelections; i++) {
@@ -250,19 +250,19 @@ export const GameShowcase: React.FC = () => {
                     </p>
                     <div
                       className={`grid gap-4 max-w-md mx-auto ${
-                        gameModes[currentGame].maxSelections === 1
-                          ? "grid-cols-3"
-                          : currentGame === "pick5"
+                        (currentGame as GameMode) === "pick5"
                           ? "grid-cols-4"
+                          : gameModes[currentGame].maxSelections === 1
+                          ? "grid-cols-3"
                           : "grid-cols-3"
                       }`}
                     >
                       {Array.from(
                         {
                           length:
-                            currentGame === "pick5"
+                            (currentGame as GameMode) === "pick5"
                               ? 16
-                              : gameModes[currentGame].maxSelections === 1
+                              : (currentGame as GameMode) === "pick1"
                               ? 3
                               : 9,
                         },

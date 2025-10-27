@@ -34,10 +34,10 @@ builder.Services.AddSignalR();
 builder.Services.AddHttpClient<IRpcReader, RpcReader>();
 
 // Register repositories
-builder.Services.AddScoped<IMatchRepository, MatchRepository>();
-builder.Services.AddScoped<IEventRepository, EventRepository>();
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IRefundTaskRepository, RefundTaskRepository>();
+builder.Services.AddScoped<SolanaPvP.EF_Core.Repositories.IMatchRepository, SolanaPvP.EF_Core.Repositories.MatchRepository>();
+builder.Services.AddScoped<SolanaPvP.EF_Core.Repositories.IEventRepository, SolanaPvP.EF_Core.Repositories.EventRepository>();
+builder.Services.AddScoped<SolanaPvP.EF_Core.Repositories.IUserRepository, SolanaPvP.EF_Core.Repositories.UserRepository>();
+builder.Services.AddScoped<SolanaPvP.EF_Core.Repositories.IRefundTaskRepository, SolanaPvP.EF_Core.Repositories.RefundTaskRepository>();
 builder.Services.AddScoped<IMatchInvitationRepository, MatchInvitationRepository>();
 
 // Register services

@@ -60,8 +60,8 @@ public class LeaderboardController : ControllerBase
         };
 
         var leaderboardType = period == LeaderboardPeriod.Monthly 
-            ? LeaderboardType.MonthlyEarnings 
-            : LeaderboardType.TotalEarnings;
+            ? LeaderboardType.Earnings 
+            : LeaderboardType.Earnings;
 
         var result = await _matchService.GetLeaderboardAsync(leaderboardType, period, paging);
         return Ok(result);

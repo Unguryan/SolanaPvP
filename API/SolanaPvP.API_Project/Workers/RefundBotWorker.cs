@@ -50,7 +50,7 @@ public class RefundBotWorker : BackgroundService
         using var scope = _serviceProvider.CreateScope();
         var refundScheduler = scope.ServiceProvider.GetRequiredService<IRefundScheduler>();
         var matchRepository = scope.ServiceProvider.GetRequiredService<IMatchRepository>();
-        var refundSender = scope.ServiceProvider.GetRequiredService<IRefundSender>();
+        var refundSender = scope.ServiceProvider.GetRequiredService<SolanaPvP.Application.Interfaces.SolanaRPC.IRefundSender>();
 
         // Get pending refund tasks
         var pendingTasks = await refundScheduler.GetPendingTasksAsync(_refundSettings.BatchSize);

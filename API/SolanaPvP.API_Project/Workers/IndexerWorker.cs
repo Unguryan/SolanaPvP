@@ -301,7 +301,7 @@ public class MatchCreatedData
 {
     public string Creator { get; set; } = string.Empty;
     public GameModeType GameMode { get; set; }
-    public MatchType MatchType { get; set; }
+    public SolanaPvP.Domain.Enums.MatchType MatchType { get; set; }
     public long StakeLamports { get; set; }
     public long DeadlineTs { get; set; }
 }
