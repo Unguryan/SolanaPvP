@@ -11,6 +11,7 @@ public class User
     public DateTime FirstSeen { get; set; }
     public DateTime LastSeen { get; set; }
     public DateTime? LastUsernameChange { get; set; }
+    public bool CanChangeUsername { get; set; } = true;
 
     // Navigation properties
     public ICollection<MatchParticipant> MatchParticipants { get; set; } = new List<MatchParticipant>();

@@ -3,9 +3,10 @@ import React from "react";
 import { cn } from "@/utils/cn";
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "outlined" | "elevated";
+  variant?: "default" | "outlined" | "elevated" | "glass" | "neon";
   padding?: "none" | "sm" | "md" | "lg";
   hover?: boolean;
+  glow?: boolean;
 }
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
@@ -15,6 +16,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
       variant = "default",
       padding = "md",
       hover = false,
+      glow = false,
       children,
       ...props
     },
@@ -27,6 +29,8 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
       outlined: "bg-transparent border-gray-300 dark:border-gray-600",
       elevated:
         "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg",
+      glass: "glass-card",
+      neon: "neon-border glass-card",
     };
 
     const paddings = {
@@ -40,6 +44,8 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
       ? "hover:shadow-lg hover:scale-105 cursor-pointer"
       : "";
 
+    const glowClasses = glow ? "shadow-glow" : "";
+
     return (
       <div
         className={cn(
@@ -47,6 +53,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
           variants[variant],
           paddings[padding],
           hoverClasses,
+          glowClasses,
           className
         )}
         ref={ref}

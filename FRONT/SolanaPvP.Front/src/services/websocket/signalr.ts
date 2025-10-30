@@ -45,6 +45,32 @@ export class SignalRService {
       this.emit("matchRefunded", match);
     });
 
+    // Arena events - Live Feed
+    this.connection.on("feed:latest", (feedItems) => {
+      this.emit("feed:latest", feedItems);
+    });
+
+    this.connection.on("feed:append", (feedItem) => {
+      this.emit("feed:append", feedItem);
+    });
+
+    // Arena events - Matches
+    this.connection.on("matches:latest", (matches) => {
+      this.emit("matches:latest", matches);
+    });
+
+    this.connection.on("matches:update", (match) => {
+      this.emit("matches:update", match);
+    });
+
+    this.connection.on("match:joined", (match) => {
+      this.emit("match:joined", match);
+    });
+
+    this.connection.on("match:left", (matchId) => {
+      this.emit("match:left", matchId);
+    });
+
     // Invitation events
     this.connection.on("invitationReceived", (invitation) => {
       this.emit("invitationReceived", invitation);
@@ -172,6 +198,43 @@ export class SignalRService {
   async leaveMatchGroup(matchPda: string): Promise<void> {
     if (this.connection?.state === signalR.HubConnectionState.Connected) {
       await this.connection.invoke("LeaveMatchGroup", matchPda);
+    }
+  }
+
+  // Arena methods
+  async joinArena(): Promise<void> {
+    if (this.connection?.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke("JoinArena");
+    }
+  }
+
+  async leaveArena(): Promise<void> {
+    if (this.connection?.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke("LeaveArena");
+    }
+  }
+
+  async getLatestFeed(): Promise<void> {
+    if (this.connection?.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke("GetLatestFeed");
+    }
+  }
+
+  async getLatestMatches(): Promise<void> {
+    if (this.connection?.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke("GetLatestMatches");
+    }
+  }
+
+  async joinMatch(matchId: string): Promise<void> {
+    if (this.connection?.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke("JoinMatch", matchId);
+    }
+  }
+
+  async leaveMatch(matchId: string): Promise<void> {
+    if (this.connection?.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke("LeaveMatch", matchId);
     }
   }
 

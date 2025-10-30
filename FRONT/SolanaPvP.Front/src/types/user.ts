@@ -1,13 +1,32 @@
 // User related types
 export interface UserProfile {
   pubkey: string;
-  username?: string;
+  username: string;
+  wins: number;
+  losses: number;
+  totalEarningsLamports: number;
+  matchesPlayed: number;
+  firstSeen: string;
+  lastSeen: string;
   lastUsernameChange?: string;
   canChangeUsername: boolean;
-  totalMatches: number;
-  wonMatches: number;
-  totalEarningsLamports: number;
   recentMatches: MatchSummary[];
+}
+
+export interface UserStatistics {
+  totalMatches: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  pnlDay: number;
+  pnlMonth: number;
+  pnlAllTime: number;
+}
+
+export enum StatisticsPeriod {
+  Day = "Day",
+  Month = "Month",
+  AllTime = "AllTime",
 }
 
 export interface MatchSummary {
@@ -20,6 +39,10 @@ export interface MatchSummary {
   isWinner: boolean;
   earningsLamports: number;
   createdAt: string;
+}
+
+export interface RegisterUserRequest {
+  pubkey: string;
 }
 
 export interface ChangeUsernameRequest {

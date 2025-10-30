@@ -14,6 +14,7 @@ public class UserDBO
     public DateTime FirstSeen { get; set; }
     public DateTime LastSeen { get; set; }
     public DateTime? LastUsernameChange { get; set; }
+    public bool CanChangeUsername { get; set; } = true;
 
     // Navigation properties
     public ICollection<MatchParticipantDBO> MatchParticipants { get; set; } = new List<MatchParticipantDBO>();

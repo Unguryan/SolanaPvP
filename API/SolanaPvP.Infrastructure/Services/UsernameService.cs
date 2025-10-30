@@ -14,7 +14,7 @@ public class UsernameService : IUsernameService
 
     public async Task<bool> IsUsernameAvailableAsync(string username)
     {
-        if (string.IsNullOrWhiteSpace(username) || username.Length < 3 || username.Length > 50)
+        if (string.IsNullOrWhiteSpace(username) || username.Length < 3 || username.Length > 64)
         {
             return false;
         }

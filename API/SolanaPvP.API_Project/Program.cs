@@ -1,66 +1,27 @@
-using Microsoft.EntityFrameworkCore;
 using SolanaPvP.API_Project.Extensions;
 using SolanaPvP.API_Project.Hubs;
 using SolanaPvP.API_Project.Middleware;
 using SolanaPvP.API_Project.Workers;
-using SolanaPvP.Application.Interfaces.Repositories;
-using SolanaPvP.Application.Interfaces.Services;
-using SolanaPvP.Application.Interfaces.SolanaRPC;
-using SolanaPvP.Domain.Settings;
-using SolanaPvP.EF_Core.Context;
-using SolanaPvP.EF_Core.Repositories;
-using SolanaPvP.Infrastructure.Services;
-using SolanaPvP.SolanaRPC.Services;
+using SolanaPvP.Application;
+using SolanaPvP.Domain;
+using SolanaPvP.EF_Core;
+using SolanaPvP.Infrastructure;
+using SolanaPvP.SolanaRPC;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
+builder.Services.AddControllers();
 builder.Services.AddOpenApi();
-
-// Configure settings
-builder.Services.Configure<SolanaSettings>(builder.Configuration.GetSection("Solana"));
-builder.Services.Configure<IndexerSettings>(builder.Configuration.GetSection("Indexer"));
-builder.Services.Configure<RefundSettings>(builder.Configuration.GetSection("Refund"));
-builder.Services.Configure<CommissionSettings>(builder.Configuration.GetSection("Commission"));
-
-// Add Entity Framework
-builder.Services.AddDbContext<SolanaPvPDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Add SignalR
 builder.Services.AddSignalR();
 
-// Add HTTP client for RPC calls
-builder.Services.AddHttpClient<IRpcReader, RpcReader>();
-
-// Register repositories
-builder.Services.AddScoped<SolanaPvP.EF_Core.Repositories.IMatchRepository, SolanaPvP.EF_Core.Repositories.MatchRepository>();
-builder.Services.AddScoped<SolanaPvP.EF_Core.Repositories.IEventRepository, SolanaPvP.EF_Core.Repositories.EventRepository>();
-builder.Services.AddScoped<SolanaPvP.EF_Core.Repositories.IUserRepository, SolanaPvP.EF_Core.Repositories.UserRepository>();
-builder.Services.AddScoped<SolanaPvP.EF_Core.Repositories.IRefundTaskRepository, SolanaPvP.EF_Core.Repositories.RefundTaskRepository>();
-builder.Services.AddScoped<IMatchInvitationRepository, MatchInvitationRepository>();
-
-// Register services
-builder.Services.AddScoped<IMatchService, MatchService>();
-builder.Services.AddScoped<IGameDataGenerator, GameDataGenerator>();
-builder.Services.AddScoped<IRefundScheduler, RefundScheduler>();
-builder.Services.AddScoped<IIndexerStateManager, IndexerStateManager>();
-builder.Services.AddScoped<IUsernameService, UsernameService>();
-builder.Services.AddScoped<IInvitationService, InvitationService>();
-
-// Register SolanaRPC services
-builder.Services.AddScoped<IEventParser, EventParser>();
-builder.Services.AddScoped<ITxVerifier, TxVerifier>();
-builder.Services.AddScoped<IRefundSender, RefundSender>();
-builder.Services.AddSingleton<IWsSubscriber, WsSubscriber>();
-
-// Register settings as singletons for easy access
-builder.Services.AddSingleton<SolanaSettings>(provider =>
-    builder.Configuration.GetSection("Solana").Get<SolanaSettings>() ?? new SolanaSettings());
-builder.Services.AddSingleton<IndexerSettings>(provider =>
-    builder.Configuration.GetSection("Indexer").Get<IndexerSettings>() ?? new IndexerSettings());
-builder.Services.AddSingleton<RefundSettings>(provider =>
-    builder.Configuration.GetSection("Refund").Get<RefundSettings>() ?? new RefundSettings());
+// Register all layers using extension methods
+builder.Services.AddEfCore(builder.Configuration);
+builder.Services.AddApplication(builder.Configuration);
+builder.Services.AddInfrastructure();
+builder.Services.AddSolanaRPC();
 
 // Register background workers
 builder.Services.AddHostedService<IndexerWorker>();
@@ -87,17 +48,24 @@ app.UseCors(policy =>
 // Add custom middleware
 app.UseMiddleware<PubkeyMiddleware>();
 
-// Map controllers
+// Map controllers FIRST (before static files)
 app.MapControllers();
 
 // Map SignalR hub
 app.MapHub<MatchHub>("/ws");
 
+// Serve static files from wwwroot (after API routes)
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+// SPA fallback - serve index.html for client-side routing
+app.MapFallbackToFile("index.html");
+
 // Ensure database is created
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<SolanaPvPDbContext>();
+    var context = scope.ServiceProvider.GetRequiredService<SolanaPvP.EF_Core.Context.SolanaPvPDbContext>();
     context.Database.EnsureCreated();
-}
+} 
 
 app.Run();

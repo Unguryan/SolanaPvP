@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SolanaPvP.Application.Interfaces.Repositories;
 using SolanaPvP.Domain.Models;
 using SolanaPvP.EF_Core.Context;
 using SolanaPvP.EF_Core.DBOs;
@@ -121,5 +122,13 @@ public class UserRepository : IUserRepository
     {
         var dbos = await _context.Users.ToListAsync();
         return dbos.Select(dbo => dbo.ToDomain());
+    }
+
+    public async Task<User> CreateUserAsync(User user)
+    {
+        var dbo = user.ToDBO();
+        _context.Users.Add(dbo);
+        await _context.SaveChangesAsync();
+        return dbo.ToDomain();
     }
 }

@@ -89,9 +89,63 @@ public class UsersController : ControllerBase
         var isAvailable = await _usernameService.IsUsernameAvailableAsync(username);
         return Ok(new { username, isAvailable });
     }
+
+    [HttpPost("register")]
+    public async Task<ActionResult<UserProfile>> RegisterUser([FromBody] RegisterUserRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Pubkey))
+        {
+            return BadRequest("Pubkey is required");
+        }
+
+        // Check if user already exists
+        var existingUser = await _matchService.GetUserAsync(request.Pubkey);
+        if (existingUser != null)
+        {
+            return Ok(existingUser);
+        }
+
+        // Create new user with auto-generated username
+        var newUser = await _matchService.CreateUserAsync(request.Pubkey);
+        return Ok(newUser);
+    }
+
+    [HttpGet("{pubkey}/matches")]
+    public async Task<ActionResult<PagedResult<MatchView>>> GetUserMatches(
+        string pubkey,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var paging = new Paging
+        {
+            Page = page,
+            PageSize = Math.Min(pageSize, 50)
+        };
+        
+        var result = await _matchService.GetUserMatchesAsync(pubkey, paging);
+        return Ok(result);
+    }
+
+    [HttpGet("{pubkey}/statistics")]
+    public async Task<ActionResult<UserStatistics>> GetUserStatistics(
+        string pubkey,
+        [FromQuery] StatisticsPeriod period = StatisticsPeriod.AllTime)
+    {
+        var stats = await _matchService.GetUserStatisticsAsync(pubkey, period);
+        if (stats == null)
+        {
+            return NotFound($"User with pubkey {pubkey} not found");
+        }
+        return Ok(stats);
+    }
 }
 
 public class ChangeUsernameRequest
 {
     public string Username { get; set; } = string.Empty;
+}
+
+public class RegisterUserRequest
+{
+    public string Pubkey { get; set; } = string.Empty;
 }

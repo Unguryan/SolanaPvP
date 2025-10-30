@@ -1,567 +1,258 @@
-// Game Demo page - Simulated working game
+// Game Demo page - Live Arena style
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { UniversalGameBoard } from "@/components/game/UniversalGameBoard";
+import { GlowButton } from "@/components/ui/GlowButton";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/common/Card";
-import { Button } from "@/components/common/Button";
-import { Spinner } from "@/components/common/Spinner";
-import { GameModeType, MatchType, MatchStatus } from "@/types/match";
-import { formatSol } from "@/utils/lamports";
-import { formatDuration } from "@/utils/format";
+  GlassCard,
+  GlassCardHeader,
+  GlassCardTitle,
+} from "@/components/ui/GlassCard";
+import { generateDemoPlayers } from "@/lib/gameMockGenerator";
+import { getGameModeConfig } from "@/utils/gameScoreDistribution";
 
-// Mock game data
-const MOCK_MATCH = {
-  id: "demo-match-1",
-  creatorPubkey: "DemoUser123...",
-  gameMode: GameModeType.PickThreeFromNine,
-  matchType: MatchType.Solo,
-  stakeLamports: 1000000000, // 1 SOL
-  status: MatchStatus.Waiting,
-  createdAt: new Date().toISOString(),
-  participantCount: 1,
-  maxParticipants: 2,
-};
-
-const MOCK_GAME_DATA = {
-  targetScore: 1850,
-  opponentScore: 1600,
-  isWinner: true,
-  timeRemaining: 20,
-  selections: [
-    { index: 0, value: 450, selected: false, revealed: false },
-    { index: 1, value: 320, selected: false, revealed: false },
-    { index: 2, value: 680, selected: false, revealed: false },
-    { index: 3, value: 290, selected: false, revealed: false },
-    { index: 4, value: 550, selected: false, revealed: false },
-    { index: 5, value: 410, selected: false, revealed: false },
-    { index: 6, value: 720, selected: false, revealed: false },
-    { index: 7, value: 380, selected: false, revealed: false },
-    { index: 8, value: 620, selected: false, revealed: false },
-  ],
-};
+type GameMode =
+  | "PickThreeFromNine"
+  | "PickFiveFromSixteen"
+  | "PickOneFromThree";
+type MatchType = "Solo" | "Duo" | "Team";
 
 export const GameDemo: React.FC = () => {
-  const [gameState, setGameState] = useState({
-    isActive: false,
-    isCompleted: false,
-    timeRemaining: 20,
-    selections: MOCK_GAME_DATA.selections,
-    currentScore: 0,
-    showResult: false,
-    isRevealing: false,
-    autoSelected: false,
-  });
+  const [currentGameMode, setCurrentGameMode] =
+    useState<GameMode>("PickThreeFromNine");
+  const [currentMatchType, setCurrentMatchType] = useState<MatchType>("Solo");
+  const [isGameActive, setIsGameActive] = useState(false);
+  const [gameKey, setGameKey] = useState(0);
+  const [stakeAmount, setStakeAmount] = useState(0.1);
 
-  const [match] = useState(MOCK_MATCH);
+  const gameModes: { mode: GameMode; label: string; icon: string }[] = [
+    { mode: "PickThreeFromNine", label: "3x3 Tiles", icon: "🎯" },
+    { mode: "PickFiveFromSixteen", label: "4x4 Chests", icon: "🏆" },
+    { mode: "PickOneFromThree", label: "1x3 Cards", icon: "🎴" },
+  ];
 
-  // Timer effect
-  useEffect(() => {
-    if (!gameState.isActive || gameState.isCompleted) return;
+  const matchTypes: { type: MatchType; label: string; description: string }[] =
+    [
+      { type: "Solo", label: "1v1", description: "Classic duel" },
+      { type: "Duo", label: "2v2", description: "Team battle" },
+      { type: "Team", label: "5v5", description: "Epic showdown" },
+    ];
 
-    const timer = setInterval(() => {
-      setGameState((prev) => {
-        if (prev.timeRemaining <= 1) {
-          // Auto-select remaining tiles if not all selected
-          const selectedCount = prev.selections.filter(
-            (s) => s.selected
-          ).length;
-          if (selectedCount < 3) {
-            const unselected = prev.selections.filter((s) => !s.selected);
-            const toSelect = unselected.slice(0, 3 - selectedCount);
+  const handleStartGame = () => {
+    // Generate random stake amount
+    const stakes = [0.1, 0.5, 1.0];
+    const randomStake = stakes[Math.floor(Math.random() * stakes.length)];
+    setStakeAmount(randomStake);
+    setIsGameActive(true);
+    setGameKey((prev) => prev + 1); // Force re-render
 
-            const newSelections = prev.selections.map((selection) => {
-              const toSelectItem = toSelect.find(
-                (item) => item.index === selection.index
-              );
-              if (toSelectItem) {
-                return { ...selection, selected: true, revealed: true };
-              }
-              return selection;
-            });
-
-            const selectedTiles = newSelections.filter((s) => s.selected);
-            const currentScore = selectedTiles.reduce(
-              (sum, tile) => sum + tile.value,
-              0
-            );
-
-            return {
-              ...prev,
-              selections: newSelections,
-              currentScore,
-              isActive: false,
-              isCompleted: true,
-              autoSelected: true,
-            };
-          } else {
-            return {
-              ...prev,
-              isActive: false,
-              isCompleted: true,
-            };
-          }
-        }
-        return {
-          ...prev,
-          timeRemaining: prev.timeRemaining - 1,
-        };
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [gameState.isActive, gameState.isCompleted]);
-
-  // Show results after 3 seconds when game completes
-  useEffect(() => {
-    if (gameState.isCompleted && !gameState.showResult) {
-      const timer = setTimeout(() => {
-        setGameState((prev) => ({
-          ...prev,
-          showResult: true,
-          isRevealing: true,
-        }));
-      }, 3000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [gameState.isCompleted, gameState.showResult]);
-
-  const handleTileSelect = (index: number) => {
-    if (!gameState.isActive || gameState.isCompleted) return;
-
-    setGameState((prev) => {
-      const selectedCount = prev.selections.filter((s) => s.selected).length;
-      if (selectedCount >= 3) return prev; // Already selected 3 tiles
-
-      const newSelections = prev.selections.map((tile, i) =>
-        i === index ? { ...tile, selected: true, revealed: true } : tile
-      );
-
-      const selectedTiles = newSelections.filter((tile) => tile.selected);
-      const currentScore = selectedTiles.reduce(
-        (sum, tile) => sum + tile.value,
-        0
-      );
-
-      return {
-        ...prev,
-        selections: newSelections,
-        currentScore,
-      };
-    });
+    // Scroll to top with delay to ensure state update
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 100);
   };
 
-  const startGame = () => {
-    setGameState((prev) => ({
-      ...prev,
-      isActive: true,
-      isCompleted: false,
-      showResult: false,
-      timeRemaining: 20,
-      selections: MOCK_GAME_DATA.selections,
-      currentScore: 0,
-    }));
+  const handleGameComplete = (result: unknown) => {
+    console.log("Game completed:", result);
+    // Game completion is handled by the modal
   };
 
-  const resetGame = () => {
-    setGameState({
-      isActive: false,
-      isCompleted: false,
-      timeRemaining: 20,
-      selections: MOCK_GAME_DATA.selections,
-      currentScore: 0,
-      showResult: false,
-      isRevealing: false,
-      autoSelected: false,
-    });
+  const handleResetGame = () => {
+    setIsGameActive(false);
+    setGameKey((prev) => prev + 1);
   };
 
-  const selectedTiles = gameState.selections.filter((tile) => tile.selected);
-  const isMaxSelections = selectedTiles.length >= 3;
+  const currentConfig = getGameModeConfig(currentGameMode);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800 py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-bg">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+        <motion.div
+          className="text-center mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <h1 className="text-4xl md:text-5xl font-display font-bold text-txt-base mb-4">
             🎮 Game Demo
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400">
-            Experience the Solana PvP game interface
+          <p className="text-lg text-txt-muted max-w-2xl mx-auto">
+            Experience the thrill of Solana PvP gaming. Choose your game mode
+            and battle against AI opponents!
           </p>
-        </div>
+        </motion.div>
 
-        {/* Match Info */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Match Information</span>
-              <span className="text-sm font-normal text-gray-500">
-                {match.gameMode} • {match.matchType} •{" "}
-                {formatSol(match.stakeLamports)}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">
-                  {formatSol(match.stakeLamports)}
-                </div>
-                <div className="text-sm text-gray-500">Stake Amount</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  {match.participantCount}/{match.maxParticipants}
-                </div>
-                <div className="text-sm text-gray-500">Participants</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">
-                  {gameState.timeRemaining}s
-                </div>
-                <div className="text-sm text-gray-500">Time Remaining</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Game Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Game Board */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Pick 3 from 9 Tiles</span>
-                  <div className="flex items-center space-x-4">
-                    <div className="text-sm text-gray-500">
-                      Selected: {selectedTiles.length}/3
-                    </div>
-                    <div className="text-sm font-bold text-blue-600">
-                      Score: {gameState.currentScore}
-                    </div>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4">
-                  {gameState.selections.map((tile, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleTileSelect(index)}
-                      disabled={
-                        !gameState.isActive ||
-                        gameState.isCompleted ||
-                        tile.selected ||
-                        isMaxSelections
+        {!isGameActive ? (
+          /* Game Setup */
+          <div className="space-y-8">
+            {/* Game Mode Selection */}
+            <GlassCard className="p-6 mt-8">
+              <GlassCardHeader>
+                <GlassCardTitle className="text-xl font-display text-sol-purple flex items-center">
+                  <span className="text-2xl mr-3">{currentConfig.icon}</span>
+                  Choose Game Mode
+                </GlassCardTitle>
+              </GlassCardHeader>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                {gameModes.map(({ mode, label, icon }, index) => {
+                  const variants = ["neon", "purple", "mint", "orange", "blue"];
+                  const selectedVariant =
+                    currentGameMode === mode ? variants[index] : "ghost";
+                  return (
+                    <GlowButton
+                      key={mode}
+                      variant={
+                        selectedVariant as
+                          | "neon"
+                          | "purple"
+                          | "mint"
+                          | "orange"
+                          | "blue"
+                          | "ghost"
                       }
-                      className={`
-                        aspect-square rounded-lg border-2 transition-all duration-300 transform
-                        ${
-                          tile.selected
-                            ? "border-blue-500 bg-blue-100 dark:bg-blue-900 shadow-lg scale-105"
-                            : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-blue-300 hover:scale-105"
-                        }
-                        ${
-                          !gameState.isActive ||
-                          gameState.isCompleted ||
-                          tile.selected ||
-                          isMaxSelections
-                            ? "opacity-50 cursor-not-allowed"
-                            : "cursor-pointer hover:shadow-md"
-                        }
-                        ${tile.selected ? "animate-pulse-glow" : ""}
-                        ${tile.selected ? "animate-card-flip" : ""}
-                      `}
+                      onClick={() => setCurrentGameMode(mode)}
+                      className="flex flex-col items-center space-y-2 p-3 h-16"
                     >
-                      <div className="flex flex-col items-center justify-center h-full p-2">
-                        <div className="text-2xl mb-2">🎯</div>
-                        {tile.revealed || gameState.isRevealing ? (
-                          <div className="text-lg font-bold text-gray-900 dark:text-white animate-score-reveal">
-                            {tile.value}
-                          </div>
-                        ) : (
-                          <div className="text-lg font-bold text-gray-400 dark:text-gray-500">
-                            ?
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  ))}
+                      <span className="text-2xl">{icon}</span>
+                      <span className="text-sm font-medium">{label}</span>
+                    </GlowButton>
+                  );
+                })}
+              </div>
+            </GlassCard>
+
+            {/* Match Type Selection */}
+            <GlassCard className="p-6">
+              <GlassCardHeader>
+                <GlassCardTitle className="text-xl font-display text-sol-purple">
+                  Match Type
+                </GlassCardTitle>
+              </GlassCardHeader>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                {matchTypes.map(({ type, label, description }, index) => {
+                  const variants = ["blue", "orange", "purple"];
+                  const selectedVariant =
+                    currentMatchType === type ? variants[index] : "ghost";
+                  return (
+                    <GlowButton
+                      key={type}
+                      variant={
+                        selectedVariant as
+                          | "neon"
+                          | "purple"
+                          | "mint"
+                          | "orange"
+                          | "blue"
+                          | "ghost"
+                      }
+                      onClick={() => setCurrentMatchType(type)}
+                      className="flex flex-col items-center space-y-2 p-3 h-16"
+                    >
+                      <span className="text-lg font-bold">{label}</span>
+                      <span className="text-xs text-txt-muted">
+                        {description}
+                      </span>
+                    </GlowButton>
+                  );
+                })}
+              </div>
+            </GlassCard>
+
+            {/* Game Info */}
+            <GlassCard className="p-6">
+              <GlassCardHeader>
+                <GlassCardTitle className="text-xl font-display text-sol-purple">
+                  Game Information
+                </GlassCardTitle>
+              </GlassCardHeader>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <div>
+                  <h3 className="font-semibold text-txt-base mb-2">
+                    How to Play
+                  </h3>
+                  <ul className="text-sm text-txt-muted space-y-1">
+                    <li>
+                      • Select {currentConfig.maxSelections}{" "}
+                      {currentConfig.name.toLowerCase()}
+                    </li>
+                    <li>• Each selection reveals a point value</li>
+                    <li>• Reach your target score to win</li>
+                    <li>• Higher values give you better chances</li>
+                  </ul>
                 </div>
-
-                {/* Game Controls */}
-                <div className="mt-6 flex justify-center space-x-4">
-                  {!gameState.isActive && !gameState.isCompleted && (
-                    <Button
-                      onClick={startGame}
-                      size="lg"
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      Start Game
-                    </Button>
-                  )}
-
-                  {gameState.isActive && (
-                    <Button
-                      onClick={() => {
-                        // Auto-select remaining tiles
-                        const selectedCount = gameState.selections.filter(
-                          (s) => s.selected
-                        ).length;
-                        if (selectedCount < 3) {
-                          const unselected = gameState.selections.filter(
-                            (s) => !s.selected
-                          );
-                          const toSelect = unselected.slice(
-                            0,
-                            3 - selectedCount
-                          );
-
-                          const newSelections = gameState.selections.map(
-                            (selection) => {
-                              const toSelectItem = toSelect.find(
-                                (item) => item.index === selection.index
-                              );
-                              if (toSelectItem) {
-                                return {
-                                  ...selection,
-                                  selected: true,
-                                  revealed: true,
-                                };
-                              }
-                              return selection;
-                            }
-                          );
-
-                          const selectedTiles = newSelections.filter(
-                            (s) => s.selected
-                          );
-                          const currentScore = selectedTiles.reduce(
-                            (sum, tile) => sum + tile.value,
-                            0
-                          );
-
-                          setGameState((prev) => ({
-                            ...prev,
-                            selections: newSelections,
-                            currentScore,
-                            isActive: false,
-                            isCompleted: true,
-                            autoSelected: true,
-                          }));
-                        } else {
-                          setGameState((prev) => ({
-                            ...prev,
-                            isActive: false,
-                            isCompleted: true,
-                          }));
-                        }
-                      }}
-                      variant="secondary"
-                      size="lg"
-                    >
-                      End Game
-                    </Button>
-                  )}
-
-                  {gameState.isCompleted && !gameState.showResult && (
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-blue-600 mb-2">
-                        {gameState.autoSelected
-                          ? "Auto-selecting remaining tiles..."
-                          : "Game Complete!"}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        Revealing results in{" "}
-                        {gameState.timeRemaining > 0
-                          ? gameState.timeRemaining
-                          : 3}{" "}
-                        seconds...
-                      </div>
-                    </div>
-                  )}
-
-                  {gameState.showResult && (
-                    <Button onClick={resetGame} size="lg" variant="secondary">
-                      Play Again
-                    </Button>
-                  )}
+                <div>
+                  <h3 className="font-semibold text-txt-base mb-2">
+                    Demo Features
+                  </h3>
+                  <ul className="text-sm text-txt-muted space-y-1">
+                    <li>• Play against AI opponents</li>
+                    <li>• Experience real game mechanics</li>
+                    <li>• No real SOL required</li>
+                    <li>• Full animations and effects</li>
+                  </ul>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </GlassCard>
+
+            {/* Start Button */}
+            <motion.div
+              className="text-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
+              <GlowButton
+                size="lg"
+                variant="neon"
+                onClick={handleStartGame}
+                className="text-xl px-8 py-4 min-w-[200px]"
+              >
+                Start Demo Game
+              </GlowButton>
+            </motion.div>
           </div>
-
-          {/* Game Info Panel */}
+        ) : (
+          /* Active Game */
           <div className="space-y-6">
-            {/* Current Status */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Game Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">Status:</span>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        gameState.isActive
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                          : gameState.isCompleted
-                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                      }`}
-                    >
-                      {gameState.isActive
-                        ? "Playing"
-                        : gameState.isCompleted
-                        ? "Completed"
-                        : "Ready"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">Time:</span>
-                    <span className="font-mono text-lg">
-                      {formatDuration(gameState.timeRemaining)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">Score:</span>
-                    <span className="font-bold text-xl text-blue-600">
-                      {gameState.currentScore}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Selected Tiles */}
-            {selectedTiles.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Selected Tiles</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {selectedTiles.map((tile, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900 rounded"
-                      >
-                        <span className="text-sm">Tile {tile.index + 1}</span>
-                        <span className="font-bold text-blue-600">
-                          {tile.value}
-                        </span>
-                      </div>
-                    ))}
-                    <div className="border-t pt-2 mt-2">
-                      <div className="flex items-center justify-between font-bold">
-                        <span>Total:</span>
-                        <span className="text-blue-600">
-                          {gameState.currentScore}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Game Result */}
-            {gameState.showResult && (
-              <Card className="border-green-200 dark:border-green-800">
-                <CardHeader>
-                  <CardTitle className="text-green-600">Game Result</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center space-y-4">
-                    <div className="text-4xl">
-                      {MOCK_GAME_DATA.isWinner ? "🎉" : "😔"}
-                    </div>
-                    <div
-                      className={`text-2xl font-bold ${
-                        MOCK_GAME_DATA.isWinner
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {MOCK_GAME_DATA.isWinner ? "You Won!" : "You Lost!"}
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Your Score:</span>
-                        <span className="font-bold">
-                          {gameState.currentScore}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Opponent Score:</span>
-                        <span className="font-bold">
-                          {MOCK_GAME_DATA.opponentScore}
-                        </span>
-                      </div>
-                      <div className="flex justify-between font-bold text-lg border-t pt-2">
-                        <span>Winnings:</span>
-                        <span
-                          className={
-                            MOCK_GAME_DATA.isWinner
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }
-                        >
-                          {MOCK_GAME_DATA.isWinner
-                            ? `+${formatSol(match.stakeLamports * 2)}`
-                            : `-${formatSol(match.stakeLamports)}`}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
-
-        {/* Instructions */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>How to Play</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="text-3xl mb-2">🎯</div>
-                <h3 className="font-semibold mb-2">Select Tiles</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Choose exactly 3 tiles from the 9 available options. Click to
-                  reveal values!
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl mb-2">⏱️</div>
-                <h3 className="font-semibold mb-2">Time Limit</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  You have 20 seconds to make your selection. Auto-select if
-                  time runs out!
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl mb-2">🏆</div>
-                <h3 className="font-semibold mb-2">Win Big</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  The player with the highest total score wins the entire pot!
-                </p>
-              </div>
+            {/* Game Controls */}
+            <div className="flex justify-center">
+              <GlowButton
+                variant="ghost"
+                onClick={handleResetGame}
+                className="text-txt-muted hover:text-txt-base"
+              >
+                Reset Game
+              </GlowButton>
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Game Board */}
+            <UniversalGameBoard
+              key={gameKey}
+              gameMode={currentGameMode}
+              matchType={currentMatchType}
+              stakeSol={stakeAmount} // Demo stake
+              players={generateDemoPlayers(currentMatchType, "You")}
+              currentPlayer="You"
+              timeLimit={20}
+              onGameComplete={handleGameComplete}
+              isDemoMode={true}
+            />
+          </div>
+        )}
+
+        {/* Footer Info */}
+        <motion.div
+          className="text-center mt-12"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
+        >
+          <p className="text-sm text-txt-muted">
+            This is a demo version. In real games, you'll compete for actual SOL
+            rewards!
+          </p>
+        </motion.div>
       </div>
     </div>
   );

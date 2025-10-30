@@ -1,61 +1,52 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
+import { WalletContextProvider } from "@/components/wallet/WalletProvider";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Home } from "@/pages/Home";
 import { ROUTES } from "@/constants/routes";
 
-// Lazy load other pages for better performance
-const Matches = React.lazy(() =>
-  import("@/pages/Matches").then((module) => ({ default: module.Matches }))
-);
-const Game = React.lazy(() =>
-  import("@/pages/Game").then((module) => ({ default: module.Game }))
-);
-const Leaderboard = React.lazy(() =>
-  import("@/pages/Leaderboard").then((module) => ({
-    default: module.Leaderboard,
-  }))
-);
-const Profile = React.lazy(() =>
-  import("@/pages/Profile").then((module) => ({ default: module.Profile }))
-);
-const NotFound = React.lazy(() =>
-  import("@/pages/NotFound").then((module) => ({ default: module.NotFound }))
-);
-const GameDemo = React.lazy(() =>
-  import("@/pages/GameDemo").then((module) => ({ default: module.GameDemo }))
-);
-const GameShowcase = React.lazy(() =>
-  import("@/pages/GameShowcase").then((module) => ({
-    default: module.GameShowcase,
-  }))
-);
+// Import pages directly to avoid lazy loading issues
+import { Matches } from "@/pages/Matches";
+import { Game } from "@/pages/Game";
+import { Leaderboard } from "@/pages/Leaderboard";
+import { Profile } from "@/pages/Profile";
+import { NotFound } from "@/pages/NotFound";
+import { GameDemo } from "@/pages/GameDemo";
 
 function App() {
   return (
-    <Router>
-      <Layout>
-        <React.Suspense
-          fallback={
-            <div className="flex items-center justify-center min-h-screen">
-              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-            </div>
-          }
-        >
+    <WalletContextProvider>
+      <Router>
+        <Layout>
           <Routes>
             <Route path={ROUTES.HOME} element={<Home />} />
             <Route path={ROUTES.MATCHES} element={<Matches />} />
             <Route path={ROUTES.GAME} element={<Game />} />
             <Route path="/demo" element={<GameDemo />} />
-            <Route path="/showcase" element={<GameShowcase />} />
             <Route path={ROUTES.LEADERBOARD} element={<Leaderboard />} />
-            <Route path={ROUTES.PROFILE} element={<Profile />} />
+            <Route
+              path={ROUTES.PROFILE}
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path={ROUTES.PROFILE_USER}
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
             <Route path={ROUTES.NOT_FOUND} element={<NotFound />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </React.Suspense>
-      </Layout>
-    </Router>
+        </Layout>
+      </Router>
+    </WalletContextProvider>
   );
 }
 

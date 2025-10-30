@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SolanaPvP.Application.Interfaces.Repositories;
 using SolanaPvP.Domain.Models;
 using SolanaPvP.Domain.Enums;
 using SolanaPvP.EF_Core.Context;
@@ -88,5 +89,26 @@ public class MatchRepository : IMatchRepository
     public async Task<bool> ExistsAsync(string matchPda)
     {
         return await _context.Matches.AnyAsync(m => m.MatchPda == matchPda);
+    }
+
+    public async Task<IEnumerable<Match>> GetUserMatchesAsync(string pubkey, int skip, int take)
+    {
+        var dbos = await _context.Matches
+            .Include(m => m.Participants)
+            .Include(m => m.GameData)
+            .Where(m => m.Participants.Any(p => p.Pubkey == pubkey))
+            .OrderByDescending(m => m.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+
+        return dbos.Select(dbo => dbo.ToDomain());
+    }
+
+    public async Task<int> GetUserMatchesCountAsync(string pubkey)
+    {
+        return await _context.Matches
+            .Where(m => m.Participants.Any(p => p.Pubkey == pubkey))
+            .CountAsync();
     }
 }

@@ -5,6 +5,8 @@ export const ROUTES = {
   GAME: "/game/:matchId",
   LEADERBOARD: "/leaderboard",
   PROFILE: "/profile",
+  PROFILE_USER: "/profile/:identifier",
+  WALLET: "/wallet",
   NOT_FOUND: "/404",
 } as const;
 

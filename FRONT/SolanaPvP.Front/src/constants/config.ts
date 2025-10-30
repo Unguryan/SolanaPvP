@@ -1,7 +1,18 @@
 // App configuration constants
+const isDevelopment = import.meta.env.DEV;
+const isProduction = import.meta.env.PROD;
+
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_URL || "http://localhost:5001",
-  WS_URL: import.meta.env.VITE_WS_URL || "ws://localhost:5000",
+  BASE_URL:
+    import.meta.env.VITE_API_URL ||
+    (isDevelopment ? "http://192.168.0.155:5000" : ""),
+  WS_URL:
+    import.meta.env.VITE_WS_URL ||
+    (isDevelopment
+      ? "ws://192.168.0.155:5000"
+      : `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${
+          window.location.host
+        }`),
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
 } as const;

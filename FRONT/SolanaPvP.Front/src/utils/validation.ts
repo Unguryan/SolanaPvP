@@ -14,10 +14,10 @@ export function validateUsername(username: string): {
     };
   }
 
-  if (username.length > 20) {
+  if (username.length > 64) {
     return {
       isValid: false,
-      error: "Username must be no more than 20 characters long",
+      error: "Username must be no more than 64 characters long",
     };
   }
 

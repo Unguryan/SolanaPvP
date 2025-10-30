@@ -6,6 +6,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+    <Exec Command="npm run devBuild" WorkingDirectory="../../FRONT/SolanaPvP.Front" Condition="'$(Configuration)' == 'Debug'" />
+    <Exec Command="npm run relBuild" WorkingDirectory="../../FRONT/SolanaPvP.Front" Condition="'$(Configuration)' == 'Release'" />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.1.0" />
@@ -17,6 +22,10 @@
     <ProjectReference Include="..\SolanaPvP.EF_Core\SolanaPvP.EF_Core.csproj" />
     <ProjectReference Include="..\SolanaPvP.Infrastructure\SolanaPvP.Infrastructure.csproj" />
     <ProjectReference Include="..\SolanaPvP.SolanaRPC\SolanaPvP.SolanaRPC.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\" />
   </ItemGroup>
 
 </Project>

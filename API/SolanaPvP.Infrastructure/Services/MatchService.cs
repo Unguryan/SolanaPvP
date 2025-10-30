@@ -261,4 +261,119 @@ public class MatchService : IMatchService
             Ts = eventEntity.Ts
         };
     }
+
+    public async Task<UserProfile> CreateUserAsync(string pubkey)
+    {
+        // Generate a unique username
+        var username = await GenerateUniqueUsernameAsync();
+        
+        // Create new user
+        var user = new User
+        {
+            Pubkey = pubkey,
+            Username = username,
+            FirstSeen = DateTime.UtcNow,
+            LastSeen = DateTime.UtcNow,
+            CanChangeUsername = true
+        };
+
+        await _userRepository.CreateUserAsync(user);
+
+        return new UserProfile
+        {
+            Pubkey = user.Pubkey,
+            Username = user.Username,
+            Wins = 0,
+            Losses = 0,
+            TotalEarningsLamports = 0,
+            MatchesPlayed = 0,
+            FirstSeen = user.FirstSeen,
+            LastSeen = user.LastSeen,
+            LastUsernameChange = user.LastUsernameChange,
+            CanChangeUsername = user.CanChangeUsername,
+            RecentMatches = new List<MatchView>()
+        };
+    }
+
+    private async Task<string> GenerateUniqueUsernameAsync()
+    {
+        var random = new Random();
+        string username;
+        bool isUnique;
+        
+        do
+        {
+            var number = random.Next(1, 999999);
+            username = $"user_{number}";
+            isUnique = await _userRepository.IsUsernameAvailableAsync(username);
+        } while (!isUnique);
+
+        return username;
+    }
+
+    public async Task<PagedResult<MatchView>> GetUserMatchesAsync(string pubkey, Paging paging)
+    {
+        var skip = (paging.Page - 1) * paging.PageSize;
+        var matches = await _matchRepository.GetUserMatchesAsync(pubkey, skip, paging.PageSize);
+        var total = await _matchRepository.GetUserMatchesCountAsync(pubkey);
+        
+        var matchViews = matches.Select(ConvertToMatchView).ToList();
+
+        return new PagedResult<MatchView>
+        {
+            Items = matchViews,
+            Total = total,
+            Page = paging.Page,
+            PageSize = paging.PageSize
+        };
+    }
+
+    public async Task<UserStatistics?> GetUserStatisticsAsync(string pubkey, StatisticsPeriod period)
+    {
+        var user = await _userRepository.GetByPubkeyAsync(pubkey);
+        if (user == null) return null;
+
+        var now = DateTime.UtcNow;
+        var startOfDay = now.Date;
+        var startOfMonth = new DateTime(now.Year, now.Month, 1);
+
+        // Get all user matches for PnL calculations
+        var allMatches = await _matchRepository.GetUserMatchesAsync(pubkey, 0, int.MaxValue);
+        
+        // Calculate PnL for different periods
+        var pnlDay = CalculatePnLForPeriod(allMatches, startOfDay, now);
+        var pnlMonth = CalculatePnLForPeriod(allMatches, startOfMonth, now);
+        var pnlAllTime = user.TotalEarningsLamports;
+
+        return new UserStatistics
+        {
+            TotalMatches = user.MatchesPlayed,
+            Wins = user.Wins,
+            Losses = user.Losses,
+            WinRate = user.MatchesPlayed > 0 ? (double)user.Wins / user.MatchesPlayed : 0,
+            PnLDay = pnlDay,
+            PnLMonth = pnlMonth,
+            PnLAllTime = pnlAllTime
+        };
+    }
+
+    private long CalculatePnLForPeriod(IEnumerable<Match> matches, DateTime startDate, DateTime endDate)
+    {
+        return matches
+            .Where(m => m.ResolvedAt.HasValue && m.ResolvedAt.Value >= startDate && m.ResolvedAt.Value <= endDate)
+            .Sum(m => CalculateMatchPnL(m));
+    }
+
+    private long CalculateMatchPnL(Match match)
+    {
+        if (!match.ResolvedAt.HasValue || match.WinnerSide == null) return 0;
+
+        // Find the user's participant
+        var userParticipant = match.Participants.FirstOrDefault(p => p.Pubkey == match.Participants.First().Pubkey);
+        if (userParticipant == null || !userParticipant.IsWinner.HasValue) return 0;
+
+        // If user won, they get the stake back plus opponent's stake
+        // If user lost, they lose their stake
+        return userParticipant.IsWinner.Value ? match.StakeLamports : -match.StakeLamports;
+    }
 }

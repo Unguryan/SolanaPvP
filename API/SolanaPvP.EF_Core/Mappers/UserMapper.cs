@@ -18,6 +18,7 @@ public static class UserMapper
             FirstSeen = dbo.FirstSeen,
             LastSeen = dbo.LastSeen,
             LastUsernameChange = dbo.LastUsernameChange,
+            CanChangeUsername = dbo.CanChangeUsername,
             MatchParticipants = dbo.MatchParticipants.Select(p => p.ToDomain()).ToList(),
             SentInvitations = dbo.SentInvitations.Select(i => i.ToDomain()).ToList(),
             ReceivedInvitations = dbo.ReceivedInvitations.Select(i => i.ToDomain()).ToList()
@@ -37,6 +38,7 @@ public static class UserMapper
             FirstSeen = domain.FirstSeen,
             LastSeen = domain.LastSeen,
             LastUsernameChange = domain.LastUsernameChange,
+            CanChangeUsername = domain.CanChangeUsername,
             MatchParticipants = domain.MatchParticipants.Select(p => p.ToDBO()).ToList(),
             SentInvitations = domain.SentInvitations.Select(i => i.ToDBO()).ToList(),
             ReceivedInvitations = domain.ReceivedInvitations.Select(i => i.ToDBO()).ToList()

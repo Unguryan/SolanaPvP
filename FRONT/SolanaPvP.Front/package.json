@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "devBuild": "tsc -b && vite build --mode development --outDir ../../API/SolanaPvP.API_Project/wwwroot",
+    "relBuild": "tsc -b && vite build --mode production --outDir ../../API/SolanaPvP.API_Project/wwwroot",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -14,12 +16,14 @@
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
     "@microsoft/signalr": "^9.0.6",
+    "@radix-ui/react-slot": "^1.2.3",
     "@solana/wallet-adapter-react": "^0.15.39",
     "@solana/wallet-adapter-react-ui": "^0.9.39",
     "@solana/wallet-adapter-wallets": "^0.19.37",
     "@solana/web3.js": "^1.98.4",
     "axios": "^1.12.2",
     "bn.js": "^5.2.0",
+    "buffer": "^6.0.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.24",
@@ -27,6 +31,7 @@
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.4",
     "tailwind-merge": "^3.3.1",
+    "zod": "^3.25.76",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

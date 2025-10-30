@@ -9,7 +9,10 @@ public interface IMatchService
     Task<MatchDetails?> GetMatchAsync(string matchPda);
     Task<UserProfile?> GetUserAsync(string pubkey);
     Task<UserProfile?> GetUserByUsernameAsync(string username);
+    Task<UserProfile> CreateUserAsync(string pubkey);
     Task<LeaderboardResult> GetLeaderboardAsync(LeaderboardType type, LeaderboardPeriod period, Paging paging);
+    Task<PagedResult<MatchView>> GetUserMatchesAsync(string pubkey, Paging paging);
+    Task<UserStatistics?> GetUserStatisticsAsync(string pubkey, StatisticsPeriod period);
 }
 
 public class PagedResult<T>
@@ -143,4 +146,22 @@ public enum LeaderboardPeriod
 {
     AllTime = 0,
     Monthly = 1
+}
+
+public class UserStatistics
+{
+    public int TotalMatches { get; set; }
+    public int Wins { get; set; }
+    public int Losses { get; set; }
+    public double WinRate { get; set; }
+    public long PnLDay { get; set; }
+    public long PnLMonth { get; set; }
+    public long PnLAllTime { get; set; }
+}
+
+public enum StatisticsPeriod
+{
+    Day = 0,
+    Month = 1,
+    AllTime = 2
 }

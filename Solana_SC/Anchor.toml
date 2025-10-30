@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-pvp_program = "6kf6QWaHacEvoyXeqrs78JqhRavBYjm7VdnqxWjiKLWY"
+pvp_program = "F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ"
 
 [programs.mainnet]
 pvp_program = "HL92RAc8cw6T2wjQeKVDjy9GcZVNvzaTe31v3p7kuKkR"

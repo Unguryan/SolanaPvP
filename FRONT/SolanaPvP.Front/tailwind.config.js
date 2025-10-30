@@ -8,16 +8,27 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: '#646cff',
-        secondary: '#535bf2',
-        accent: '#1a1a1a',
+        // Live Arena color scheme
+        bg: "#0B0B0B",
+        txt: {
+          base: "#E5E5E5",
+          muted: "#8A8A8A",
+        },
+        sol: {
+          purple: "#9945FF",
+          mint: "#14F195",
+        },
+        // Legacy colors for compatibility
+        primary: '#9945FF',
+        secondary: '#14F195',
+        accent: '#0B0B0B',
         background: {
           light: '#ffffff',
-          dark: '#242424',
+          dark: '#0B0B0B',
         },
         text: {
           light: '#213547',
-          dark: 'rgba(255, 255, 255, 0.87)',
+          dark: '#E5E5E5',
         },
         // Solana brand colors
         solana: {
@@ -37,7 +48,7 @@ module.exports = {
           gold: '#fbbf24',
           silver: '#9ca3af',
           bronze: '#cd7f32',
-          win: '#10b981',
+          win: '#14F195',
           lose: '#ef4444',
           pending: '#f59e0b',
         },
@@ -45,16 +56,30 @@ module.exports = {
         card: {
           back: '#1f2937',
           front: '#ffffff',
-          selected: '#3b82f6',
+          selected: '#9945FF',
           hover: '#f3f4f6',
         }
       },
-             animation: {
-               'card-flip': 'cardFlip 0.4s ease-in-out',
+      boxShadow: {
+        glow: "0 0 24px rgba(153,69,255,.35), 0 0 12px rgba(20,241,149,.25), 0 0 8px rgba(153,69,255,.2)",
+        'glow-purple': "0 0 20px rgba(153,69,255,.4), 0 0 8px rgba(153,69,255,.3)",
+        'glow-mint': "0 0 20px rgba(20,241,149,.4), 0 0 8px rgba(20,241,149,.3)",
+        'glow-strong': "0 0 40px rgba(153,69,255,.5), 0 0 20px rgba(20,241,149,.3), 0 0 12px rgba(153,69,255,.4)",
+      },
+      borderRadius: {
+        xl: "12px",
+        '2xl': "16px",
+      },
+      animation: {
+        'card-flip': 'cardFlip 0.4s ease-in-out',
         'chest-open': 'chestOpen 0.8s ease-out',
         'score-reveal': 'scoreReveal 1s ease-out',
         'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
         'bounce-slow': 'bounce 2s infinite',
+        'pulse-breath': 'pulseBreath 5s ease-in-out infinite',
+        'fade-slide': 'fadeSlide 0.3s ease-out',
+        'ticker-scroll': 'tickerScroll 30s linear infinite',
+        'shimmer': 'shimmer 2s linear infinite',
       },
              keyframes: {
                cardFlip: {
@@ -76,11 +101,34 @@ module.exports = {
         pulseGlow: {
           '0%, 100%': { boxShadow: '0 0 5px rgba(59, 130, 246, 0.5)' },
           '50%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.8)' },
+        },
+        pulseBreath: {
+          '0%, 100%': { 
+            opacity: '1',
+            boxShadow: '0 0 20px rgba(153,69,255,.3), 0 0 10px rgba(20,241,149,.2)'
+          },
+          '50%': { 
+            opacity: '0.9',
+            boxShadow: '0 0 30px rgba(153,69,255,.5), 0 0 15px rgba(20,241,149,.3)'
+          },
+        },
+        fadeSlide: {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        tickerScroll: {
+          '0%': { transform: 'translateX(100%)' },
+          '100%': { transform: 'translateX(-100%)' },
+        },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
         }
       },
       fontFamily: {
         'sans': ['Inter', 'system-ui', 'sans-serif'],
         'mono': ['JetBrains Mono', 'monospace'],
+        'display': ['Orbitron', 'Inter', 'system-ui', 'sans-serif'],
       },
       spacing: {
         '18': '4.5rem',

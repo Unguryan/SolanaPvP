@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SolanaPvP.Application\SolanaPvP.Application.csproj" />
     <ProjectReference Include="..\SolanaPvP.Domain\SolanaPvP.Domain.csproj" />
   </ItemGroup>
 

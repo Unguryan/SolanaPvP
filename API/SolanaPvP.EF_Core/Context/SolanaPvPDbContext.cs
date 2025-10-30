@@ -108,7 +108,7 @@ public class SolanaPvPDbContext : DbContext
         {
             entity.HasKey(e => e.Pubkey);
             entity.Property(e => e.Pubkey).HasMaxLength(44);
-            entity.Property(e => e.Username).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Username).HasMaxLength(64).IsRequired();
             
             entity.HasIndex(e => e.Username).IsUnique();
             entity.HasIndex(e => e.FirstSeen);

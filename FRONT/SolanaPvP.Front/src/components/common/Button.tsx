@@ -4,7 +4,14 @@ import { cn } from "@/utils/cn";
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "danger" | "ghost";
+  variant?:
+    | "primary"
+    | "secondary"
+    | "danger"
+    | "ghost"
+    | "outline"
+    | "neon"
+    | "glass";
   size?: "sm" | "md" | "lg";
   isLoading?: boolean;
   leftIcon?: React.ReactNode;
@@ -36,6 +43,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       danger: "bg-red-600 hover:bg-red-700 text-white focus:ring-red-500",
       ghost:
         "bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 focus:ring-gray-500",
+      outline:
+        "border border-gray-300 dark:border-gray-600 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 focus:ring-gray-500",
+      neon: "bg-gradient-to-r from-sol-purple to-sol-mint text-white font-semibold hover:scale-105 shadow-glow hover:shadow-glow-strong focus:ring-sol-purple",
+      glass:
+        "glass-card text-txt-base font-medium hover:bg-white/10 hover:shadow-glow focus:ring-sol-purple",
     };
 
     const sizes = {

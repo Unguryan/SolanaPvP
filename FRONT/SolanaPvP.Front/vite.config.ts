@@ -3,8 +3,35 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  base: mode === "production" ? "/" : "/",
+  define: {
+    global: "globalThis",
+  },
+  build: {
+    outDir:
+      mode === "development" || mode === "production"
+        ? "../../API/SolanaPvP.API_Project/wwwroot"
+        : "dist",
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          router: ["react-router-dom"],
+          motion: ["framer-motion"],
+          wallet: [
+            "@solana/wallet-adapter-react",
+            "@solana/wallet-adapter-base",
+          ],
+          ui: ["@heroicons/react", "@radix-ui/react-slot"],
+        },
+      },
+      external: ["crypto", "stream"],
+    },
+    chunkSizeWarningLimit: 1000,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -33,4 +60,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
