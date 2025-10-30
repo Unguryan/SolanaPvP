@@ -86,7 +86,8 @@ export function generateRandomValues(
 export function calculateGameResult(
   players: GamePlayer[],
   stakeSol: number,
-  matchType?: "Solo" | "Duo" | "Team"
+  matchType?: "Solo" | "Duo" | "Team",
+  currentPlayer?: string
 ): GameResult {
   const isTeamBattle = matchType === "Duo" || matchType === "Team";
 
@@ -138,8 +139,10 @@ export function calculateGameResult(
     );
     const winner = sortedPlayers[0];
 
-    // Calculate win amount (x2 from stake for demo)
-    const winAmount = stakeSol * 2;
+    // Calculate win amount based on winner
+    // In demo: if current player wins, show stake*2, if loses, show 0
+    const isCurrentPlayerWinner = winner.username === (currentPlayer || "You");
+    const winAmount = isCurrentPlayerWinner ? stakeSol * 2 : 0;
 
     // Create scores record
     const scores: Record<string, number> = {};

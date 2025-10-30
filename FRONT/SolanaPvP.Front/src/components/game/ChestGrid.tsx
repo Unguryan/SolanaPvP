@@ -51,7 +51,7 @@ export const ChestGrid: React.FC<ChestGridProps> = ({
 
     if (tile.selected) {
       baseClass +=
-        " bg-gradient-to-br from-sol-purple to-sol-mint border-4 border-sol-purple shadow-glow-purple text-white";
+        " bg-gradient-to-br from-sol-purple to-sol-mint border-4 border-white shadow-glow-purple text-white";
     } else if (tile.revealed) {
       if (tile.isBonus) {
         baseClass +=

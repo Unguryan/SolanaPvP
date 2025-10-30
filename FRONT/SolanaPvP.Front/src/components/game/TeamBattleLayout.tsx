@@ -11,6 +11,7 @@ interface TeamBattleLayoutProps {
   gameStatus: "waiting" | "loading" | "playing" | "revealing" | "finished";
   gameResult?: GameResult | null;
   shouldHideScores?: (playerUsername: string) => boolean;
+  hideTeamScores?: boolean;
 }
 
 export const TeamBattleLayout: React.FC<TeamBattleLayoutProps> = ({
@@ -19,6 +20,7 @@ export const TeamBattleLayout: React.FC<TeamBattleLayoutProps> = ({
   gameStatus,
   gameResult,
   shouldHideScores,
+  hideTeamScores = false,
 }) => {
   const teamSize = players.length / 2;
   const teamA = players.slice(0, teamSize);
@@ -52,7 +54,11 @@ export const TeamBattleLayout: React.FC<TeamBattleLayoutProps> = ({
         >
           <div className="text-center">
             <h3 className="text-lg font-bold text-sol-purple mb-2">Team A</h3>
-            <ScoreCounter value={teamAScore} className="text-2xl font-bold" />
+            {hideTeamScores ? (
+              <span className="text-2xl font-bold text-txt-muted">???</span>
+            ) : (
+              <ScoreCounter value={teamAScore} className="text-2xl font-bold" />
+            )}
           </div>
         </motion.div>
 
@@ -77,7 +83,11 @@ export const TeamBattleLayout: React.FC<TeamBattleLayoutProps> = ({
         >
           <div className="text-center">
             <h3 className="text-lg font-bold text-sol-mint mb-2">Team B</h3>
-            <ScoreCounter value={teamBScore} className="text-2xl font-bold" />
+            {hideTeamScores ? (
+              <span className="text-2xl font-bold text-txt-muted">???</span>
+            ) : (
+              <ScoreCounter value={teamBScore} className="text-2xl font-bold" />
+            )}
           </div>
         </motion.div>
       </div>

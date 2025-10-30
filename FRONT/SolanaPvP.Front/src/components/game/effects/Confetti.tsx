@@ -79,7 +79,10 @@ export const Confetti: React.FC<ConfettiProps> = ({ isActive, onComplete }) => {
   return (
     <AnimatePresence>
       {isActive && (
-        <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+        <div
+          className="fixed inset-0 pointer-events-none overflow-hidden"
+          style={{ zIndex: 2147483649 }}
+        >
           {pieces.map((piece) => (
             <motion.div
               key={piece.id}

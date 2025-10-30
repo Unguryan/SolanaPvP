@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { GameResult } from "@/types/game";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { GlassCard, GlassCardContent } from "@/components/ui/GlassCard";
-import { Confetti } from "./effects/Confetti";
 import { ScoreCounter } from "./effects/ScoreCounter";
 import { TrophyIcon, CurrencyDollarIcon } from "@heroicons/react/24/outline";
 
@@ -27,7 +26,6 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
   onBackToLobby,
   isDemoMode = false,
 }) => {
-  const [showConfetti, setShowConfetti] = useState(false);
   const [isWinner, setIsWinner] = useState(false);
 
   useEffect(() => {
@@ -37,9 +35,7 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
         : result.winner === "You";
 
       setIsWinner(isPlayerWinner);
-      if (isPlayerWinner) {
-        setShowConfetti(true);
-      }
+      // Confetti is now handled in UniversalGameBoard
     }
   }, [isOpen, result, isWinner]);
 
@@ -66,17 +62,6 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Confetti */}
-          <div
-            className="fixed inset-0 pointer-events-none"
-            style={{ zIndex: 2147483648 }}
-          >
-            <Confetti
-              isActive={showConfetti}
-              onComplete={() => setShowConfetti(false)}
-            />
-          </div>
-
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -104,7 +89,11 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
                     className="text-6xl mb-4"
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                    transition={{
+                      delay: 0.2,
+                      type: "spring",
+                      stiffness: 200,
+                    }}
                   >
                     {isWinner ? "🏆" : result.winner === "Tie" ? "🤝" : "😔"}
                   </motion.div>
@@ -159,10 +148,12 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
                     <div className="flex items-center justify-center space-x-2">
                       <CurrencyDollarIcon className="w-5 h-5 text-sol-mint" />
                       <span className="text-txt-muted">You won</span>
-                      <ScoreCounter
-                        value={result.winAmount}
-                        className="text-xl text-sol-mint"
-                      />
+                      <span className="text-xl text-sol-mint">
+                        {Number(result.winAmount).toLocaleString(undefined, {
+                          minimumFractionDigits: result.winAmount < 1 ? 1 : 0,
+                          maximumFractionDigits: 3,
+                        })}
+                      </span>
                       <span className="text-xl text-txt-muted">SOL</span>
                     </div>
                   </motion.div>

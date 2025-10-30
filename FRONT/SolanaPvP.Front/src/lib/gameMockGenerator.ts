@@ -154,6 +154,65 @@ export const simulateAISelection = async (
   });
 };
 
+export const generateWinnableTiles = (
+  gameMode: "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree",
+  neededScore: number,
+  currentScore: number
+): GameTile[] => {
+  let totalTiles: number;
+
+  switch (gameMode) {
+    case "PickThreeFromNine":
+      totalTiles = 9;
+      break;
+    case "PickFiveFromSixteen":
+      totalTiles = 16;
+      break;
+    case "PickOneFromThree":
+      totalTiles = 3;
+      break;
+    default:
+      totalTiles = 9;
+  }
+
+  const tiles: GameTile[] = [];
+
+  // Calculate how many tiles player can select
+  const maxSelections =
+    gameMode === "PickThreeFromNine"
+      ? 3
+      : gameMode === "PickFiveFromSixteen"
+      ? 5
+      : 1;
+
+  // Generate tiles that give player a good chance to win
+  for (let i = 0; i < totalTiles; i++) {
+    let value: number;
+
+    if (i < maxSelections) {
+      // First few tiles should be high value to help player win
+      // Since player starts with 0, we need to distribute neededScore across selectable tiles
+      const baseValue = Math.floor(neededScore / maxSelections);
+      const variation = Math.floor(baseValue * 0.4); // ±40% variation for more variety
+      value = baseValue + Math.floor(Math.random() * variation * 2) - variation;
+      value = Math.max(200, value); // Minimum 200 to ensure meaningful progress
+    } else {
+      // Remaining tiles can be lower value
+      value = Math.floor(Math.random() * 400) + 100; // 100-500
+    }
+
+    tiles.push({
+      index: i,
+      value,
+      selected: false,
+      revealed: false,
+      isBonus: value > 500 && Math.random() < 0.1, // 10% chance for bonus
+    });
+  }
+
+  return tiles;
+};
+
 export const generateGameState = (
   gameMode: "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree",
   players: GamePlayer[],
