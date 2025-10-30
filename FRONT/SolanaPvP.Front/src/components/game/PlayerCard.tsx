@@ -28,7 +28,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   const getStatusIcon = () => {
     if (isWinner) return "👑";
     if (isCurrentPlayer) return "🎯";
-    if (player.isReady) return "✅";
+    if (player.isReady && !hideScore) return "✅"; // Show checkmark only when ready AND score is visible
+    if (player.isReady && hideScore) return "⏳"; // Show waiting when ready but score hidden
     return "⏳";
   };
 

@@ -16,8 +16,22 @@ export const CardRow: React.FC<CardRowProps> = ({
   disabled = false,
   currentPlayer,
 }) => {
+  const [animatingTiles, setAnimatingTiles] = useState<Set<number>>(new Set());
   const handleTileClick = (index: number) => {
     if (disabled || tiles[index].selected || tiles[index].revealed) return;
+
+    // Start animation
+    setAnimatingTiles((prev) => new Set(prev).add(index));
+
+    // Remove from animating after animation completes
+    setTimeout(() => {
+      setAnimatingTiles((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(index);
+        return newSet;
+      });
+    }, 800);
+
     onTileClick(index);
   };
 
@@ -76,7 +90,7 @@ export const CardRow: React.FC<CardRowProps> = ({
             }
             whileTap={!disabled ? { scale: 0.95 } : {}}
             animate={
-              tile.revealed
+              tile.revealed || animatingTiles.has(index)
                 ? {
                     x: [0, -8, 8, 0],
                     y: [0, -12, 0],

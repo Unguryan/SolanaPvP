@@ -16,8 +16,22 @@ export const ChestGrid: React.FC<ChestGridProps> = ({
   disabled = false,
   currentPlayer,
 }) => {
+  const [animatingTiles, setAnimatingTiles] = useState<Set<number>>(new Set());
   const handleTileClick = (index: number) => {
     if (disabled || tiles[index].selected || tiles[index].revealed) return;
+
+    // Start animation
+    setAnimatingTiles((prev) => new Set(prev).add(index));
+
+    // Remove from animating after animation completes
+    setTimeout(() => {
+      setAnimatingTiles((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(index);
+        return newSet;
+      });
+    }, 800);
+
     onTileClick(index);
   };
 
@@ -76,7 +90,7 @@ export const ChestGrid: React.FC<ChestGridProps> = ({
             }
             whileTap={!disabled ? { scale: 0.95 } : {}}
             animate={
-              tile.revealed
+              tile.revealed || animatingTiles.has(index)
                 ? {
                     y: [0, -15, 0],
                     scale: [1, 1.3, 1],
