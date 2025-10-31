@@ -15,17 +15,12 @@ import {
   GlassCardTitle,
 } from "@/components/ui/GlassCard";
 import { GlowButton } from "@/components/ui/GlowButton";
-import {
-  TrophyIcon,
-  UserGroupIcon,
-  ChartBarIcon,
-} from "@heroicons/react/24/outline";
+import { TrophyIcon, UserGroupIcon } from "@heroicons/react/24/outline";
 
 export const Leaderboard: React.FC = () => {
-  const [leaderboard, setLeaderboard] = useState(mockLeaderboard);
+  const [leaderboard] = useState(mockLeaderboard);
   const [isLoading, setIsLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<"rank" | "winRate" | "pnl">("rank");
-  const [filter, setFilter] = useState<"all" | "top10" | "top50">("all");
+  const [timeFilter, setTimeFilter] = useState<"month" | "allTime">("allTime");
 
   useEffect(() => {
     // Simulate loading
@@ -36,27 +31,13 @@ export const Leaderboard: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Sort by rank always
   const sortedLeaderboard = [...leaderboard].sort((a, b) => {
-    switch (sortBy) {
-      case "winRate":
-        return b.winRate - a.winRate;
-      case "pnl":
-        return b.totalPnL - a.totalPnL;
-      default:
-        return a.rank - b.rank;
-    }
+    return a.rank - b.rank;
   });
 
-  const filteredLeaderboard = sortedLeaderboard.filter((entry) => {
-    switch (filter) {
-      case "top10":
-        return entry.rank <= 10;
-      case "top50":
-        return entry.rank <= 50;
-      default:
-        return true;
-    }
-  });
+  // Filter by time period if needed (for now just return all)
+  const filteredLeaderboard = sortedLeaderboard;
 
   const formatWinRate = (rate: number) => {
     return `${(rate * 100).toFixed(1)}%`;
@@ -64,7 +45,7 @@ export const Leaderboard: React.FC = () => {
 
   const formatPnL = (pnl: number) => {
     const sign = pnl >= 0 ? "+" : "";
-    return `${sign}${pnl.toFixed(2)} SOL`;
+    return `${sign}${pnl.toFixed(1)} SOL`;
   };
 
   if (isLoading) {
@@ -108,74 +89,55 @@ export const Leaderboard: React.FC = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <GlassCard className="p-6 text-center">
-            <TrophyIcon className="w-8 h-8 text-sol-mint mx-auto mb-2" />
-            <div className="text-2xl font-bold text-txt-base">
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <GlassCard className="p-3 md:p-4 text-center">
+            <TrophyIcon className="w-5 h-5 md:w-8 md:h-8 text-sol-mint mx-auto mb-2" />
+            <div className="text-lg md:text-2xl font-bold text-txt-base">
               {leaderboard.length}
             </div>
-            <div className="text-sm text-txt-muted">Total Players</div>
+            <div className="text-xs md:text-sm text-txt-muted">
+              Total Players
+            </div>
           </GlassCard>
-          <GlassCard className="p-6 text-center">
-            <UserGroupIcon className="w-8 h-8 text-sol-purple mx-auto mb-2" />
-            <div className="text-2xl font-bold text-txt-base">
+          <GlassCard className="p-3 md:p-4 text-center">
+            <UserGroupIcon className="w-5 h-5 md:w-8 md:h-8 text-sol-purple mx-auto mb-2" />
+            <div className="text-lg md:text-2xl font-bold text-txt-base">
               {leaderboard.reduce((sum, p) => sum + p.gamesPlayed, 0)}
             </div>
-            <div className="text-sm text-txt-muted">Games Played</div>
-          </GlassCard>
-          <GlassCard className="p-6 text-center">
-            <ChartBarIcon className="w-8 h-8 text-sol-mint mx-auto mb-2" />
-            <div className="text-2xl font-bold text-txt-base">
-              {leaderboard.reduce((sum, p) => sum + p.totalPnL, 0).toFixed(1)}
+            <div className="text-xs md:text-sm text-txt-muted">
+              Games Played
             </div>
-            <div className="text-sm text-txt-muted">Total P&L (SOL)</div>
           </GlassCard>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4 mb-6">
-          <div className="flex gap-2">
-            <span className="text-txt-muted text-sm">Sort by:</span>
-            {(["rank", "winRate", "pnl"] as const).map((sort) => (
-              <GlowButton
-                key={sort}
-                variant={sortBy === sort ? "neon" : "ghost"}
-                size="sm"
-                onClick={() => setSortBy(sort)}
-                className="text-xs"
-              >
-                {sort === "rank"
-                  ? "Rank"
-                  : sort === "winRate"
-                  ? "Win Rate"
-                  : "P&L"}
-              </GlowButton>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <span className="text-txt-muted text-sm">Filter:</span>
-            {(["all", "top10", "top50"] as const).map((filterType) => (
-              <GlowButton
-                key={filterType}
-                variant={filter === filterType ? "neon" : "ghost"}
-                size="sm"
-                onClick={() => setFilter(filterType)}
-                className="text-xs"
-              >
-                {filterType === "all"
-                  ? "All"
-                  : filterType === "top10"
-                  ? "Top 10"
-                  : "Top 50"}
-              </GlowButton>
-            ))}
-          </div>
+        {/* Time Filter */}
+        <div className="mb-4">
+          <GlassCard className="p-4">
+            <div className="flex items-center ">
+              <span className="text-txt-muted text-sm font-medium block">
+                Time Period
+              </span>
+              <div className="flex flex-wrap items-center gap-2 md:gap-4 ml-2">
+                {(["month", "allTime"] as const).map((period) => (
+                  <GlowButton
+                    key={period}
+                    variant={timeFilter === period ? "neon" : "ghost"}
+                    size="sm"
+                    onClick={() => setTimeFilter(period)}
+                    className="text-xs"
+                  >
+                    {period === "month" ? "Month" : "All time"}
+                  </GlowButton>
+                ))}
+              </div>
+            </div>
+          </GlassCard>
         </div>
 
         {/* Leaderboard Table */}
         <GlassCard className="overflow-hidden">
           <GlassCardHeader>
-            <GlassCardTitle className="text-xl font-display text-sol-purple">
+            <GlassCardTitle className="text-xl font-display text-sol-purple px-3 md:px-6 py-3 md:py-4">
               Player Rankings
             </GlassCardTitle>
           </GlassCardHeader>
@@ -199,9 +161,6 @@ export const Leaderboard: React.FC = () => {
                   </th>
                   <th className="text-right py-4 px-6 text-txt-muted font-medium">
                     P&L
-                  </th>
-                  <th className="text-right py-4 px-6 text-txt-muted font-medium">
-                    Games
                   </th>
                 </tr>
               </thead>
@@ -227,7 +186,7 @@ export const Leaderboard: React.FC = () => {
                         <span className="text-lg mr-2">
                           {getRankIcon(player.rank)}
                         </span>
-                        {player.rank}
+                        <span>#{player.rank}</span>
                       </div>
                     </td>
                     <td className="py-4 px-6">
@@ -265,11 +224,6 @@ export const Leaderboard: React.FC = () => {
                         {formatPnL(player.totalPnL)}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-right">
-                      <span className="text-txt-muted">
-                        {player.gamesPlayed}
-                      </span>
-                    </td>
                   </motion.tr>
                 ))}
               </tbody>
@@ -277,7 +231,7 @@ export const Leaderboard: React.FC = () => {
           </div>
 
           {/* Mobile Cards */}
-          <div className="md:hidden space-y-4 p-6">
+          <div className="md:hidden space-y-4 md:p-6">
             {filteredLeaderboard.map((player, index) => (
               <motion.div
                 key={player.id}
@@ -299,9 +253,6 @@ export const Leaderboard: React.FC = () => {
                       <div className="text-txt-base font-medium">
                         {player.username}
                       </div>
-                      <div className="text-sm text-txt-muted">
-                        #{player.rank}
-                      </div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -312,9 +263,6 @@ export const Leaderboard: React.FC = () => {
                     >
                       {formatPnL(player.totalPnL)}
                     </div>
-                    <div className="text-sm text-txt-muted">
-                      {player.gamesPlayed} games
-                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -324,7 +272,7 @@ export const Leaderboard: React.FC = () => {
                       {player.totalWins}/{player.totalLosses}
                     </div>
                   </div>
-                  <div>
+                  <div className="text-right">
                     <div className="text-txt-muted">Win Rate</div>
                     <div
                       className={`font-semibold ${getWinRateColor(

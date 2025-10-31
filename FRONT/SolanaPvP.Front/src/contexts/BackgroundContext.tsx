@@ -1,24 +1,6 @@
 // Background context for managing falling emojis intensity
-import React, { createContext, useContext, useState } from "react";
-
-type Intensity = "low" | "medium" | "high" | "off";
-
-interface BackgroundContextType {
-  intensity: Intensity;
-  setIntensity: (intensity: Intensity) => void;
-}
-
-const BackgroundContext = createContext<BackgroundContextType | undefined>(
-  undefined
-);
-
-export const useBackground = () => {
-  const context = useContext(BackgroundContext);
-  if (context === undefined) {
-    throw new Error("useBackground must be used within a BackgroundProvider");
-  }
-  return context;
-};
+import React, { useState } from "react";
+import { BackgroundContext, Intensity } from "./BackgroundContextCore.ts";
 
 interface BackgroundProviderProps {
   children: React.ReactNode;

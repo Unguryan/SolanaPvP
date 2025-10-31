@@ -10,11 +10,13 @@ export type FeedItem = {
 
 export type MatchLobby = {
   id: string;
+  matchPda?: string; // Optional PDA, if not provided, id will be used as matchPda
   stake: number;
   playersReady: number;
   playersMax: number;
   endsAt: number;
   gameMode: string;
+  matchType?: "Solo" | "Duo" | "Team";
 };
 
 interface ArenaState {

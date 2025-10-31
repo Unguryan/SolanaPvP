@@ -55,10 +55,25 @@ app.MapControllers();
 app.MapHub<MatchHub>("/ws");
 
 // Serve static files from wwwroot (after API routes)
+var staticFileOptions = new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Don't cache index.html to ensure client-side routing works correctly
+        if (ctx.File.Name == "index.html")
+        {
+            ctx.Context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+            ctx.Context.Response.Headers["Pragma"] = "no-cache";
+            ctx.Context.Response.Headers["Expires"] = "0";
+        }
+    }
+};
+
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(staticFileOptions);
 
 // SPA fallback - serve index.html for client-side routing
+// This will catch all routes that don't match API endpoints or static files
 app.MapFallbackToFile("index.html");
 
 // Ensure database is created

@@ -21,29 +21,25 @@
 //   in the lobby and that the authority equals the lobby PDA.
 // - ActiveLobby is closed after final resolution or refund (returns rent to creator).
 
-use anchor_lang::prelude::{*, Context, Program};
-use anchor_lang::system_program::System;
+use anchor_lang::prelude::*;
+use anchor_lang::system_program;
 use anchor_lang::solana_program::system_instruction;
-use anchor_spl::token;
-use anchor_spl::associated_token;
+use anchor_lang::Discriminator;
+
 // Switchboard v2 crate:
 // Cargo.toml → switchboard-v2 = { version = "0.2", features = ["no-entrypoint"] }
-use switchboard_solana::{OracleQueueAccountData, PermissionAccountData};
-
-// Attempt to use VRF types - if they don't exist, we'll handle errors at compile time
-// Try using the types directly to see what's available
+use switchboard_solana as sb; 
+use sb::{
+    OracleQueueAccountData, PermissionAccountData, VrfAccountData, VrfRequestRandomness,
+    RequestRandomnessParams, Callback, SwitchboardDecimal,
+};
 
 // ------------------------------ Constants ------------------------------
 
 declare_id!("F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ");
 
 // Switchboard v2 program id (same for devnet/mainnet v2)
-// Note: sb::SWITCHBOARD_PROGRAM_ID is a lazy_static, cannot deref in const
-// Using hardcoded bytes: SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f
-pub const SWITCHBOARD_V2_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
-    0x57, 0x49, 0x54, 0x43, 0x48, 0x37, 0x71, 0x45, 0x50, 0x54, 0x64, 0x4C, 0x73, 0x44, 0x48, 0x52,
-    0x67, 0x50, 0x75, 0x4D, 0x51, 0x6A, 0x62, 0x51, 0x78, 0x4B, 0x64, 0x48, 0x32, 0x61, 0x42, 0x53,
-]);
+pub const SWITCHBOARD_V2_PROGRAM_ID: Pubkey = sb::SWITCHBOARD_PROGRAM_ID;
 
 // PDA seeds
 const SEED_LOBBY:  &[u8] = b"lobby";
@@ -185,13 +181,11 @@ pub struct JoinSide<'info> {
     )]
     pub config: Account<'info, GlobalConfig>,
 
-    /// CHECK: Switchboard program - verified via address check
     #[account(address = SWITCHBOARD_V2_PROGRAM_ID)]
-    pub switchboard_program: UncheckedAccount<'info>,
+    pub switchboard_program: Program<'info, sb::SwitchboardProgram>,
 
-    /// CHECK: VRF account from Switchboard
     #[account(mut)]
-    pub vrf: UncheckedAccount<'info>,
+    pub vrf: AccountLoader<'info, VrfAccountData>,
 
     #[account(mut)]
     pub oracle_queue: AccountLoader<'info, OracleQueueAccountData>,
@@ -213,8 +207,8 @@ pub struct JoinSide<'info> {
     /// CHECK:
     pub switchboard_state: UncheckedAccount<'info>,
 
-    pub token_program: Program<'info, token::Token>,
-    pub associated_token_program: Program<'info, associated_token::AssociatedToken>,
+    pub token_program: Program<'info, sb::TokenProgram>,
+    pub associated_token_program: Program<'info, sb::AssociatedTokenProgram>,
     pub system_program: Program<'info, System>,
 }
 
@@ -228,17 +222,13 @@ pub struct Refund<'info> {
     )]
     pub lobby: Account<'info, Lobby>,
 
-    /// CHECK: Creator account for closing active lobby
-    #[account(mut)]
-    pub creator: UncheckedAccount<'info>,
-
     pub requester: Signer<'info>,
 
     #[account(
         mut,
         seeds = [SEED_ACTIVE, lobby.creator.as_ref()],
         bump,
-        close = creator
+        close = lobby.creator
     )]
     pub active: Account<'info, ActiveLobby>,
 
@@ -263,15 +253,11 @@ pub struct FulfillRandomness<'info> {
     )]
     pub lobby: Account<'info, Lobby>,
 
-    /// CHECK: Creator account for closing active lobby
-    #[account(mut)]
-    pub creator: UncheckedAccount<'info>,
-
     #[account(
         mut,
         seeds = [SEED_ACTIVE, lobby.creator.as_ref()],
         bump,
-        close = creator
+        close = lobby.creator
     )]
     pub active: Account<'info, ActiveLobby>,
 
@@ -281,13 +267,10 @@ pub struct FulfillRandomness<'info> {
     )]
     pub config: Account<'info, GlobalConfig>,
 
-    /// CHECK: VRF account from Switchboard
-    #[account(mut)]
-    pub vrf: UncheckedAccount<'info>,
+    pub vrf: AccountLoader<'info, VrfAccountData>,
 
-    /// CHECK: Switchboard program - verified via address check
     #[account(address = SWITCHBOARD_V2_PROGRAM_ID)]
-    pub switchboard_program: UncheckedAccount<'info>,
+    pub switchboard_program: Program<'info, sb::SwitchboardProgram>,
 
     pub system_program: Program<'info, System>,
     // remaining_accounts: [admin, team1..., team2...]
@@ -385,22 +368,107 @@ pub mod pvp_program {
             );
 
             // The VRF authority must be the lobby PDA (so we can verify callback later).
-            // We'll sign with PDA seeds in the CPI.
+            // We won't sign as a "real" key; we'll sign with PDA seeds in the CPI.
+            let vrf_authority = lobby.key();
 
-            // Store VRF key for validation in fulfill callback
-            
-            // Use raw CPI to call Switchboard VRF request
-            // Since switchboard-solana 0.30.4 doesn't expose VRF types, we use raw CPI
-            // For now, store VRF key and let Switchboard call back to fulfill_randomness
-            // The actual VRF request will be handled by the VRF account setup off-chain
-            // Switchboard will automatically call fulfill_randomness once randomness is ready
-            let vrf_key = ctx.accounts.vrf.key();
-            lobby.vrf = vrf_key;
-            
-            // Note: Full VRF request via CPI requires Switchboard instruction format
-            // For now, the VRF account must be pre-configured off-chain to call fulfill_randomness
-            // when randomness is available. The account authority should be the lobby PDA.
-            
+            // Optional: ensure the provided VRF's authority equals our lobby PDA (if already initialized)
+            {
+                let vrf_data = ctx.accounts.vrf.load()?;
+                require!(vrf_data.authority == vrf_authority, PvpError::WrongVrfAuthority);
+            }
+
+            // Build the callback to our fulfill_randomness handler.
+            // The callback will pass: [lobby, active, config, system_program]
+            // NOTE: You can add remaining accounts (like winners) for direct payouts in fulfill.
+            let callback = Callback {
+                program_id: ctx.program_id,
+                // Encode the method selector for "fulfill_randomness"
+                accounts: vec![
+                    // 0: lobby (mut)
+                    sb::AccountMetaBorsh {
+                        pubkey: lobby.key(),
+                        is_signer: false,
+                        is_writable: true,
+                    },
+                    // 1: active (mut, close=creator) - to close after resolve
+                    sb::AccountMetaBorsh {
+                        pubkey: ctx.accounts.active.key(),
+                        is_signer: false,
+                        is_writable: true,
+                    },
+                    // 2: config (readonly)
+                    sb::AccountMetaBorsh {
+                        pubkey: ctx.accounts.config.key(),
+                        is_signer: false,
+                        is_writable: false,
+                    },
+                    // 3: system_program (readonly)
+                    sb::AccountMetaBorsh {
+                        pubkey: system_program::ID,
+                        is_signer: false,
+                        is_writable: false,
+                    },
+                ],
+                ix_data: pvp_ix_discriminator("fulfill_randomness"), // 8-byte discrim
+            };
+
+            // Prepare params (no seed is actually needed; leave default)
+            let params = RequestRandomnessParams {
+                authority: Some(vrf_authority),
+                ..Default::default()
+            };
+
+            // Perform the CPI to request VRF randomness.
+            //
+            // IMPORTANT: The CPI requires a specific set of accounts:
+            // - vrf (mut)
+            // - authority (PDA: lobby) [we will sign with seeds]
+            // - oracle_queue (mut)
+            // - queue_authority
+            // - permission (mut)
+            // - escrow (mut)
+            // - payer_wallet (mut) [token wallet to pay VRF fees]
+            // - payer_authority (signer)
+            // - recent_blockhashes (sysvar)
+            // - program_state
+            // - token program, associated token program, system program
+            //
+            // Your frontend must supply these through the JoinSide context accounts.
+            {
+                let vrf_key = ctx.accounts.vrf.key();
+                let seed = &[
+                    SEED_LOBBY,
+                    lobby.creator.as_ref(),
+                    &lobby.lobby_id.to_le_bytes(),
+                    &[lobby.bump],
+                ];
+                let signer_seeds = &[&seed[..]];
+
+                let cpi_ctx = CpiContext::new_with_signer(
+                    ctx.accounts.switchboard_program.to_account_info(),
+                    VrfRequestRandomness {
+                        vrf:               ctx.accounts.vrf.to_account_info(),
+                        authority:         ctx.accounts.lobby.to_account_info(), // PDA as authority
+                        oracle_queue:      ctx.accounts.oracle_queue.to_account_info(),
+                        queue_authority:   ctx.accounts.queue_authority.to_account_info(),
+                        permission:        ctx.accounts.permission_account.to_account_info(),
+                        escrow:            ctx.accounts.escrow_wallet.to_account_info(),
+                        payer_wallet:      ctx.accounts.payer_wallet.to_account_info(),
+                        payer_authority:   ctx.accounts.payer_authority.to_account_info(),
+                        recent_blockhashes: ctx.accounts.recent_blockhashes.to_account_info(),
+                        program_state:     ctx.accounts.switchboard_state.to_account_info(),
+                        token_program:     ctx.accounts.token_program.to_account_info(),
+                        associated_token_program: ctx.accounts.associated_token_program.to_account_info(),
+                        system_program:    ctx.accounts.system_program.to_account_info(),
+                    },
+                    signer_seeds,
+                );
+
+                sb::request_randomness(cpi_ctx, params, callback)?;
+                // Store VRF key to bind fulfill calls to the same VRF account
+                lobby.vrf = vrf_key;
+            }
+
             // Move to Pending so users cannot refund or join anymore
             lobby.status = LobbyStatus::Pending;
         }
@@ -411,67 +479,37 @@ pub mod pvp_program {
     // Refund is only possible if the lobby is still Open and older than lock.
     // remaining_accounts must include all participants (team1..., team2...),
     // so we can transfer directly from the lobby PDA with signer seeds.
-    pub fn refund<'info>(ctx: Context<'_, '_, '_, 'info, Refund<'info>>) -> Result<()> {
-        require!(ctx.accounts.creator.key() == ctx.accounts.lobby.creator, PvpError::Unauthorized);
-        
-        // Read-only checks first
-        require!(matches!(ctx.accounts.lobby.status, LobbyStatus::Open), PvpError::LobbyNotOpen);
-        let now = Clock::get()?.unix_timestamp;
-        require!(now >= ctx.accounts.lobby.created_at + REFUND_LOCK_SECS, PvpError::TooSoonToRefund);
-        let req = ctx.accounts.requester.key();
-        require!(req == ctx.accounts.lobby.creator || req == ctx.accounts.config.admin, PvpError::Unauthorized);
-        require!(!ctx.accounts.lobby.finalized, PvpError::AlreadyFinalized);
-        
-        // Save all values before mutable borrow
-        let stake_amount = ctx.accounts.lobby.stake_lamports;
-        let lobby_creator = ctx.accounts.lobby.creator;
-        let lobby_id = ctx.accounts.lobby.lobby_id;
-        let lobby_bump = ctx.accounts.lobby.bump;
-        let team1_players: Vec<Pubkey> = ctx.accounts.lobby.team1.clone();
-        let team2_players: Vec<Pubkey> = ctx.accounts.lobby.team2.clone();
-        let total = team1_players.len() + team2_players.len();
-        require!(ctx.remaining_accounts.len() == total, PvpError::BadRemainingAccounts);
-        
-        // Mark finalized and change status - must do this before transfers to avoid reentrancy
-        {
-            let lobby = &mut ctx.accounts.lobby;
-            lobby.finalized = true;
-            lobby.status = LobbyStatus::Refunded;
-        }
+    pub fn refund(ctx: Context<Refund>) -> Result<()> {
+        let lobby = &mut ctx.accounts.lobby;
+        require!(matches!(lobby.status, LobbyStatus::Open), PvpError::LobbyNotOpen);
 
-        let sys_ai  = ctx.accounts.system_program.to_account_info();
-        let from_ai = ctx.accounts.lobby.to_account_info();
-        
+        let now = Clock::get()?.unix_timestamp;
+        require!(now >= lobby.created_at + REFUND_LOCK_SECS, PvpError::TooSoonToRefund);
+
+        let req = ctx.accounts.requester.key();
+        require!(req == lobby.creator || req == ctx.accounts.config.admin, PvpError::Unauthorized);
+
+        require!(!lobby.finalized, PvpError::AlreadyFinalized);
+        lobby.finalized = true;
+
+        let total = lobby.team1.len() + lobby.team2.len();
+        require!(ctx.remaining_accounts.len() == total, PvpError::BadRemainingAccounts);
+
         // Refund team1
-        for (i, p) in team1_players.iter().enumerate() {
+        for (i, p) in lobby.team1.iter().enumerate() {
             let to_ai = &ctx.remaining_accounts[i];
             require!(to_ai.key() == *p, PvpError::Unauthorized);
-            pay_from_lobby_pda(
-                lobby_creator,
-                lobby_id,
-                lobby_bump,
-                sys_ai.clone(),
-                from_ai.clone(),
-                to_ai.clone(),
-                stake_amount
-            )?;
+            pay_from_lobby_pda(lobby, &ctx.accounts.system_program, to_ai, lobby.stake_lamports)?;
         }
         // Refund team2
-        for (j, p) in team2_players.iter().enumerate() {
-            let idx = team1_players.len() + j;
+        for (j, p) in lobby.team2.iter().enumerate() {
+            let idx = lobby.team1.len() + j;
             let to_ai = &ctx.remaining_accounts[idx];
             require!(to_ai.key() == *p, PvpError::Unauthorized);
-            pay_from_lobby_pda(
-                lobby_creator,
-                lobby_id,
-                lobby_bump,
-                sys_ai.clone(),
-                from_ai.clone(),
-                to_ai.clone(),
-                stake_amount
-            )?;
+            pay_from_lobby_pda(lobby, &ctx.accounts.system_program, to_ai, lobby.stake_lamports)?;
         }
 
+        lobby.status = LobbyStatus::Refunded;
         Ok(())
     }
 
@@ -484,45 +522,38 @@ pub mod pvp_program {
     //
     // remaining_accounts must include:
     // [admin (config.admin), team1..., team2...]
-    pub fn fulfill_randomness<'info>(ctx: Context<'_, '_, '_, 'info, FulfillRandomness<'info>>) -> Result<()> {
-        require!(ctx.accounts.creator.key() == ctx.accounts.lobby.creator, PvpError::Unauthorized);
+    pub fn fulfill_randomness(ctx: Context<FulfillRandomness>) -> Result<()> {
         require!(
             ctx.accounts.switchboard_program.key() == SWITCHBOARD_V2_PROGRAM_ID,
             PvpError::WrongSwitchboardProgram
         );
 
-        // Read-only checks first
-        require!(matches!(ctx.accounts.lobby.status, LobbyStatus::Pending), PvpError::NotPending);
-        require!(!ctx.accounts.lobby.finalized, PvpError::AlreadyFinalized);
-        require!(ctx.accounts.vrf.key() == ctx.accounts.lobby.vrf, PvpError::WrongVrfAccount);
-        
-        // Save all lobby values before mutable borrow
-        let lobby_creator = ctx.accounts.lobby.creator;
-        let lobby_id = ctx.accounts.lobby.lobby_id;
-        let lobby_bump = ctx.accounts.lobby.bump;
-        let team1_players: Vec<Pubkey> = ctx.accounts.lobby.team1.clone();
-        let team2_players: Vec<Pubkey> = ctx.accounts.lobby.team2.clone();
-        let stake_lamports = ctx.accounts.lobby.stake_lamports;
-        
-        // TODO: Parse VRF result from account data using switchboard-solana v0.30.4 API
-        // For now, use a deterministic approach based on account key
-        // This should be replaced with proper VRF result parsing when the API is available
-        // Simple deterministic approach: use account key bytes as random seed
-        // NOTE: This is a temporary workaround - should use proper VRF result parsing
-        let key_bytes = ctx.accounts.vrf.key().to_bytes();
+        let lobby = &mut ctx.accounts.lobby;
+        require!(matches!(lobby.status, LobbyStatus::Pending), PvpError::NotPending);
+        require!(!lobby.finalized, PvpError::AlreadyFinalized);
+
+        // Validate VRF account and authority
+        require!(ctx.accounts.vrf.key() == lobby.vrf, PvpError::WrongVrfAccount);
+        let vrf_data = ctx.accounts.vrf.load()?;
+        require!(vrf_data.authority == lobby.key(), PvpError::WrongVrfAuthority);
+
+        // Get the random value from VRF buffer (u128-like). Convert to u64.
+        // NOTE: SwitchboardDecimal holds mantissa and scale; for winner pick we only need raw bytes.
+        let result: [u8; 32] = vrf_data.get_result() // 32-byte VRF result buffer
+            .ok_or(PvpError::Unauthorized)?; // treat as unauthorized if no result
         let mut buf8 = [0u8; 8];
-        buf8.copy_from_slice(&key_bytes[0..8]);
+        buf8.copy_from_slice(&result[0..8]);
         let rand_u64 = u64::from_le_bytes(buf8);
 
         // Winner side (bit 0): 0 => team1, 1 => team2
         let winner_side: u8 = (rand_u64 & 1) as u8;
-        let winners = if winner_side == 0 { &team1_players } else { &team2_players };
+        let winners = if winner_side == 0 { &lobby.team1 } else { &lobby.team2 };
         let winners_count = winners.len() as u64;
         require!(winners_count > 0, PvpError::NotEnoughPlayers);
 
         // Total pot: stake * total players
-        let total_players = (team1_players.len() + team2_players.len()) as u64;
-        let pot = stake_lamports.saturating_mul(total_players);
+        let total_players = (lobby.team1.len() + lobby.team2.len()) as u64;
+        let pot = lobby.stake_lamports.saturating_mul(total_players);
 
         // 1% fee, rounding remainder added to fee
         let fee = pot.saturating_mul(PLATFORM_FEE_BPS) / 10_000;
@@ -531,7 +562,7 @@ pub mod pvp_program {
         let fee_final = fee + (distributable - payout_each * winners_count);
 
         // remaining_accounts layout: [admin, team1..., team2...]
-        let needed = 1 + team1_players.len() + team2_players.len();
+        let needed = 1 + lobby.team1.len() + lobby.team2.len();
         require!(ctx.remaining_accounts.len() == needed, PvpError::BadRemainingAccounts);
 
         // Validate admin matches config.admin
@@ -539,64 +570,36 @@ pub mod pvp_program {
         require!(admin_ai.key() == ctx.accounts.config.admin, PvpError::Unauthorized);
 
         // Validate ordering & keys for team lists
-        for (i, p) in team1_players.iter().enumerate() {
+        for (i, p) in lobby.team1.iter().enumerate() {
             require!(ctx.remaining_accounts[1 + i].key() == *p, PvpError::RemainingAccountsMismatch);
         }
-        for (j, p) in team2_players.iter().enumerate() {
-            let idx = 1 + team1_players.len() + j;
+        for (j, p) in lobby.team2.iter().enumerate() {
+            let idx = 1 + lobby.team1.len() + j;
             require!(ctx.remaining_accounts[idx].key() == *p, PvpError::RemainingAccountsMismatch);
         }
 
-        // Mark finalized and change status - must do this before transfers
-        {
-            let lobby = &mut ctx.accounts.lobby;
-            lobby.finalized = true;
-            lobby.status = LobbyStatus::Resolved;
-        }
-
-        let sys_ai  = ctx.accounts.system_program.to_account_info();
-        let from_ai = ctx.accounts.lobby.to_account_info();
+        // Mark finalized BEFORE transfers (tx atomic; if transfers fail, state reverts).
+        lobby.finalized = true;
 
         // Pay fee to admin
-        pay_from_lobby_pda(
-            lobby_creator,
-            lobby_id,
-            lobby_bump,
-            sys_ai.clone(),
-            from_ai.clone(),
-            admin_ai.clone(),
-            fee_final
-        )?;
+        pay_from_lobby_pda(lobby, &ctx.accounts.system_program, admin_ai, fee_final)?;
 
         // Pay winners
         if winner_side == 0 {
-            for i in 0..team1_players.len() {
+            for i in 0..lobby.team1.len() {
                 let to_ai = &ctx.remaining_accounts[1 + i];
-                pay_from_lobby_pda(
-                    lobby_creator,
-                    lobby_id,
-                    lobby_bump,
-                    sys_ai.clone(),
-                    from_ai.clone(),
-                    to_ai.clone(),
-                    payout_each
-                )?;
+                pay_from_lobby_pda(lobby, &ctx.accounts.system_program, to_ai, payout_each)?;
             }
         } else {
-            for j in 0..team2_players.len() {
-                let idx = 1 + team1_players.len() + j;
+            for j in 0..lobby.team2.len() {
+                let idx = 1 + lobby.team1.len() + j;
                 let to_ai = &ctx.remaining_accounts[idx];
-                pay_from_lobby_pda(
-                    lobby_creator,
-                    lobby_id,
-                    lobby_bump,
-                    sys_ai.clone(),
-                    from_ai.clone(),
-                    to_ai.clone(),
-                    payout_each
-                )?;
+                pay_from_lobby_pda(lobby, &ctx.accounts.system_program, to_ai, payout_each)?;
             }
         }
+
+        // Set status to Resolved; ActiveLobby is closed via account attribute (close = creator)
+        lobby.status = LobbyStatus::Resolved;
         Ok(())
     }
 }
@@ -694,30 +697,31 @@ fn internal_join_side<'info>(
 // Transfer lamports from the lobby PDA to the given account.
 // The `to` AccountInfo must be present in the instruction's account list (remaining_accounts).
 fn pay_from_lobby_pda<'info>(
-    lobby_creator: Pubkey,
-    lobby_id: u64,
-    lobby_bump: u8,
-    system_program_account: AccountInfo<'info>,
-    from_account: AccountInfo<'info>,
-    to_account: AccountInfo<'info>,
+    lobby: &Account<'info, Lobby>,
+    system_program_acc: &Program<'info, System>,
+    to: &AccountInfo<'info>,
     lamports: u64,
 ) -> Result<()> {
     if lamports == 0 { return Ok(()); }
-    require!(**from_account.lamports.borrow() >= lamports, PvpError::Unauthorized);
+    require!(**lobby.to_account_info().lamports.borrow() >= lamports, PvpError::Unauthorized);
 
-    let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
-        &from_account.key(),
-        &to_account.key(),
-        lamports,
+    let seeds = &[
+        SEED_LOBBY,
+        lobby.creator.as_ref(),
+        &lobby.lobby_id.to_le_bytes(),
+        &[lobby.bump],
+    ];
+    let signer = &[&seeds[..]];
+
+    let cpi_ctx = CpiContext::new_with_signer(
+        system_program_acc.to_account_info(),
+        anchor_lang::system_program::Transfer {
+            from: lobby.to_account_info(),
+            to: to.clone(),
+        },
+        signer,
     );
-
-    anchor_lang::solana_program::program::invoke_signed(
-        &transfer_ix,
-        &[from_account, to_account, system_program_account],
-        &[&[SEED_LOBBY, lobby_creator.as_ref(), &lobby_id.to_le_bytes(), &[lobby_bump]]],
-    )?;
-
-    Ok(())
+    anchor_lang::system_program::transfer(cpi_ctx, lamports)
 }
 
 // Compute the 8-byte Anchor discriminator for our callback method name.

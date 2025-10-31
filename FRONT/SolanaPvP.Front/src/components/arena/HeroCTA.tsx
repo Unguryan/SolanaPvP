@@ -8,22 +8,11 @@ interface HeroCTAProps {
   onPlayNow?: () => void;
 }
 
-export const HeroCTA: React.FC<HeroCTAProps> = ({
-  className = "",
-  onPlayNow,
-}) => {
+export const HeroCTA: React.FC<HeroCTAProps> = ({ className = "" }) => {
   const navigate = useNavigate();
 
   const handlePlayNow = () => {
-    if (onPlayNow) {
-      onPlayNow();
-    } else {
-      // Default action - scroll to matches or navigate
-      const matchesSection = document.getElementById("matches-section");
-      if (matchesSection) {
-        matchesSection.scrollIntoView({ behavior: "smooth" });
-      }
-    }
+    navigate("/matches");
   };
 
   const handleTryDemo = () => {

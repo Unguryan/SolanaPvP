@@ -11,13 +11,13 @@ if (!(Get-Command solana -ErrorAction SilentlyContinue)) {
 # Set cluster to devnet
 solana config set --url devnet
 
-# Get current wallet address
+# Get wallet address - update this to your desired address
 $walletAddress = "4P3eFwhmBt6H8VbMWsnCHv8MZFmKqmKbtmtfA7eupvE8"
 Write-Host "Wallet address: $walletAddress" -ForegroundColor Cyan
 
 # Request airdrop
 Write-Host "Requesting 2 SOL airdrop..." -ForegroundColor Yellow
-solana airdrop 2
+solana airdrop 2 $walletAddress
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "✅ Airdrop successful!" -ForegroundColor Green
@@ -25,7 +25,8 @@ if ($LASTEXITCODE -eq 0) {
     # Check balance
     $balance = solana balance
     Write-Host "Current balance: $balance SOL" -ForegroundColor Cyan
-} else {
+}
+else {
     Write-Host "❌ Airdrop failed!" -ForegroundColor Red
     exit 1
 }

@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useRef, useEffect } from "react";
 
 interface TickerItem {
   id: string;
@@ -42,15 +41,12 @@ const defaultTickerItems: TickerItem[] = [
 
 export const Ticker: React.FC<TickerProps> = ({
   className = "",
-  speed = 30,
+  speed = 230,
   pauseOnHover = true,
 }) => {
   const [isPaused, setIsPaused] = useState(false);
-  const [items, setItems] = useState<TickerItem[]>(defaultTickerItems);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Duplicate items for seamless loop - need 3 copies for smooth animation
-  const duplicatedItems = [...items, ...items, ...items];
+  const itemsRef = useRef(defaultTickerItems);
 
   const handleMouseEnter = () => {
     if (pauseOnHover) {
@@ -64,23 +60,52 @@ export const Ticker: React.FC<TickerProps> = ({
     }
   };
 
-  // Add new items periodically
+  // Calculate much faster speed (3.6x faster than original: 30 / 1.8 / 2 = ~8.33s)
+  const baseSpeed = speed / 1.8;
+  const animationSpeed = baseSpeed / 2; // Make it 2x faster than current
+
+  // Use CSS animation for smoother, hardware-accelerated performance
   useEffect(() => {
-    const interval = setInterval(() => {
-      const newItem: TickerItem = {
-        id: `new-${Date.now()}`,
-        text: `🎲 Player${Math.floor(Math.random() * 1000)} won ${(
-          Math.random() * 10 +
-          0.5
-        ).toFixed(1)} SOL`,
-        type: "win",
+    if (containerRef.current) {
+      const styleId = "ticker-animation-style";
+      // Remove existing style if any
+      const existingStyle = document.getElementById(styleId);
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+        @keyframes ticker-scroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-33.333%); }
+        }
+        .ticker-animation {
+          animation: ticker-scroll ${animationSpeed}s linear infinite;
+          will-change: transform;
+        }
+        .ticker-paused {
+          animation-play-state: paused !important;
+        }
+      `;
+      document.head.appendChild(style);
+      return () => {
+        const styleToRemove = document.getElementById(styleId);
+        if (styleToRemove) {
+          document.head.removeChild(styleToRemove);
+        }
       };
+    }
+  }, [animationSpeed]);
 
-      setItems((prev) => [...prev.slice(-10), newItem]); // Keep only last 10 items
-    }, 15000); // Add new item every 15 seconds
-
-    return () => clearInterval(interval);
-  }, []);
+  // For seamless infinite animation without jumps, create 3 copies
+  // This ensures smooth transition when looping back
+  const displayItems = [
+    ...itemsRef.current,
+    ...itemsRef.current,
+    ...itemsRef.current,
+  ];
 
   return (
     <div
@@ -89,20 +114,14 @@ export const Ticker: React.FC<TickerProps> = ({
       onMouseLeave={handleMouseLeave}
     >
       <div className="overflow-hidden py-1">
-        <motion.div
+        <div
           ref={containerRef}
-          className="flex whitespace-nowrap"
-          animate={{
-            x: isPaused ? 0 : "-33.333%",
-          }}
-          transition={{
-            duration: speed * 0.67, // Faster: 30s -> 20s
-            ease: "linear",
-            repeat: Infinity,
-            repeatType: "loop",
-          }}
+          className={`flex whitespace-nowrap ticker-animation ${
+            isPaused ? "ticker-paused" : ""
+          }`}
+          style={{ width: "fit-content" }}
         >
-          {duplicatedItems.map((item, index) => (
+          {displayItems.map((item, index) => (
             <div
               key={`${item.id}-${index}`}
               className="ticker-item mr-8 flex-shrink-0"
@@ -120,7 +139,7 @@ export const Ticker: React.FC<TickerProps> = ({
               </span>
             </div>
           ))}
-        </motion.div>
+        </div>
       </div>
     </div>
   );

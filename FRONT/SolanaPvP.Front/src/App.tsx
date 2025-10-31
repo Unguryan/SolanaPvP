@@ -13,6 +13,8 @@ import { Leaderboard } from "@/pages/Leaderboard";
 import { Profile } from "@/pages/Profile";
 import { NotFound } from "@/pages/NotFound";
 import { GameDemo } from "@/pages/GameDemo";
+import { CreateLobby } from "@/pages/CreateLobby";
+import { MatchPreview } from "@/pages/MatchPreview";
 
 function App() {
   return (
@@ -22,6 +24,8 @@ function App() {
           <Routes>
             <Route path={ROUTES.HOME} element={<Home />} />
             <Route path={ROUTES.MATCHES} element={<Matches />} />
+            <Route path={ROUTES.CREATE_LOBBY} element={<CreateLobby />} />
+            <Route path={ROUTES.MATCH_PREVIEW} element={<MatchPreview />} />
             <Route path={ROUTES.GAME} element={<Game />} />
             <Route path="/demo" element={<GameDemo />} />
             <Route path={ROUTES.LEADERBOARD} element={<Leaderboard />} />

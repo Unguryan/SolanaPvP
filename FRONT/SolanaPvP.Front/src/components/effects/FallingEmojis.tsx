@@ -1,5 +1,5 @@
 // Falling emojis background effect
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
 interface FallingEmoji {
@@ -77,7 +77,7 @@ export const FallingEmojis: React.FC<FallingEmojisProps> = ({
 }) => {
   const [emojis, setEmojis] = useState<FallingEmoji[]>([]);
 
-  const getIntensityConfig = () => {
+  const getIntensityConfig = useCallback(() => {
     switch (intensity) {
       case "low":
         return {
@@ -112,9 +112,9 @@ export const FallingEmojis: React.FC<FallingEmojisProps> = ({
           maxSize: 32,
         };
     }
-  };
+  }, [intensity]);
 
-  const createEmoji = (): FallingEmoji => {
+  const createEmoji = useCallback((): FallingEmoji => {
     const config = getIntensityConfig();
     return {
       id: Math.random().toString(36).substr(2, 9),
@@ -127,7 +127,7 @@ export const FallingEmojis: React.FC<FallingEmojisProps> = ({
       rotation: Math.random() * 360,
       delay: Math.random() * 2, // Random delay 0-2s
     };
-  };
+  }, [getIntensityConfig]);
 
   useEffect(() => {
     const config = getIntensityConfig();

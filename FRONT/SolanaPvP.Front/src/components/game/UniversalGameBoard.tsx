@@ -1,7 +1,12 @@
 // Universal game board component
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { UniversalGameBoardProps, GameState, GameResult } from "@/types/game";
+import {
+  UniversalGameBoardProps,
+  GameState,
+  GameResult,
+  Player,
+} from "@/types/game";
 import { TileGrid } from "./TileGrid";
 import { ChestGrid } from "./ChestGrid";
 import { CardRow } from "./CardRow";
@@ -9,13 +14,11 @@ import { PlayerCard } from "./PlayerCard";
 import { WaitingLobby } from "./WaitingLobby";
 import { GameResultModal } from "./GameResultModal";
 import { TeamBattleLayout } from "./TeamBattleLayout";
-import { Confetti } from "./effects/Confetti";
 import {
   getGameModeConfig,
   calculateGameResult,
 } from "@/utils/gameScoreDistribution";
 import {
-  generateTileValues,
   generateWinnableTiles,
   generateDemoPlayers,
 } from "@/lib/gameMockGenerator";
@@ -53,7 +56,6 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     Map<string, NodeJS.Timeout>
   >(new Map());
   const gameCompletedRef = useRef(false);
-  const [showConfetti, setShowConfetti] = useState(false);
 
   const gameConfig = getGameModeConfig(gameMode);
   const maxPlayers = matchType === "Solo" ? 2 : matchType === "Duo" ? 2 : 5;
@@ -76,7 +78,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
       );
       return shouldHide;
     },
-    [currentPlayer, gameState.players, gameState]
+    [currentPlayer, gameState]
   );
 
   // For team battles, also hide scores during the entire game
@@ -248,11 +250,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
         const neededScore = Math.max(0, targetWinScore - playerCurrentScore);
 
         // Generate tiles with values that could help player reach winning score
-        const tiles = generateWinnableTiles(
-          gameMode,
-          neededScore,
-          playerCurrentScore
-        );
+        const tiles = generateWinnableTiles(gameMode, neededScore);
 
         setGameState((prev) => ({
           ...prev,
@@ -293,6 +291,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     timeLimit,
     currentPlayer,
     showOpponentScore,
+    matchType,
   ]);
 
   // Handle tile selection
@@ -383,14 +382,6 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
         setGameResult(result);
         setShowResultModal(true);
 
-        // Show confetti if player won
-        const isWinner =
-          result.winner === currentPlayer ||
-          (result.isTeamBattle && result.winner === "Team A");
-        if (isWinner) {
-          setShowConfetti(true);
-        }
-
         // Only call onGameComplete once
         if (onGameComplete) {
           onGameComplete(result);
@@ -404,6 +395,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     matchType,
     onGameComplete,
     opponentRevealTimers,
+    currentPlayer,
   ]);
 
   // Cleanup timers on unmount
@@ -481,118 +473,105 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
   }
 
   return (
-    <>
-      {/* Confetti - render at top level to ensure it's above everything */}
-      {showConfetti && (
-        <div
-          className="fixed inset-0 pointer-events-none"
-          style={{ zIndex: 2147483649 }}
+    <div className="space-y-6">
+      {/* Game Header */}
+      <div className="text-center">
+        <motion.h2
+          className="text-2xl font-display font-bold text-sol-purple mb-2"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
         >
-          <Confetti
-            isActive={showConfetti}
-            onComplete={() => setShowConfetti(false)}
-          />
+          {gameConfig.name}
+        </motion.h2>
+        <div className="flex items-center justify-center space-x-4 text-sm text-txt-muted">
+          <span>Stake: {stakeSol} SOL</span>
+          <span>•</span>
+          <span>Mode: {matchType}</span>
+          <span>•</span>
+          <span>Time: {gameState.timeRemaining}s</span>
+        </div>
+      </div>
+
+      {/* Players */}
+      {matchType === "Duo" || matchType === "Team" ? (
+        <TeamBattleLayout
+          players={gameState.players}
+          currentPlayer={currentPlayer}
+          gameStatus={gameState.status}
+          gameResult={gameResult}
+          shouldHideScores={shouldHideScores}
+          hideTeamScores={shouldHideTeamScores}
+        />
+      ) : (
+        <div className="flex gap-4 justify-center">
+          {gameState.players.map((player) => (
+            <PlayerCard
+              key={player.id}
+              player={player}
+              isCurrentPlayer={
+                player.username === currentPlayer &&
+                gameState.status === "playing"
+              }
+              isWinner={gameResult?.winner === player.username}
+              hideScore={shouldHideScores(player.username)}
+              className="w-44 flex-shrink-0"
+            />
+          ))}
         </div>
       )}
 
-      <div className="space-y-6">
-        {/* Game Header */}
-        <div className="text-center">
-          <motion.h2
-            className="text-2xl font-display font-bold text-sol-purple mb-2"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            {gameConfig.name}
-          </motion.h2>
-          <div className="flex items-center justify-center space-x-4 text-sm text-txt-muted">
-            <span>Stake: {stakeSol} SOL</span>
-            <span>•</span>
-            <span>Mode: {matchType}</span>
-            <span>•</span>
-            <span>Time: {gameState.timeRemaining}s</span>
-          </div>
-        </div>
-
-        {/* Players */}
-        {matchType === "Duo" || matchType === "Team" ? (
-          <TeamBattleLayout
-            players={gameState.players}
-            currentPlayer={currentPlayer}
-            gameStatus={gameState.status}
-            gameResult={gameResult}
-            shouldHideScores={shouldHideScores}
-            hideTeamScores={shouldHideTeamScores}
-          />
-        ) : (
-          <div className="flex gap-4 justify-center">
-            {gameState.players.map((player) => (
-              <PlayerCard
-                key={player.id}
-                player={player}
-                isCurrentPlayer={
-                  player.username === currentPlayer &&
-                  gameState.status === "playing"
-                }
-                isWinner={gameResult?.winner === player.username}
-                hideScore={shouldHideScores(player.username)}
-                className="w-44 flex-shrink-0"
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Game Grid */}
-        <div className="w-full">
-          <motion.div
-            className="glass-card p-6 rounded-xl w-full"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            {renderGameGrid()}
-          </motion.div>
-        </div>
-
-        {/* Result Modal */}
-        <GameResultModal
-          isOpen={showResultModal}
-          result={gameResult}
-          onClose={() => setShowResultModal(false)}
-          onPlayAgain={() => {
-            setShowResultModal(false);
-            // Clear any existing timers
-            opponentRevealTimers.forEach((timer) => clearTimeout(timer));
-            setOpponentRevealTimers(new Map());
-
-            // Reset completion flag
-            gameCompletedRef.current = false;
-
-            // Clear game result and confetti
-            setGameResult(null);
-            setShowConfetti(false);
-
-            // Generate fresh players with new random scores
-            const freshPlayers = generateDemoPlayers(matchType, currentPlayer);
-
-            // Reset game state completely
-            setGameState({
-              status: "waiting",
-              timeRemaining: timeLimit,
-              tiles: [],
-              players: freshPlayers.map((p: any) => ({
-                ...p,
-                currentScore: 0, // Player starts with 0
-                selections: [],
-                isScoreRevealed: p.username === currentPlayer,
-              })),
-              currentPlayerTurn: currentPlayer,
-              winner: undefined,
-            });
-          }}
-          isDemoMode={isDemoMode}
-        />
+      {/* Game Grid */}
+      <div className="w-full">
+        <motion.div
+          className="glass-card p-6 rounded-xl w-full"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          {renderGameGrid()}
+        </motion.div>
       </div>
-    </>
+
+      {/* Result Modal */}
+      <GameResultModal
+        isOpen={showResultModal}
+        result={gameResult}
+        onClose={() => setShowResultModal(false)}
+        onPlayAgain={() => {
+          setShowResultModal(false);
+          // Clear any existing timers
+          opponentRevealTimers.forEach((timer) => clearTimeout(timer));
+          setOpponentRevealTimers(new Map());
+
+          // Reset completion flag
+          gameCompletedRef.current = false;
+
+          // Clear game result
+          setGameResult(null);
+
+          // Generate fresh players with new random scores
+          const freshPlayers = generateDemoPlayers(matchType, currentPlayer);
+
+          // Reset game state completely
+          setGameState({
+            status: "waiting",
+            timeRemaining: timeLimit,
+            tiles: [],
+            players: freshPlayers.map((p: Player) => ({
+              id: p.username,
+              username: p.username,
+              targetScore: p.targetScore,
+              currentScore: p.username === currentPlayer ? 0 : p.currentScore,
+              selections: [],
+              isReady: p.isReady,
+              isScoreRevealed: p.username === currentPlayer,
+            })),
+            currentPlayerTurn: currentPlayer,
+            winner: undefined,
+          });
+        }}
+        isDemoMode={isDemoMode}
+      />
+    </div>
   );
 };

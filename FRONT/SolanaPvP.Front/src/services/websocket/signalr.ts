@@ -9,7 +9,8 @@ export class SignalRService {
   private pingTimer: number | null = null;
 
   // Event handlers
-  private eventHandlers: Map<string, Function[]> = new Map();
+  private eventHandlers: Map<string, Array<(data: unknown) => void>> =
+    new Map();
 
   constructor() {
     this.initializeConnection();
@@ -239,24 +240,28 @@ export class SignalRService {
   }
 
   // Event subscription
-  on(event: string, handler: Function): void {
+  on<T = unknown>(event: string, handler: (data: T) => void): void {
     if (!this.eventHandlers.has(event)) {
       this.eventHandlers.set(event, []);
     }
-    this.eventHandlers.get(event)!.push(handler);
+    this.eventHandlers
+      .get(event)!
+      .push(handler as unknown as (data: unknown) => void);
   }
 
-  off(event: string, handler: Function): void {
+  off<T = unknown>(event: string, handler: (data: T) => void): void {
     const handlers = this.eventHandlers.get(event);
     if (handlers) {
-      const index = handlers.indexOf(handler);
+      const index = handlers.indexOf(
+        handler as unknown as (data: unknown) => void
+      );
       if (index > -1) {
         handlers.splice(index, 1);
       }
     }
   }
 
-  private emit(event: string, data?: any): void {
+  private emit(event: string, data?: unknown): void {
     const handlers = this.eventHandlers.get(event);
     if (handlers) {
       handlers.forEach((handler) => handler(data));

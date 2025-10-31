@@ -3,6 +3,8 @@ export const ROUTES = {
   HOME: "/",
   MATCHES: "/matches",
   GAME: "/game/:matchId",
+  CREATE_LOBBY: "/create-lobby",
+  MATCH_PREVIEW: "/match/:matchPda",
   LEADERBOARD: "/leaderboard",
   PROFILE: "/profile",
   PROFILE_USER: "/profile/:identifier",

@@ -14,10 +14,10 @@ export const DEVNET_CONFIG: SolanaConfig = {
   cluster: "devnet",
   rpcUrl: "https://api.devnet.solana.com",
   wsUrl: "wss://api.devnet.solana.com",
-  programId: "PvPvPvPvPvPvPvPvPvPvPvPvPvPvPvPvPvPvPvPvP", // Update after deployment
+  programId: "F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ",
   switchboardProgramId: "SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f",
-  switchboardOracleQueue: "GvDMxPzN1sCj7L26YDK2HnMRXEQmQ2aemov8YBtPS7vR", // Update with actual address
-  switchboardPermissionAccount: "HxYjP2fF8QRnD7eAmf9gxCDXmh3aeuC6hpjWnFZxhV1o", // Update with actual address
+  switchboardOracleQueue: "GvDMxPzN1sCj7L26YDK2HnMRXEQmQ2aemov8YBtPS7vR",
+  switchboardPermissionAccount: "HxYjP2fF8QRnD7eAmf9gxCDXmh3aeuC6hpjWnFZxhV1o",
 };
 
 // Mainnet Configuration
@@ -25,10 +25,10 @@ export const MAINNET_CONFIG: SolanaConfig = {
   cluster: "mainnet-beta",
   rpcUrl: "https://api.mainnet-beta.solana.com",
   wsUrl: "wss://api.mainnet-beta.solana.com",
-  programId: "PvPvPvPvPvPvPvPvPvPvPvPvPvPvPvPvPvPvPvPvP", // Update after deployment
+  programId: "HL92RAc8cw6T2wjQeKVDjy9GcZVNvzaTe31v3p7kuKkR",
   switchboardProgramId: "SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f",
-  switchboardOracleQueue: "GvDMxPzN1sCj7L26YDK2HnMRXEQmQ2aemov8YBtPS7vR", // Update with actual address
-  switchboardPermissionAccount: "HxYjP2fF8QRnD7eAmf9gxCDXmh3aeuC6hpjWnFZxhV1o", // Update with actual address
+  switchboardOracleQueue: "GvDMxPzN1sCj7L26YDK2HnMRXEQmQ2aemov8YBtPS7vR",
+  switchboardPermissionAccount: "HxYjP2fF8QRnD7eAmf9gxCDXmh3aeuC6hpjWnFZxhV1o",
 };
 
 // Get current configuration based on environment

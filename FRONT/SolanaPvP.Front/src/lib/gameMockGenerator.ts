@@ -156,8 +156,7 @@ export const simulateAISelection = async (
 
 export const generateWinnableTiles = (
   gameMode: "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree",
-  neededScore: number,
-  currentScore: number
+  neededScore: number
 ): GameTile[] => {
   let totalTiles: number;
 

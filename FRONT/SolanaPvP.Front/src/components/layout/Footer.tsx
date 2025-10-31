@@ -5,9 +5,9 @@ export const Footer: React.FC = () => {
   return (
     <footer className="bg-bg/95 backdrop-blur-lg border-t border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Brand */}
-          <div className="col-span-1 md:col-span-2">
+          <div className="col-span-1 md:col-span-2 order-3 md:order-1">
             <div className="flex items-center space-x-2 mb-4">
               <div className="w-8 h-8 bg-gradient-to-r from-sol-purple to-sol-mint rounded-lg flex items-center justify-center shadow-glow">
                 <span className="text-white font-bold text-lg">S</span>
@@ -29,76 +29,79 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h3 className="text-sm font-semibold text-txt-base uppercase tracking-wider mb-4">
-              Quick Links
-            </h3>
-            <ul className="space-y-2">
-              <li>
-                <a
-                  href="/matches"
-                  className="text-txt-muted hover:text-sol-purple text-sm transition-colors"
-                >
-                  Active Matches
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/leaderboard"
-                  className="text-txt-muted hover:text-sol-purple text-sm transition-colors"
-                >
-                  Leaderboard
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/profile"
-                  className="text-txt-muted hover:text-sol-purple text-sm transition-colors"
-                >
-                  Profile
-                </a>
-              </li>
-            </ul>
-          </div>
+          {/* Quick Links & Support - Mobile: side by side, Desktop: separate columns */}
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-6 md:gap-3 order-1 md:order-1">
+            {/* Quick Links */}
+            <div>
+              <h3 className="text-sm font-semibold text-txt-base uppercase tracking-wider mb-4">
+                Quick Links
+              </h3>
+              <ul className="space-y-2">
+                <li>
+                  <a
+                    href="/matches"
+                    className="text-txt-muted hover:text-sol-purple text-sm transition-colors"
+                  >
+                    Active Matches
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/leaderboard"
+                    className="text-txt-muted hover:text-sol-purple text-sm transition-colors"
+                  >
+                    Leaderboard
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/profile"
+                    className="text-txt-muted hover:text-sol-purple text-sm transition-colors"
+                  >
+                    Profile
+                  </a>
+                </li>
+              </ul>
+            </div>
 
-          {/* Support */}
-          <div>
-            <h3 className="text-sm font-semibold text-txt-base uppercase tracking-wider mb-4">
-              Support
-            </h3>
-            <ul className="space-y-2">
-              <li>
-                <a
-                  href="#"
-                  className="text-txt-muted hover:text-sol-mint text-sm transition-colors"
-                >
-                  Help Center
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-txt-muted hover:text-sol-mint text-sm transition-colors"
-                >
-                  Contact Us
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-txt-muted hover:text-sol-mint text-sm transition-colors"
-                >
-                  Bug Report
-                </a>
-              </li>
-            </ul>
+            {/* Support */}
+            <div>
+              <h3 className="text-sm font-semibold text-txt-base uppercase tracking-wider mb-4">
+                Support
+              </h3>
+              <ul className="space-y-2">
+                <li>
+                  <a
+                    href="#"
+                    className="text-txt-muted hover:text-sol-mint text-sm transition-colors"
+                  >
+                    Help Center
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="text-txt-muted hover:text-sol-mint text-sm transition-colors"
+                  >
+                    Contact Us
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="text-txt-muted hover:text-sol-mint text-sm transition-colors"
+                  >
+                    Bug Report
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
         <div className="mt-8 pt-8 border-t border-white/10">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-txt-muted text-sm">
+            <p className="text-txt-muted text-sm mb-5 md:mb-0 -mt-5 md:mt-0">
               © 2024 SolanaPvP. All rights reserved.
             </p>
             <div className="flex space-x-6 mt-4 md:mt-0">

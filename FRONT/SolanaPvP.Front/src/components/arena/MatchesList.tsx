@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useArenaStore } from "@/store/arenaStore";
+import { useNavigate } from "react-router-dom";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useArenaStore, MatchLobby } from "@/store/arenaStore";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
   GlassCard,
@@ -9,17 +11,23 @@ import {
 } from "@/components/ui/GlassCard";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { formatDistanceToNow } from "date-fns";
+import { ROUTES } from "@/constants/routes";
 
 interface MatchesListProps {
   className?: string;
   maxItems?: number;
+  matches?: MatchLobby[];
 }
 
 export const MatchesList: React.FC<MatchesListProps> = ({
   className = "",
   maxItems = 8,
+  matches: propMatches,
 }) => {
-  const { matches, isLoading, setJoinModal } = useArenaStore();
+  const navigate = useNavigate();
+  const { connected } = useWallet();
+  const { matches: storeMatches, isLoading, setJoinModal } = useArenaStore();
+  const matches = propMatches || storeMatches;
   const [timeLeft, setTimeLeft] = useState<Record<string, number>>({});
 
   // Update countdown timers
@@ -75,8 +83,16 @@ export const MatchesList: React.FC<MatchesListProps> = ({
     return "border-txt-muted/30";
   };
 
-  const handleJoinMatch = (matchId: string) => {
+  const handleJoinMatch = (e: React.MouseEvent, matchId: string) => {
+    e.stopPropagation(); // Prevent card click
+    if (!connected) return;
     setJoinModal(matchId);
+  };
+
+  const handleMatchClick = (match: MatchLobby) => {
+    // Use matchPda if available, otherwise use id
+    const matchPda = match.matchPda || match.id;
+    navigate(`/match/${matchPda}`);
   };
 
   if (isLoading) {
@@ -121,7 +137,10 @@ export const MatchesList: React.FC<MatchesListProps> = ({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
-              className={`match-card ${getFillColor(fillPercentage)}`}
+              className={`match-card ${getFillColor(
+                fillPercentage
+              )} cursor-pointer hover:bg-white/5 transition-colors`}
+              onClick={() => handleMatchClick(match)}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -164,11 +183,13 @@ export const MatchesList: React.FC<MatchesListProps> = ({
 
                   <GlowButton
                     size="sm"
-                    variant={isFull || isEnded ? "ghost" : "neon"}
-                    disabled={isFull || isEnded}
-                    onClick={() => handleJoinMatch(match.id)}
+                    variant={isFull || isEnded || !connected ? "ghost" : "neon"}
+                    disabled={isFull || isEnded || !connected}
+                    onClick={(e) => handleJoinMatch(e, match.id)}
                     className={
-                      isFull || isEnded ? "opacity-50 cursor-not-allowed" : ""
+                      isFull || isEnded || !connected
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
                     }
                   >
                     {isFull ? "Full" : isEnded ? "Ended" : "Join"}

@@ -68,7 +68,7 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/70 backdrop-blur-md"
-            style={{ zIndex: 2147483647, top: "-10%" }}
+            style={{ zIndex: 1000, top: "-10%" }}
             onClick={onClose}
           />
 
@@ -79,7 +79,7 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             className="fixed inset-0 flex items-center justify-center p-4"
-            style={{ zIndex: 2147483647 }}
+            style={{ zIndex: 1001 }}
           >
             <GlassCard className="w-full max-w-md mx-auto">
               <GlassCardContent className="p-6">

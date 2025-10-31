@@ -1,35 +1,32 @@
 // Matches page component
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { useArenaStore } from "@/store/arenaStore";
 import { useArenaRealtime } from "@/hooks/useArenaRealtime";
 import { MatchesList } from "@/components/arena/MatchesList";
 import { JoinMatchSheet } from "@/components/arena/JoinMatchSheet";
 import { Skeleton } from "@/components/ui/Skeleton";
-import {
-  GlassCard,
-  GlassCardHeader,
-  GlassCardTitle,
-} from "@/components/ui/GlassCard";
+import { GlassCard } from "@/components/ui/GlassCard";
 import { GlowButton } from "@/components/ui/GlowButton";
-import {
-  FunnelIcon,
-  AdjustmentsHorizontalIcon,
-  ClockIcon,
-  CurrencyDollarIcon,
-  UserGroupIcon,
-} from "@heroicons/react/24/outline";
+import { ROUTES } from "@/constants/routes";
+import { FunnelIcon, ClockIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { MatchLobby } from "@/store/arenaStore";
 
 type GameModeFilter = "all" | "Pick3from9" | "Pick5from16" | "Pick1from3";
 type StakeFilter = "all" | "low" | "medium" | "high";
-type StatusFilter = "all" | "open" | "full" | "ending";
+type MatchTypeFilter = "all" | "Solo" | "Duo" | "Team";
 
 export const Matches: React.FC = () => {
-  const { matches, joinModalMatchId, setJoinModal, isLoading, setLoading } =
+  const navigate = useNavigate();
+  const { connected } = useWallet();
+  const { matches, joinModalMatchId, setJoinModal, isLoading } =
     useArenaStore();
   const [gameModeFilter, setGameModeFilter] = useState<GameModeFilter>("all");
   const [stakeFilter, setStakeFilter] = useState<StakeFilter>("all");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [matchTypeFilter, setMatchTypeFilter] =
+    useState<MatchTypeFilter>("all");
   const [sortBy, setSortBy] = useState<"stake" | "timeLeft" | "players">(
     "timeLeft"
   );
@@ -37,7 +34,33 @@ export const Matches: React.FC = () => {
   // Initialize real-time arena data
   useArenaRealtime();
 
-  const filteredMatches = matches.filter((match) => {
+  // Add mock match for preview if no matches exist
+  const matchesWithMock = React.useMemo(() => {
+    if (matches.length === 0 && !isLoading) {
+      const mockMatch: MatchLobby = {
+        id: "mock-1",
+        stake: 2.5,
+        playersReady: 3,
+        playersMax: 6,
+        endsAt: Date.now() + 300000, // 5 minutes from now
+        gameMode: "Pick3from9",
+        matchType: "Duo",
+      };
+      return [mockMatch];
+    }
+    return matches;
+  }, [matches, isLoading]);
+
+  // Filter only active matches (not full, not ended)
+  const activeMatches = matchesWithMock.filter((match) => {
+    const now = Date.now();
+    const timeLeft = match.endsAt - now;
+    const isFull = match.playersReady >= match.playersMax;
+    const isEnded = timeLeft <= 0;
+    return !isFull && !isEnded;
+  });
+
+  const filteredMatches = activeMatches.filter((match) => {
     // Game mode filter
     if (gameModeFilter !== "all" && match.gameMode !== gameModeFilter) {
       return false;
@@ -58,29 +81,16 @@ export const Matches: React.FC = () => {
       }
     }
 
-    // Status filter
-    if (statusFilter !== "all") {
-      const now = Date.now();
-      const timeLeft = match.endsAt - now;
-      const isFull = match.playersReady >= match.playersMax;
-      const isEnding = timeLeft < 60000; // Less than 1 minute
-
-      switch (statusFilter) {
-        case "open":
-          if (isFull || isEnding) return false;
-          break;
-        case "full":
-          if (!isFull) return false;
-          break;
-        case "ending":
-          if (!isEnding) return false;
-          break;
-      }
+    // Match type filter
+    if (matchTypeFilter !== "all") {
+      if (match.matchType !== matchTypeFilter) return false;
     }
 
     return true;
   });
 
+  // Note: sortedMatches is computed but MatchesList component uses matches from store directly
+  // Sorting and filtering could be moved to MatchesList component if needed
   const sortedMatches = [...filteredMatches].sort((a, b) => {
     switch (sortBy) {
       case "stake":
@@ -93,14 +103,27 @@ export const Matches: React.FC = () => {
     }
   });
 
+  // Use sortedMatches for display if MatchesList supports filtered matches
+  // Currently MatchesList uses matches from store, so this is kept for future use
+  void sortedMatches;
+
   const handleCloseJoinModal = () => {
     setJoinModal(null);
   };
 
-  const getStakeRange = (stake: number) => {
-    if (stake < 2) return "Low (0-2 SOL)";
-    if (stake < 5) return "Medium (2-5 SOL)";
-    return "High (5+ SOL)";
+  const getStakeRangeLabel = (stake: "all" | "low" | "medium" | "high") => {
+    switch (stake) {
+      case "all":
+        return "All";
+      case "low":
+        return "0-2 SOL";
+      case "medium":
+        return "2-5 SOL";
+      case "high":
+        return "5+ SOL";
+      default:
+        return "All";
+    }
   };
 
   const getGameModeIcon = (gameMode: string) => {
@@ -150,125 +173,138 @@ export const Matches: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-lg text-txt-muted"
+            className="text-lg text-txt-muted mb-6"
           >
             Join matches and compete for SOL rewards
           </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <GlowButton
+              variant={connected ? "neon" : "ghost"}
+              disabled={!connected}
+              onClick={() => navigate(ROUTES.CREATE_LOBBY)}
+              className={`inline-flex items-center gap-2 ${
+                !connected ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              <PlusIcon className="w-5 h-5" />
+              Create New Match
+            </GlowButton>
+          </motion.div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <GlassCard className="p-4 text-center">
-            <ClockIcon className="w-6 h-6 text-sol-mint mx-auto mb-2" />
-            <div className="text-xl font-bold text-txt-base">
-              {matches.length}
+        <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4">
+          <GlassCard className="p-3 md:p-4 text-center">
+            <ClockIcon className="w-5 h-5 md:w-6 md:h-6 text-sol-mint mx-auto mb-2" />
+            <div className="text-lg md:text-xl font-bold text-txt-base">
+              {activeMatches.length}
             </div>
-            <div className="text-sm text-txt-muted">Total Matches</div>
-          </GlassCard>
-          <GlassCard className="p-4 text-center">
-            <UserGroupIcon className="w-6 h-6 text-sol-purple mx-auto mb-2" />
-            <div className="text-xl font-bold text-txt-base">
-              {matches.reduce((sum, m) => sum + m.playersReady, 0)}
+            <div className="text-xs md:text-sm text-txt-muted">
+              Active Matches
             </div>
-            <div className="text-sm text-txt-muted">Players Ready</div>
           </GlassCard>
-          <GlassCard className="p-4 text-center">
-            <CurrencyDollarIcon className="w-6 h-6 text-sol-mint mx-auto mb-2" />
-            <div className="text-xl font-bold text-txt-base">
-              {matches.reduce((sum, m) => sum + m.stake, 0).toFixed(1)}
-            </div>
-            <div className="text-sm text-txt-muted">Total Stakes (SOL)</div>
-          </GlassCard>
-          <GlassCard className="p-4 text-center">
-            <FunnelIcon className="w-6 h-6 text-sol-purple mx-auto mb-2" />
-            <div className="text-xl font-bold text-txt-base">
+          <GlassCard className="p-3 md:p-4 text-center">
+            <FunnelIcon className="w-5 h-5 md:w-6 md:h-6 text-sol-purple mx-auto mb-2" />
+            <div className="text-lg md:text-xl font-bold text-txt-base">
               {filteredMatches.length}
             </div>
-            <div className="text-sm text-txt-muted">Filtered Results</div>
+            <div className="text-xs md:text-sm text-txt-muted">
+              Filtered Results
+            </div>
           </GlassCard>
         </div>
 
         {/* Filters */}
-        <div className="space-y-6 mb-8">
+        <div className="space-y-4 mb-8">
           {/* Game Mode Filter */}
           <GlassCard className="p-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <span className="text-txt-muted text-sm font-medium">
-                Game Mode:
+            <div className="space-y-3">
+              <span className="text-txt-muted text-sm font-medium block">
+                Game
               </span>
-              {(
-                ["all", "Pick3from9", "Pick5from16", "Pick1from3"] as const
-              ).map((mode) => (
-                <GlowButton
-                  key={mode}
-                  variant={gameModeFilter === mode ? "neon" : "ghost"}
-                  size="sm"
-                  onClick={() => setGameModeFilter(mode)}
-                  className="text-xs"
-                >
-                  {mode === "all" ? (
-                    "All"
-                  ) : (
-                    <span className="flex items-center">
-                      <span className="mr-1">{getGameModeIcon(mode)}</span>
-                      {mode}
-                    </span>
-                  )}
-                </GlowButton>
-              ))}
+              <div className="flex flex-wrap items-center gap-2 md:gap-4">
+                {(
+                  ["all", "Pick3from9", "Pick5from16", "Pick1from3"] as const
+                ).map((mode) => (
+                  <GlowButton
+                    key={mode}
+                    variant={gameModeFilter === mode ? "neon" : "ghost"}
+                    size="sm"
+                    onClick={() => setGameModeFilter(mode)}
+                    className="text-xs"
+                  >
+                    {mode === "all" ? (
+                      "All"
+                    ) : (
+                      <span className="flex items-center">
+                        <span className="mr-1">{getGameModeIcon(mode)}</span>
+                        {mode === "Pick3from9"
+                          ? "3v9"
+                          : mode === "Pick5from16"
+                          ? "5v16"
+                          : "1v3"}
+                      </span>
+                    )}
+                  </GlowButton>
+                ))}
+              </div>
             </div>
           </GlassCard>
 
           {/* Stake Filter */}
           <GlassCard className="p-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <span className="text-txt-muted text-sm font-medium">
-                Stake Range:
+            <div className="space-y-3">
+              <span className="text-txt-muted text-sm font-medium block">
+                Stake Range
               </span>
-              {(["all", "low", "medium", "high"] as const).map((stake) => (
-                <GlowButton
-                  key={stake}
-                  variant={stakeFilter === stake ? "neon" : "ghost"}
-                  size="sm"
-                  onClick={() => setStakeFilter(stake)}
-                  className="text-xs"
-                >
-                  {stake === "all"
-                    ? "All"
-                    : getStakeRange(
-                        stake === "low" ? 1 : stake === "medium" ? 3 : 6
-                      )}
-                </GlowButton>
-              ))}
-            </div>
-          </GlassCard>
-
-          {/* Status & Sort */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <GlassCard className="p-4">
-              <div className="flex flex-wrap items-center gap-4">
-                <span className="text-txt-muted text-sm font-medium">
-                  Status:
-                </span>
-                {(["all", "open", "full", "ending"] as const).map((status) => (
+              <div className="flex flex-wrap items-center gap-2 md:gap-4">
+                {(["all", "low", "medium", "high"] as const).map((stake) => (
                   <GlowButton
-                    key={status}
-                    variant={statusFilter === status ? "neon" : "ghost"}
+                    key={stake}
+                    variant={stakeFilter === stake ? "neon" : "ghost"}
                     size="sm"
-                    onClick={() => setStatusFilter(status)}
-                    className="text-xs capitalize"
+                    onClick={() => setStakeFilter(stake)}
+                    className="text-xs"
                   >
-                    {status}
+                    {getStakeRangeLabel(stake)}
                   </GlowButton>
                 ))}
               </div>
-            </GlassCard>
+            </div>
+          </GlassCard>
 
-            <GlassCard className="p-4">
-              <div className="flex flex-wrap items-center gap-4">
-                <span className="text-txt-muted text-sm font-medium">
-                  Sort by:
-                </span>
+          {/* Mode & Sort */}
+          <GlassCard className="p-4">
+            <div className="space-y-3">
+              <span className="text-txt-muted text-sm font-medium block">
+                Mode
+              </span>
+              <div className="flex flex-wrap items-center gap-2 md:gap-4">
+                {(["all", "Solo", "Duo", "Team"] as const).map((mode) => (
+                  <GlowButton
+                    key={mode}
+                    variant={matchTypeFilter === mode ? "neon" : "ghost"}
+                    size="sm"
+                    onClick={() => setMatchTypeFilter(mode)}
+                    className="text-xs"
+                  >
+                    {mode}
+                  </GlowButton>
+                ))}
+              </div>
+            </div>
+          </GlassCard>
+
+          <GlassCard className="p-4">
+            <div className="space-y-3">
+              <span className="text-txt-muted text-sm font-medium block">
+                Sort by
+              </span>
+              <div className="flex flex-wrap items-center gap-2 md:gap-4">
                 {(["timeLeft", "stake", "players"] as const).map((sort) => (
                   <GlowButton
                     key={sort}
@@ -285,12 +321,16 @@ export const Matches: React.FC = () => {
                   </GlowButton>
                 ))}
               </div>
-            </GlassCard>
-          </div>
+            </div>
+          </GlassCard>
         </div>
 
         {/* Matches List */}
-        <MatchesList className="max-h-none" maxItems={50} />
+        <MatchesList
+          className="max-h-none"
+          maxItems={50}
+          matches={sortedMatches}
+        />
 
         {/* Join Match Modal */}
         <JoinMatchSheet

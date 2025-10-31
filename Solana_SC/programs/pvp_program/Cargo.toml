@@ -1,6 +1,6 @@
 [package]
 name = "pvp_program"
-version = "0.1.0"
+version = "1.0.0"
 description = "Solana PvP Game Program with Switchboard VRF"
 edition = "2021"
 
@@ -16,8 +16,19 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = "0.32.1"
-anchor-spl = "0.32.1"
+anchor-lang = "0.30.1"
+anchor-spl = "0.30.1"
+switchboard-solana = "0.30.4"
 sha2 = "0.10"
-rand = "0.8"
-rand_chacha = "0.3"
+
+
+# anchor-spl = "0.28"  # Removed to avoid Solana version conflicts
+# sha2 = "0.10"
+# rand = "0.8"  # Not supported in Solana BPF - uses getrandom which doesn't work
+# rand_chacha = "0.3"  # Not supported in Solana BPF
+# Using crates.io version - we'll need to handle compatibility differently
+# or potentially downgrade Anchor version if switchboard-v2 doesn't support Solana 2.x yet
+# Temporarily disable switchboard-v2 due to version conflicts
+# TODO: Find compatible version or alternative VRF solution
+# switchboard-v2 = "0.4.0"  # Temporarily disabled - version incompatible with Anchor 0.31
+
