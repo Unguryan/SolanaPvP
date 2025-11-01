@@ -13,6 +13,7 @@ import { usePvpProgram, useLobbyOperations } from "@/hooks/usePvpProgram";
 import { PdaUtils } from "@/services/solana/accounts";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { MIN_STAKE_LAMPORTS } from "@/services/solana/config";
+import { InitConfigButton } from "@/components/admin/InitConfigButton";
 
 type GameMode = "Pick3from9" | "Pick5from16" | "Pick1from3";
 type TeamSize = 1 | 2 | 5;
@@ -114,6 +115,9 @@ export const CreateLobby: React.FC = () => {
         </motion.div>
 
         <div className="space-y-6">
+          {/* Config Initialization Check */}
+          <InitConfigButton />
+
           {/* Game Mode Selection */}
           <GlassCard className="p-6">
             <GlassCardHeader>

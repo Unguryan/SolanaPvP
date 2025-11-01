@@ -3,6 +3,21 @@ import { PublicKey, Connection, Keypair } from "@solana/web3.js";
 import { getSolanaConfig } from "./config";
 import { PdaUtils } from "./accounts";
 
+// Function to load IDL - will be available after anchor build and copy
+async function loadIdl(): Promise<anchor.Idl | null> {
+  // IDL will be loaded from on-chain if not available locally
+  // Local IDL file is optional and may not exist during development
+  // This allows the build to succeed even without the IDL file
+  try {
+    // @ts-expect-error - IDL file may not exist, will fall back to on-chain fetch
+    const idlModule = await import("./idl/pvp_program.json");
+    return (idlModule.default || idlModule) as anchor.Idl;
+  } catch {
+    console.warn("IDL not found locally. Will try to fetch from on-chain.");
+    return null;
+  }
+}
+
 // Program instance management
 class ProgramManager {
   private static instance: ProgramManager;
@@ -43,29 +58,49 @@ class ProgramManager {
     const programId = new PublicKey(config.programId);
     PdaUtils.setProgramId(config.programId);
 
+    // Create program instance with IDL
+    // Try to use local IDL first, then fetch from on-chain
+    let loadedIdl: anchor.Idl | null = await loadIdl();
+
+    if (!loadedIdl) {
+      // Try to fetch IDL from on-chain
+      try {
+        if (!this.provider) {
+          throw new Error("Provider not initialized");
+        }
+        loadedIdl = await anchor.Program.fetchIdl(programId, this.provider);
+        if (!loadedIdl) {
+          throw new Error("Could not fetch IDL from on-chain");
+        }
+      } catch (error) {
+        console.error(
+          "Failed to load IDL. Program may not be deployed yet.",
+          error
+        );
+        throw new Error(
+          "Program IDL not found. Please ensure the program is deployed and IDL is available. " +
+            "Run 'anchor build' and copy IDL to frontend, or deploy the program first."
+        );
+      }
+    }
+
+    if (!this.provider) {
+      throw new Error("Provider not initialized");
+    }
+
+    // Ensure loadedIdl is not null after all checks
+    if (!loadedIdl) {
+      throw new Error("IDL is required but was not loaded");
+    }
+
     // Create program instance
-    // Note: In a real implementation, you'd load the IDL and create the program
-    // For now, we'll create a mock program structure
-    this.program = {
+    // TypeScript sometimes has issues with Program constructor type inference
+    // Workaround: use type assertion for the constructor call
+    this.program = new (anchor.Program as any)(
+      loadedIdl,
       programId,
-      provider: this.provider,
-      rpc: {} as any,
-      account: {} as any,
-      instruction: {} as any,
-      transaction: {} as any,
-      methods: {} as any,
-      coder: {} as any,
-      simulate: {} as any,
-      view: {} as any,
-      events: {} as any,
-      filters: {} as any,
-      address: programId,
-      idl: {} as any,
-      _idl: {} as any,
-      _events: {} as any,
-      _programId: programId,
-      _provider: this.provider,
-    } as any;
+      this.provider
+    ) as anchor.Program;
 
     return this.program!;
   }

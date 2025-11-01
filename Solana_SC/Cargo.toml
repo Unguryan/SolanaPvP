@@ -4,9 +4,9 @@ members = [
 ]
 resolver = "2"
 
-# [workspace.dependencies]
-# # Force compatible versions to resolve conflicts
-# zeroize = "1.3"
+# Fix proc-macro2 for anchor-syn 0.30.1 - pin to last version with source_file()
+[workspace.dependencies]
+proc-macro2 = "=1.0.94"
 
 [profile.release]
 overflow-checks = true

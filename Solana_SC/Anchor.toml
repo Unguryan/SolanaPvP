@@ -9,19 +9,20 @@ skip-lint = false
 pvp_program = "F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ"
 
 [programs.mainnet]
-pvp_program = "HL92RAc8cw6T2wjQeKVDjy9GcZVNvzaTe31v3p7kuKkR"
+pvp_program = "DAcQFzHbDn7rEFW2GC7uEhMiub5GCzGfXUnbL5ETddwd"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
 
 [workspace]
 members = ["programs/pvp_program"]
 
 [scripts]
+migrate = "ts-node migrations/deploy.ts"
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
 
 [test]

@@ -319,6 +319,61 @@ export function useGlobalConfig() {
   };
 }
 
+// Hook for initializing global config
+export function useInitConfig() {
+  const { publicKey, connected } = useWallet();
+  const { isInitialized } = usePvpProgram();
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [txSignature, setTxSignature] = useState<string | null>(null);
+
+  const initConfig = useCallback(async () => {
+    if (!publicKey || !connected || !isInitialized) {
+      setError("Wallet not connected or program not initialized");
+      return;
+    }
+
+    try {
+      setIsInitializing(true);
+      setError(null);
+      setTxSignature(null);
+
+      const signature = await PvpInstructions.initConfig(publicKey);
+      setTxSignature(signature);
+
+      console.log("✅ Config initialized successfully!");
+      console.log("Transaction signature:", signature);
+      console.log("Admin pubkey:", publicKey.toString());
+
+      // Refresh config after initialization
+      // The useGlobalConfig hook will pick it up
+    } catch (err: any) {
+      const errorMessage = parseAnchorError(err);
+      setError(errorMessage);
+      console.error("Failed to initialize config:", err);
+
+      // Check if config already exists
+      if (
+        errorMessage.includes("already in use") ||
+        errorMessage.includes("AccountInUse") ||
+        errorMessage.includes("already initialized")
+      ) {
+        console.log("⚠️  Config already exists (this is OK)");
+        setError(null);
+      }
+    } finally {
+      setIsInitializing(false);
+    }
+  }, [publicKey, connected, isInitialized]);
+
+  return {
+    initConfig,
+    isInitializing,
+    error,
+    txSignature,
+  };
+}
+
 // Hook for event listeners
 export function usePvpEvents() {
   const { isInitialized } = usePvpProgram();

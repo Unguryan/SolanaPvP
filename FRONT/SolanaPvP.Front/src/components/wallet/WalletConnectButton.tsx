@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useWalletUser } from "@/hooks/useWallet";
 import { GlowButton } from "@/components/ui/GlowButton";
@@ -27,6 +28,28 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
   const [showWalletSelector, setShowWalletSelector] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showToast, setShowToast] = useState(false);
+
+  // Disable body scroll when modal is open
+  useEffect(() => {
+    if (showWalletSelector) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      // Disable scroll
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = "100%";
+      document.body.style.overflow = "hidden";
+
+      return () => {
+        // Restore scroll
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.width = "";
+        document.body.style.overflow = "";
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showWalletSelector]);
 
   const handleConnectClick = () => {
     if (connected) {
@@ -126,59 +149,76 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
         {connecting || user.isLoading ? "Connecting..." : "Connect Wallet"}
       </GlowButton>
 
-      {/* Wallet Selector Modal */}
-      {showWalletSelector && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <GlassCard className="p-6 w-full max-w-md mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-display font-bold text-sol-purple">
-                Connect Wallet
-              </h3>
-              <button
-                onClick={() => setShowWalletSelector(false)}
-                className="text-txt-muted hover:text-txt-base transition-colors"
-              >
-                <XMarkIcon className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {wallets.map((wallet) => (
+      {/* Wallet Selector Modal - rendered via Portal to be above everything */}
+      {showWalletSelector &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center z-[50] p-2 pt-[15%] md:pt-[10%]"
+            onClick={(e) => {
+              // Close modal if clicking on backdrop (not on the modal content)
+              if (e.target === e.currentTarget) {
+                setShowWalletSelector(false);
+              }
+            }}
+          >
+            <GlassCard
+              className="p-4 w-full max-w-md mx-4"
+              onClick={(e) => {
+                // Prevent closing when clicking inside the modal
+                e.stopPropagation();
+              }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-display font-bold text-sol-purple">
+                  Connect Wallet
+                </h3>
                 <button
-                  key={wallet.adapter.name}
-                  onClick={() => handleWalletSelect(wallet.adapter.name)}
-                  className="w-full flex items-center gap-3 p-3 glass-card hover:bg-white/10 rounded-lg transition-colors"
+                  onClick={() => setShowWalletSelector(false)}
+                  className="text-txt-muted hover:text-txt-base transition-colors"
                 >
-                  <img
-                    src={wallet.adapter.icon}
-                    alt={wallet.adapter.name}
-                    className="w-8 h-8"
-                  />
-                  <div className="flex-1 text-left">
-                    <div className="font-medium text-txt-base">
-                      {wallet.adapter.name}
-                    </div>
-                    <div className="text-sm text-txt-muted">
-                      {wallet.readyState === "Installed"
-                        ? "Ready"
-                        : "Not Installed"}
-                    </div>
-                  </div>
-                  {wallet.readyState === "Installed" && (
-                    <CheckIcon className="w-5 h-5 text-sol-mint" />
-                  )}
+                  <XMarkIcon className="w-6 h-6" />
                 </button>
-              ))}
-            </div>
-
-            {wallets.length === 0 && (
-              <div className="text-center py-8 text-txt-muted">
-                No wallets available. Please install Phantom wallet.
               </div>
-            )}
-          </GlassCard>
-        </div>
-      )}
+
+              <div className="space-y-2">
+                {wallets.map((wallet) => (
+                  <button
+                    key={wallet.adapter.name}
+                    onClick={() => handleWalletSelect(wallet.adapter.name)}
+                    className="w-full flex items-center gap-3 p-3 glass-card hover:bg-white/10 rounded-lg transition-colors"
+                  >
+                    <img
+                      src={wallet.adapter.icon}
+                      alt={wallet.adapter.name}
+                      className="w-8 h-8"
+                    />
+                    <div className="flex-1 text-left">
+                      <div className="font-medium text-txt-base">
+                        {wallet.adapter.name}
+                      </div>
+                      <div className="text-sm text-txt-muted">
+                        {wallet.readyState === "Installed"
+                          ? "Ready"
+                          : "Not Installed"}
+                      </div>
+                    </div>
+                    {wallet.readyState === "Installed" && (
+                      <CheckIcon className="w-5 h-5 text-sol-mint" />
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {wallets.length === 0 && (
+                <div className="text-center py-8 text-txt-muted">
+                  No wallets available. Please install Phantom wallet.
+                </div>
+              )}
+            </GlassCard>
+          </div>,
+          document.body
+        )}
 
       {/* Toast for errors */}
       {showToast && user.error && (

@@ -24,8 +24,8 @@
 use anchor_lang::prelude::{*, Context, Program};
 use anchor_lang::system_program::System;
 use anchor_lang::solana_program::system_instruction;
-use anchor_spl::token;
-use anchor_spl::associated_token;
+use anchor_spl::token::{self, Token};
+use anchor_spl::associated_token::{self, AssociatedToken};
 // Switchboard v2 crate:
 // Cargo.toml → switchboard-v2 = { version = "0.2", features = ["no-entrypoint"] }
 use switchboard_solana::{OracleQueueAccountData, PermissionAccountData};
