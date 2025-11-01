@@ -3,7 +3,6 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ROUTES } from "@/constants/routes";
 import { WalletConnectButton } from "@/components/wallet/WalletConnectButton";
-import { Button } from "@/components/common/Button";
 import { Ticker } from "@/components/arena/Ticker";
 
 export const Header: React.FC = () => {

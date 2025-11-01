@@ -10,8 +10,6 @@ import {
   GlassCardTitle,
 } from "@/components/ui/GlassCard";
 import { GlowButton } from "@/components/ui/GlowButton";
-import { formatDistanceToNow } from "date-fns";
-import { ROUTES } from "@/constants/routes";
 
 interface MatchesListProps {
   className?: string;
@@ -153,7 +151,11 @@ export const MatchesList: React.FC<MatchesListProps> = ({
                         {match.stake} SOL
                       </span>
                       <span className="text-txt-muted text-sm">
-                        {match.gameMode}
+                        {match.gameMode === "Pick3from9"
+                          ? "Pick 3 from 9"
+                          : match.gameMode === "Pick5from16"
+                          ? "Pick 5 from 16"
+                          : "Pick 3 from 9"}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2 text-xs text-txt-muted">
@@ -168,7 +170,7 @@ export const MatchesList: React.FC<MatchesListProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 md:space-x-4">
                   <div className="text-right">
                     <div className="text-xs text-txt-muted mb-1">
                       {fillPercentage}% full

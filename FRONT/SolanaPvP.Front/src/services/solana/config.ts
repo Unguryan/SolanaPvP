@@ -33,9 +33,19 @@ export const MAINNET_CONFIG: SolanaConfig = {
 
 // Get current configuration based on environment
 export function getSolanaConfig(): SolanaConfig {
-  const isDev =
-    import.meta.env.DEV || import.meta.env.VITE_NETWORK === "devnet";
-  return isDev ? DEVNET_CONFIG : MAINNET_CONFIG;
+  // Priority:
+  // 1. VITE_NETWORK env variable (set in build)
+  // 2. DEV mode (npm run dev)
+  const network = import.meta.env.VITE_NETWORK;
+  const isDevMode = import.meta.env.DEV;
+
+  // If VITE_NETWORK is explicitly set, use it
+  if (network === "devnet" || network === "mainnet") {
+    return network === "devnet" ? DEVNET_CONFIG : MAINNET_CONFIG;
+  }
+
+  // Otherwise, use DEV mode: dev mode = devnet, production = mainnet
+  return isDevMode ? DEVNET_CONFIG : MAINNET_CONFIG;
 }
 
 // Network switching utility
@@ -43,6 +53,21 @@ export function switchNetwork(
   network: "devnet" | "mainnet-beta"
 ): SolanaConfig {
   return network === "devnet" ? DEVNET_CONFIG : MAINNET_CONFIG;
+}
+
+// Network detection utilities
+export function isDevnet(): boolean {
+  const config = getSolanaConfig();
+  return config.cluster === "devnet";
+}
+
+export function isMainnet(): boolean {
+  const config = getSolanaConfig();
+  return config.cluster === "mainnet-beta";
+}
+
+export function getNetworkName(): string {
+  return isDevnet() ? "Devnet" : "Mainnet";
 }
 
 // Constants

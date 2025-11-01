@@ -55,7 +55,7 @@ export class PdaUtils {
   }
 }
 
-// Account Data Types
+// Account Data Types - matching IDL types in camelCase
 export interface LobbyAccount {
   bump: number;
   lobbyId: BN;
@@ -81,11 +81,12 @@ export interface ActiveLobbyAccount {
   lobby: PublicKey;
 }
 
+// Lobby Status enum - matching IDL
 export enum LobbyStatus {
-  Open = "Open",
-  Pending = "Pending",
-  Resolved = "Resolved",
-  Refunded = "Refunded",
+  Open = "open",
+  Pending = "pending",
+  Resolved = "resolved",
+  Refunded = "refunded",
 }
 
 // Account validation utilities
@@ -99,46 +100,101 @@ export function validateLobbyAccount(account: LobbyAccount): boolean {
   );
 }
 
-export function isLobbyOpen(account: LobbyAccount): boolean {
-  return account.status === LobbyStatus.Open && !account.finalized;
+// Account serialization utilities
+export function serializeLobbyAccount(account: LobbyAccount): string {
+  return JSON.stringify({
+    bump: account.bump,
+    lobbyId: account.lobbyId.toString(),
+    creator: account.creator.toString(),
+    status: account.status,
+    teamSize: account.teamSize,
+    stakeLamports: account.stakeLamports.toString(),
+    createdAt: account.createdAt.toString(),
+    finalized: account.finalized,
+    vrf: account.vrf.toString(),
+    team1: account.team1.map((pk) => pk.toString()),
+    team2: account.team2.map((pk) => pk.toString()),
+  });
 }
 
-export function isLobbyFull(account: LobbyAccount): boolean {
+export function deserializeLobbyAccount(data: string): LobbyAccount {
+  const parsed = JSON.parse(data);
+  return {
+    bump: parsed.bump,
+    lobbyId: new BN(parsed.lobbyId),
+    creator: new PublicKey(parsed.creator),
+    status: parsed.status as LobbyStatus,
+    teamSize: parsed.teamSize,
+    stakeLamports: new BN(parsed.stakeLamports),
+    createdAt: new BN(parsed.createdAt),
+    finalized: parsed.finalized,
+    vrf: new PublicKey(parsed.vrf),
+    team1: parsed.team1.map((pk: string) => new PublicKey(pk)),
+    team2: parsed.team2.map((pk: string) => new PublicKey(pk)),
+  };
+}
+
+// Helper functions for lobby status
+export function isLobbyOpen(lobby: LobbyAccount): boolean {
+  return lobby.status === LobbyStatus.Open;
+}
+
+export function isLobbyPending(lobby: LobbyAccount): boolean {
+  return lobby.status === LobbyStatus.Pending;
+}
+
+export function isLobbyResolved(lobby: LobbyAccount): boolean {
+  return lobby.status === LobbyStatus.Resolved;
+}
+
+export function isLobbyRefunded(lobby: LobbyAccount): boolean {
+  return lobby.status === LobbyStatus.Refunded;
+}
+
+// Helper functions for lobby teams
+export function getLobbyTeamCount(lobby: LobbyAccount): {
+  team1: number;
+  team2: number;
+  total: number;
+} {
+  return {
+    team1: lobby.team1.length,
+    team2: lobby.team2.length,
+    total: lobby.team1.length + lobby.team2.length,
+  };
+}
+
+export function isLobbyFull(lobby: LobbyAccount): boolean {
+  const { total } = getLobbyTeamCount(lobby);
+  return total >= lobby.teamSize * 2;
+}
+
+export function isTeamFull(lobby: LobbyAccount, side: 0 | 1): boolean {
+  const team = side === 0 ? lobby.team1 : lobby.team2;
+  return team.length >= lobby.teamSize;
+}
+
+export function isPlayerInLobby(
+  lobby: LobbyAccount,
+  player: PublicKey
+): boolean {
   return (
-    account.team1.length === account.teamSize &&
-    account.team2.length === account.teamSize
+    lobby.team1.some((pk) => pk.equals(player)) ||
+    lobby.team2.some((pk) => pk.equals(player))
   );
 }
 
-export function canJoinLobby(account: LobbyAccount, side: 0 | 1): boolean {
-  if (!isLobbyOpen(account)) return false;
-
-  const team = side === 0 ? account.team1 : account.team2;
-  return team.length < account.teamSize;
+// Helper function for stake calculations
+export function calculateTotalStake(lobby: LobbyAccount): BN {
+  const { total } = getLobbyTeamCount(lobby);
+  return lobby.stakeLamports.muln(total);
 }
 
-export function getLobbyParticipants(account: LobbyAccount): PublicKey[] {
-  return [...account.team1, ...account.team2];
+export function calculatePlatformFee(totalStake: BN): BN {
+  return totalStake.muln(PLATFORM_FEE_BPS).divn(10000);
 }
 
-export function getLobbyTotalStake(account: LobbyAccount): BN {
-  const totalPlayers = account.team1.length + account.team2.length;
-  return account.stakeLamports.mul(new BN(totalPlayers));
-}
-
-export function getLobbyPot(account: LobbyAccount): BN {
-  const totalStake = getLobbyTotalStake(account);
-  const fee = totalStake.mul(new BN(PLATFORM_FEE_BPS)).div(new BN(10000));
+export function calculateWinnerPayout(totalStake: BN): BN {
+  const fee = calculatePlatformFee(totalStake);
   return totalStake.sub(fee);
-}
-
-export function getWinnerPayout(account: LobbyAccount, winnerSide: 0 | 1): BN {
-  const pot = getLobbyPot(account);
-  const winners = winnerSide === 0 ? account.team1 : account.team2;
-  return pot.div(new BN(winners.length));
-}
-
-export function getPlatformFee(account: LobbyAccount): BN {
-  const totalStake = getLobbyTotalStake(account);
-  return totalStake.mul(new BN(PLATFORM_FEE_BPS)).div(new BN(10000));
 }

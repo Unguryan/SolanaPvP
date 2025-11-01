@@ -164,7 +164,7 @@ export const Profile: React.FC = () => {
           {/* Main Content */}
           <div className="lg:col-span-2">
             {/* Tabs */}
-            <div className="flex justify-center space-x-1 mb-6">
+            <div className="flex justify-center space-x-2 mb-6">
               {[
                 { id: "overview", label: "Overview", icon: ChartBarIcon },
                 { id: "history", label: "History", icon: ClockIcon },

@@ -492,7 +492,7 @@ export const MatchPreview: React.FC = () => {
       <AnimatePresence>
         {joinMessage && (
           <motion.div
-            className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[8%] pt-[8vh] px-4 pointer-events-none"
+            className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[6vh] pt-[6vh] px-4 pointer-events-none"
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
@@ -553,7 +553,7 @@ export const MatchPreview: React.FC = () => {
         </motion.div>
 
         {/* Match Info */}
-        <GlassCard className="p-4 lg:p-6 mb-6">
+        <GlassCard className="p-4 lg:p-6 mb-4">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
             <div>
               <p className="text-xs lg:text-sm text-txt-muted mb-1">Status</p>

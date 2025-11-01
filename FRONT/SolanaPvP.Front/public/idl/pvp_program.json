@@ -1,20 +1,14 @@
-/**
- * Program IDL in camelCase format in order to be used in JS/TS.
- *
- * Note that this is only a type helper and is not the actual IDL. The original
- * IDL can be found at `target/idl/pvp_program.json`.
- */
-export type PvpProgram = {
+{
   "address": "F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ",
   "metadata": {
-    "name": "pvpProgram",
+    "name": "pvp_program",
     "version": "1.0.0",
     "spec": "0.1.0",
     "description": "Solana PvP Game Program with Switchboard VRF"
   },
   "instructions": [
     {
-      "name": "createLobby",
+      "name": "create_lobby",
       "discriminator": [
         116,
         55,
@@ -47,7 +41,7 @@ export type PvpProgram = {
               },
               {
                 "kind": "arg",
-                "path": "lobbyId"
+                "path": "lobby_id"
               }
             ]
           }
@@ -81,21 +75,21 @@ export type PvpProgram = {
           "signer": true
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "lobbyId",
+          "name": "lobby_id",
           "type": "u64"
         },
         {
-          "name": "teamSize",
+          "name": "team_size",
           "type": "u8"
         },
         {
-          "name": "stakeLamports",
+          "name": "stake_lamports",
           "type": "u64"
         },
         {
@@ -105,7 +99,7 @@ export type PvpProgram = {
       ]
     },
     {
-      "name": "fulfillRandomness",
+      "name": "fulfill_randomness",
       "discriminator": [
         235,
         105,
@@ -135,12 +129,12 @@ export type PvpProgram = {
               {
                 "kind": "account",
                 "path": "lobby.creator",
-                "account": "lobby"
+                "account": "Lobby"
               },
               {
                 "kind": "account",
                 "path": "lobby.lobby_id",
-                "account": "lobby"
+                "account": "Lobby"
               }
             ]
           }
@@ -168,7 +162,7 @@ export type PvpProgram = {
               {
                 "kind": "account",
                 "path": "lobby.creator",
-                "account": "lobby"
+                "account": "Lobby"
               }
             ]
           }
@@ -196,18 +190,18 @@ export type PvpProgram = {
           "writable": true
         },
         {
-          "name": "switchboardProgram",
+          "name": "switchboard_program",
           "address": "6sjKhUwzNRtFh6EmC32GwNRH7v7vCjfgeWpxYEcdvEBL"
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
     },
     {
-      "name": "initConfig",
+      "name": "init_config",
       "discriminator": [
         23,
         235,
@@ -244,7 +238,7 @@ export type PvpProgram = {
           "signer": true
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -256,7 +250,7 @@ export type PvpProgram = {
       ]
     },
     {
-      "name": "joinSide",
+      "name": "join_side",
       "discriminator": [
         72,
         81,
@@ -290,7 +284,7 @@ export type PvpProgram = {
               {
                 "kind": "account",
                 "path": "lobby.lobby_id",
-                "account": "lobby"
+                "account": "Lobby"
               }
             ]
           }
@@ -325,7 +319,7 @@ export type PvpProgram = {
               {
                 "kind": "account",
                 "path": "lobby.creator",
-                "account": "lobby"
+                "account": "Lobby"
               }
             ]
           }
@@ -349,7 +343,7 @@ export type PvpProgram = {
           }
         },
         {
-          "name": "switchboardProgram",
+          "name": "switchboard_program",
           "address": "6sjKhUwzNRtFh6EmC32GwNRH7v7vCjfgeWpxYEcdvEBL"
         },
         {
@@ -357,44 +351,44 @@ export type PvpProgram = {
           "writable": true
         },
         {
-          "name": "oracleQueue",
+          "name": "oracle_queue",
           "writable": true
         },
         {
-          "name": "queueAuthority"
+          "name": "queue_authority"
         },
         {
-          "name": "permissionAccount",
+          "name": "permission_account",
           "writable": true
         },
         {
-          "name": "escrowWallet",
+          "name": "escrow_wallet",
           "writable": true
         },
         {
-          "name": "payerWallet",
+          "name": "payer_wallet",
           "writable": true
         },
         {
-          "name": "payerAuthority",
+          "name": "payer_authority",
           "signer": true
         },
         {
-          "name": "recentBlockhashes"
+          "name": "recent_blockhashes"
         },
         {
-          "name": "switchboardState"
+          "name": "switchboard_state"
         },
         {
-          "name": "tokenProgram",
+          "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "associatedTokenProgram",
+          "name": "associated_token_program",
           "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -436,12 +430,12 @@ export type PvpProgram = {
               {
                 "kind": "account",
                 "path": "lobby.creator",
-                "account": "lobby"
+                "account": "Lobby"
               },
               {
                 "kind": "account",
                 "path": "lobby.lobby_id",
-                "account": "lobby"
+                "account": "Lobby"
               }
             ]
           }
@@ -473,7 +467,7 @@ export type PvpProgram = {
               {
                 "kind": "account",
                 "path": "lobby.creator",
-                "account": "lobby"
+                "account": "Lobby"
               }
             ]
           }
@@ -497,7 +491,7 @@ export type PvpProgram = {
           }
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -506,7 +500,7 @@ export type PvpProgram = {
   ],
   "accounts": [
     {
-      "name": "activeLobby",
+      "name": "ActiveLobby",
       "discriminator": [
         32,
         130,
@@ -519,7 +513,7 @@ export type PvpProgram = {
       ]
     },
     {
-      "name": "globalConfig",
+      "name": "GlobalConfig",
       "discriminator": [
         149,
         8,
@@ -532,7 +526,7 @@ export type PvpProgram = {
       ]
     },
     {
-      "name": "lobby",
+      "name": "Lobby",
       "discriminator": [
         167,
         194,
@@ -545,7 +539,7 @@ export type PvpProgram = {
       ]
     },
     {
-      "name": "oracleQueueAccountData",
+      "name": "OracleQueueAccountData",
       "discriminator": [
         164,
         207,
@@ -558,7 +552,7 @@ export type PvpProgram = {
       ]
     },
     {
-      "name": "permissionAccountData",
+      "name": "PermissionAccountData",
       "discriminator": [
         77,
         37,
@@ -574,93 +568,93 @@ export type PvpProgram = {
   "errors": [
     {
       "code": 6000,
-      "name": "invalidSide",
+      "name": "InvalidSide",
       "msg": "Invalid side (must be 0 or 1)"
     },
     {
       "code": 6001,
-      "name": "lobbyNotOpen",
+      "name": "LobbyNotOpen",
       "msg": "Lobby is not open"
     },
     {
       "code": 6002,
-      "name": "lobbyNotOpenForJoin",
+      "name": "LobbyNotOpenForJoin",
       "msg": "Lobby already pending/resolved/refunded"
     },
     {
       "code": 6003,
-      "name": "sideFull",
+      "name": "SideFull",
       "msg": "Side is full"
     },
     {
       "code": 6004,
-      "name": "alreadyJoined",
+      "name": "AlreadyJoined",
       "msg": "Player already joined"
     },
     {
       "code": 6005,
-      "name": "notEnoughPlayers",
+      "name": "NotEnoughPlayers",
       "msg": "Not enough players"
     },
     {
       "code": 6006,
-      "name": "unauthorized",
-      "msg": "unauthorized"
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
     },
     {
       "code": 6007,
-      "name": "stakeTooSmall",
+      "name": "StakeTooSmall",
       "msg": "Stake is below minimum"
     },
     {
       "code": 6008,
-      "name": "tooSoonToRefund",
+      "name": "TooSoonToRefund",
       "msg": "Too soon to refund"
     },
     {
       "code": 6009,
-      "name": "alreadyFinalized",
+      "name": "AlreadyFinalized",
       "msg": "Already finalized"
     },
     {
       "code": 6010,
-      "name": "badRemainingAccounts",
+      "name": "BadRemainingAccounts",
       "msg": "Bad remaining accounts length"
     },
     {
       "code": 6011,
-      "name": "invalidTeamSize",
+      "name": "InvalidTeamSize",
       "msg": "Invalid team size (allowed: 1, 2, 5)"
     },
     {
       "code": 6012,
-      "name": "remainingAccountsMismatch",
+      "name": "RemainingAccountsMismatch",
       "msg": "Remaining accounts mismatch with team lists"
     },
     {
       "code": 6013,
-      "name": "wrongSwitchboardProgram",
+      "name": "WrongSwitchboardProgram",
       "msg": "Wrong Switchboard program id"
     },
     {
       "code": 6014,
-      "name": "wrongVrfAccount",
+      "name": "WrongVrfAccount",
       "msg": "VRF account does not match lobby"
     },
     {
       "code": 6015,
-      "name": "wrongVrfAuthority",
+      "name": "WrongVrfAuthority",
       "msg": "VRF authority mismatch"
     },
     {
       "code": 6016,
-      "name": "notPending",
+      "name": "NotPending",
       "msg": "Lobby not pending"
     }
   ],
   "types": [
     {
-      "name": "activeLobby",
+      "name": "ActiveLobby",
       "type": {
         "kind": "struct",
         "fields": [
@@ -680,7 +674,7 @@ export type PvpProgram = {
       }
     },
     {
-      "name": "globalConfig",
+      "name": "GlobalConfig",
       "type": {
         "kind": "struct",
         "fields": [
@@ -696,7 +690,7 @@ export type PvpProgram = {
       }
     },
     {
-      "name": "lobby",
+      "name": "Lobby",
       "type": {
         "kind": "struct",
         "fields": [
@@ -705,7 +699,7 @@ export type PvpProgram = {
             "type": "u8"
           },
           {
-            "name": "lobbyId",
+            "name": "lobby_id",
             "type": "u64"
           },
           {
@@ -716,20 +710,20 @@ export type PvpProgram = {
             "name": "status",
             "type": {
               "defined": {
-                "name": "lobbyStatus"
+                "name": "LobbyStatus"
               }
             }
           },
           {
-            "name": "teamSize",
+            "name": "team_size",
             "type": "u8"
           },
           {
-            "name": "stakeLamports",
+            "name": "stake_lamports",
             "type": "u64"
           },
           {
-            "name": "createdAt",
+            "name": "created_at",
             "type": "i64"
           },
           {
@@ -756,27 +750,27 @@ export type PvpProgram = {
       }
     },
     {
-      "name": "lobbyStatus",
+      "name": "LobbyStatus",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "open"
+            "name": "Open"
           },
           {
-            "name": "pending"
+            "name": "Pending"
           },
           {
-            "name": "resolved"
+            "name": "Resolved"
           },
           {
-            "name": "refunded"
+            "name": "Refunded"
           }
         ]
       }
     },
     {
-      "name": "oracleQueueAccountData",
+      "name": "OracleQueueAccountData",
       "serialization": "bytemuckunsafe",
       "repr": {
         "kind": "rust",
@@ -817,7 +811,7 @@ export type PvpProgram = {
             "type": "pubkey"
           },
           {
-            "name": "oracleTimeout",
+            "name": "oracle_timeout",
             "docs": [
               "Interval when stale oracles will be removed if they fail to heartbeat."
             ],
@@ -831,33 +825,33 @@ export type PvpProgram = {
             "type": "u64"
           },
           {
-            "name": "minStake",
+            "name": "min_stake",
             "docs": [
               "The minimum amount of stake oracles must present to remain on the queue."
             ],
             "type": "u64"
           },
           {
-            "name": "slashingEnabled",
+            "name": "slashing_enabled",
             "docs": [
               "Whether slashing is enabled on this queue."
             ],
             "type": "bool"
           },
           {
-            "name": "varianceToleranceMultiplier",
+            "name": "variance_tolerance_multiplier",
             "docs": [
               "The tolerated variance amount oracle results can have from the accepted round result before being slashed.",
               "slashBound = varianceToleranceMultiplier * stdDeviation Default: 2"
             ],
             "type": {
               "defined": {
-                "name": "switchboardDecimal"
+                "name": "SwitchboardDecimal"
               }
             }
           },
           {
-            "name": "feedProbationPeriod",
+            "name": "feed_probation_period",
             "docs": [
               "Number of update rounds new feeds are on probation for.",
               "If a feed returns 429s within probation period, auto disable permissions."
@@ -865,7 +859,7 @@ export type PvpProgram = {
             "type": "u32"
           },
           {
-            "name": "currIdx",
+            "name": "curr_idx",
             "docs": [
               "Current index of the oracle rotation."
             ],
@@ -879,53 +873,53 @@ export type PvpProgram = {
             "type": "u32"
           },
           {
-            "name": "gcIdx",
+            "name": "gc_idx",
             "docs": [
               "Garbage collection index."
             ],
             "type": "u32"
           },
           {
-            "name": "consecutiveFeedFailureLimit",
+            "name": "consecutive_feed_failure_limit",
             "docs": [
               "Consecutive failure limit for a feed before feed permission is revoked."
             ],
             "type": "u64"
           },
           {
-            "name": "consecutiveOracleFailureLimit",
+            "name": "consecutive_oracle_failure_limit",
             "docs": [
               "Consecutive failure limit for an oracle before oracle permission is revoked."
             ],
             "type": "u64"
           },
           {
-            "name": "unpermissionedFeedsEnabled",
+            "name": "unpermissioned_feeds_enabled",
             "docs": [
               "Enabling this setting means data feeds do not need explicit permission to join the queue and request new values from its oracles."
             ],
             "type": "bool"
           },
           {
-            "name": "unpermissionedVrfEnabled",
+            "name": "unpermissioned_vrf_enabled",
             "docs": [
               "Enabling this setting means VRF accounts do not need explicit permission to join the queue and request new values from its oracles."
             ],
             "type": "bool"
           },
           {
-            "name": "curatorRewardCut",
+            "name": "curator_reward_cut",
             "docs": [
               "TODO: Revenue percentage rewarded to job curators overall."
             ],
             "type": {
               "defined": {
-                "name": "switchboardDecimal"
+                "name": "SwitchboardDecimal"
               }
             }
           },
           {
-            "name": "lockLeaseFunding",
+            "name": "lock_lease_funding",
             "docs": [
               "Prevent new leases from being funded n this queue.",
               "Useful to turn down a queue for migrations, since authority is always immutable."
@@ -940,14 +934,14 @@ export type PvpProgram = {
             "type": "pubkey"
           },
           {
-            "name": "enableBufferRelayers",
+            "name": "enable_buffer_relayers",
             "docs": [
               "Whether oracles are permitted to fulfill buffer relayer update request."
             ],
             "type": "bool"
           },
           {
-            "name": "ebuf",
+            "name": "_ebuf",
             "docs": [
               "Reserved for future info."
             ],
@@ -959,14 +953,14 @@ export type PvpProgram = {
             }
           },
           {
-            "name": "maxSize",
+            "name": "max_size",
             "docs": [
               "Maximum number of oracles a queue can support."
             ],
             "type": "u32"
           },
           {
-            "name": "dataBuffer",
+            "name": "data_buffer",
             "docs": [
               "The public key of the OracleQueueBuffer account holding a collection of Oracle pubkeys that haver successfully heartbeated before the queues `oracleTimeout`."
             ],
@@ -976,7 +970,7 @@ export type PvpProgram = {
       }
     },
     {
-      "name": "permissionAccountData",
+      "name": "PermissionAccountData",
       "serialization": "bytemuckunsafe",
       "repr": {
         "kind": "rust",
@@ -1030,7 +1024,7 @@ export type PvpProgram = {
             "type": "u8"
           },
           {
-            "name": "ebuf",
+            "name": "_ebuf",
             "docs": [
               "Reserved for future info."
             ],
@@ -1045,7 +1039,7 @@ export type PvpProgram = {
       }
     },
     {
-      "name": "switchboardDecimal",
+      "name": "SwitchboardDecimal",
       "serialization": "bytemuckunsafe",
       "repr": {
         "kind": "rust",
@@ -1072,4 +1066,4 @@ export type PvpProgram = {
       }
     }
   ]
-};
+}

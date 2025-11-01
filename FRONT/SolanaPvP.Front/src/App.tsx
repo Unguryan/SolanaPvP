@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { WalletContextProvider } from "@/components/wallet/WalletProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { ScrollToTop } from "@/components/common/ScrollToTop";
 import { Home } from "@/pages/Home";
 import { ROUTES } from "@/constants/routes";
 
@@ -20,6 +21,7 @@ function App() {
   return (
     <WalletContextProvider>
       <Router>
+        <ScrollToTop />
         <Layout>
           <Routes>
             <Route path={ROUTES.HOME} element={<Home />} />

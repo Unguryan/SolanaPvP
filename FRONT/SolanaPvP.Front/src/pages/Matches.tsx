@@ -1,6 +1,6 @@
 // Matches page component
 import React, { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useArenaStore } from "@/store/arenaStore";
@@ -30,9 +30,21 @@ export const Matches: React.FC = () => {
   const [sortBy, setSortBy] = useState<"stake" | "timeLeft" | "players">(
     "timeLeft"
   );
+  const [validationMessage, setValidationMessage] = useState<string | null>(
+    null
+  );
 
   // Initialize real-time arena data
   useArenaRealtime();
+
+  const handleCreateMatch = () => {
+    if (!connected) {
+      setValidationMessage("Connect your wallet to create a match");
+      setTimeout(() => setValidationMessage(null), 5000);
+      return;
+    }
+    navigate(ROUTES.CREATE_LOBBY);
+  };
 
   // Add mock match for preview if no matches exist
   const matchesWithMock = React.useMemo(() => {
@@ -158,7 +170,26 @@ export const Matches: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bg py-8">
+    <div className="min-h-screen bg-bg py-8 relative">
+      {/* Validation Message Toast */}
+      <AnimatePresence>
+        {validationMessage && (
+          <motion.div
+            className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[6vh] pt-[6vh] px-4 pointer-events-none"
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className="glass-card p-4 border-yellow-500/50 bg-yellow-500/10 max-w-md w-full pointer-events-auto">
+              <p className="text-yellow-400 text-sm text-center font-semibold">
+                {validationMessage}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-8">
@@ -184,8 +215,7 @@ export const Matches: React.FC = () => {
           >
             <GlowButton
               variant={connected ? "neon" : "ghost"}
-              disabled={!connected}
-              onClick={() => navigate(ROUTES.CREATE_LOBBY)}
+              onClick={handleCreateMatch}
               className={`inline-flex items-center gap-2 ${
                 !connected ? "opacity-50 cursor-not-allowed" : ""
               }`}
@@ -197,7 +227,7 @@ export const Matches: React.FC = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4">
+        <div className="grid grid-cols-2 gap-4 md:gap-4 mb-4">
           <GlassCard className="p-3 md:p-4 text-center">
             <ClockIcon className="w-5 h-5 md:w-6 md:h-6 text-sol-mint mx-auto mb-2" />
             <div className="text-lg md:text-xl font-bold text-txt-base">

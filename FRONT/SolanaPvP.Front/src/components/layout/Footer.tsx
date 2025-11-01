@@ -1,5 +1,6 @@
 // Footer component
 import React from "react";
+import { NetworkBadge } from "@/components/common/NetworkBadge";
 
 export const Footer: React.FC = () => {
   return (
@@ -12,9 +13,12 @@ export const Footer: React.FC = () => {
               <div className="w-8 h-8 bg-gradient-to-r from-sol-purple to-sol-mint rounded-lg flex items-center justify-center shadow-glow">
                 <span className="text-white font-bold text-lg">S</span>
               </div>
-              <span className="text-xl font-display font-bold text-txt-base">
-                SolanaPvP
-              </span>
+              <div className="flex items-baseline space-x-1.5">
+                <span className="text-xl font-display font-bold text-txt-base">
+                  SolanaPvP
+                </span>
+                <NetworkBadge />
+              </div>
             </div>
             <p className="text-txt-muted text-sm max-w-md">
               The ultimate PvP gaming platform on Solana. Compete, earn, and
@@ -39,7 +43,7 @@ export const Footer: React.FC = () => {
               <ul className="space-y-2">
                 <li>
                   <a
-                    href="/matches"
+                    href="/arena"
                     className="text-txt-muted hover:text-sol-purple text-sm transition-colors"
                   >
                     Active Matches

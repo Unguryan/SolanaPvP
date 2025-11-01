@@ -1,15 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { PublicKey } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
 import * as anchor from "@coral-xyz/anchor";
-import {
-  initializeProgram,
-  getProgram,
-  getConnection,
-  isProgramInitialized,
-  requestAirdrop,
-  parseAnchorError,
-} from "../services/solana/program";
+import { Program } from "@coral-xyz/anchor";
+import { usePvpProgram as useTypedPvpProgram } from "@/utils/usePvpProgram";
+import type { PvpProgram } from "@/idl/pvp_program";
+import { requestAirdrop, parseAnchorError } from "../services/solana/program";
 import {
   PvpInstructions,
   PvpAccountFetchers,
@@ -20,59 +16,20 @@ import {
 } from "../services/solana/instructions";
 import { LobbyAccount, GlobalConfigAccount } from "../services/solana/accounts";
 
-// Hook for managing PvP program state
+// Hook for managing PvP program state with typed program
 export function usePvpProgram() {
-  const { wallet, publicKey, connected } = useWallet();
-  const [program, setProgram] = useState<anchor.Program | null>(null);
-  const [connection, setConnection] = useState<anchor.web3.Connection | null>(
-    null
-  );
-  const [isInitialized, setIsInitialized] = useState(false);
+  const { publicKey, connected } = useWallet();
+  const program = useTypedPvpProgram(); // Use the new typed hook
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Initialize program when wallet connects
-  useEffect(() => {
-    if (wallet && publicKey && connected) {
-      initializeProgramWithWallet();
-    } else {
-      resetProgram();
-    }
-  }, [wallet, publicKey, connected]);
+  // Get connection from program
+  const connection = useMemo(() => {
+    return program?.provider.connection || null;
+  }, [program]);
 
-  const initializeProgramWithWallet = useCallback(async () => {
-    if (!wallet || !publicKey) return;
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const anchorWallet = {
-        publicKey,
-        signTransaction: (wallet as any).signTransaction,
-        signAllTransactions: (wallet as any).signAllTransactions,
-      } as any;
-
-      const programInstance = await initializeProgram(anchorWallet);
-      const connectionInstance = getConnection();
-
-      setProgram(programInstance);
-      setConnection(connectionInstance);
-      setIsInitialized(true);
-    } catch (err) {
-      setError(parseAnchorError(err));
-      console.error("Failed to initialize program:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [wallet, publicKey]);
-
-  const resetProgram = useCallback(() => {
-    setProgram(null);
-    setConnection(null);
-    setIsInitialized(false);
-    setError(null);
-  }, []);
+  const isInitialized = useMemo(() => {
+    return program !== null && connected;
+  }, [program, connected]);
 
   const requestAirdropSOL = useCallback(
     async (amount: number = 2) => {
@@ -82,13 +39,10 @@ export function usePvpProgram() {
 
       try {
         setIsLoading(true);
-        // setError(null);
-
-        const signature = await requestAirdrop(publicKey, amount);
+        const signature = await requestAirdrop(connection, publicKey, amount);
         return signature;
       } catch (err) {
         const errorMessage = parseAnchorError(err);
-        // setError(errorMessage);
         throw new Error(errorMessage);
       } finally {
         setIsLoading(false);
@@ -98,22 +52,19 @@ export function usePvpProgram() {
   );
 
   return {
-    program,
+    program: program as Program<PvpProgram> | null,
     connection,
     isInitialized,
     isLoading,
-    error,
     publicKey,
     connected,
     requestAirdropSOL,
-    resetProgram,
   };
 }
 
 // Hook for lobby operations
 export function useLobbyOperations() {
-  const { program, isInitialized, publicKey, isLoading, error } =
-    usePvpProgram();
+  const { program, isInitialized, publicKey, isLoading } = usePvpProgram();
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [isRefunding, setIsRefunding] = useState(false);
@@ -126,9 +77,8 @@ export function useLobbyOperations() {
 
       try {
         setIsCreating(true);
-        // setError(null);
 
-        const tx = await PvpInstructions.createLobby({
+        const tx = await PvpInstructions.createLobby(program, {
           ...params,
           creator: publicKey,
         });
@@ -136,7 +86,6 @@ export function useLobbyOperations() {
         return tx;
       } catch (err) {
         const errorMessage = parseAnchorError(err);
-        // setError(errorMessage);
         throw new Error(errorMessage);
       } finally {
         setIsCreating(false);
@@ -153,9 +102,8 @@ export function useLobbyOperations() {
 
       try {
         setIsJoining(true);
-        // setError(null);
 
-        const tx = await PvpInstructions.joinLobby({
+        const tx = await PvpInstructions.joinLobby(program, {
           ...params,
           player: publicKey,
         });
@@ -163,7 +111,6 @@ export function useLobbyOperations() {
         return tx;
       } catch (err) {
         const errorMessage = parseAnchorError(err);
-        // setError(errorMessage);
         throw new Error(errorMessage);
       } finally {
         setIsJoining(false);
@@ -180,9 +127,8 @@ export function useLobbyOperations() {
 
       try {
         setIsRefunding(true);
-        // setError(null);
 
-        const tx = await PvpInstructions.refundLobby({
+        const tx = await PvpInstructions.refundLobby(program, {
           ...params,
           requester: publicKey,
         });
@@ -190,7 +136,6 @@ export function useLobbyOperations() {
         return tx;
       } catch (err) {
         const errorMessage = parseAnchorError(err);
-        // setError(errorMessage);
         throw new Error(errorMessage);
       } finally {
         setIsRefunding(false);
@@ -207,25 +152,24 @@ export function useLobbyOperations() {
     isJoining,
     isRefunding,
     isLoading: isLoading || isCreating || isJoining || isRefunding,
-    error,
   };
 }
 
 // Hook for fetching lobby data
 export function useLobbyData(lobbyPda?: PublicKey) {
-  const { isInitialized } = usePvpProgram();
+  const { program, isInitialized } = usePvpProgram();
   const [lobby, setLobby] = useState<LobbyAccount | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchLobby = useCallback(async () => {
-    if (!lobbyPda || !isInitialized) return;
+    if (!lobbyPda || !isInitialized || !program) return;
 
     try {
       setIsLoading(true);
       setError(null);
 
-      const lobbyData = await PvpAccountFetchers.fetchLobby(lobbyPda);
+      const lobbyData = await PvpAccountFetchers.fetchLobby(program, lobbyPda);
       setLobby(lobbyData);
     } catch (err) {
       setError(parseAnchorError(err));
@@ -233,7 +177,7 @@ export function useLobbyData(lobbyPda?: PublicKey) {
     } finally {
       setIsLoading(false);
     }
-  }, [lobbyPda, isInitialized]);
+  }, [lobbyPda, isInitialized, program]);
 
   useEffect(() => {
     fetchLobby();
@@ -249,19 +193,22 @@ export function useLobbyData(lobbyPda?: PublicKey) {
 
 // Hook for fetching multiple lobbies
 export function useLobbiesData(lobbyPdas: PublicKey[]) {
-  const { isInitialized } = usePvpProgram();
+  const { program, isInitialized } = usePvpProgram();
   const [lobbies, setLobbies] = useState<(LobbyAccount | null)[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchLobbies = useCallback(async () => {
-    if (!lobbyPdas.length || !isInitialized) return;
+    if (!lobbyPdas.length || !isInitialized || !program) return;
 
     try {
       setIsLoading(true);
       setError(null);
 
-      const lobbiesData = await PvpAccountFetchers.fetchLobbies(lobbyPdas);
+      const lobbiesData = await PvpAccountFetchers.fetchLobbies(
+        program,
+        lobbyPdas
+      );
       setLobbies(lobbiesData);
     } catch (err) {
       setError(parseAnchorError(err));
@@ -269,7 +216,7 @@ export function useLobbiesData(lobbyPdas: PublicKey[]) {
     } finally {
       setIsLoading(false);
     }
-  }, [lobbyPdas, isInitialized]);
+  }, [lobbyPdas, isInitialized, program]);
 
   useEffect(() => {
     fetchLobbies();
@@ -285,19 +232,19 @@ export function useLobbiesData(lobbyPdas: PublicKey[]) {
 
 // Hook for global config
 export function useGlobalConfig() {
-  const { isInitialized } = usePvpProgram();
+  const { program, isInitialized } = usePvpProgram();
   const [config, setConfig] = useState<GlobalConfigAccount | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchConfig = useCallback(async () => {
-    if (!isInitialized) return;
+    if (!isInitialized || !program) return;
 
     try {
       setIsLoading(true);
       setError(null);
 
-      const configData = await PvpAccountFetchers.fetchGlobalConfig();
+      const configData = await PvpAccountFetchers.fetchGlobalConfig(program);
       setConfig(configData);
     } catch (err) {
       setError(parseAnchorError(err));
@@ -305,7 +252,7 @@ export function useGlobalConfig() {
     } finally {
       setIsLoading(false);
     }
-  }, [isInitialized]);
+  }, [isInitialized, program]);
 
   useEffect(() => {
     fetchConfig();
@@ -322,13 +269,13 @@ export function useGlobalConfig() {
 // Hook for initializing global config
 export function useInitConfig() {
   const { publicKey, connected } = useWallet();
-  const { isInitialized } = usePvpProgram();
+  const { program, isInitialized } = usePvpProgram();
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
 
   const initConfig = useCallback(async () => {
-    if (!publicKey || !connected || !isInitialized) {
+    if (!publicKey || !connected || !isInitialized || !program) {
       setError("Wallet not connected or program not initialized");
       return;
     }
@@ -338,15 +285,12 @@ export function useInitConfig() {
       setError(null);
       setTxSignature(null);
 
-      const signature = await PvpInstructions.initConfig(publicKey);
+      const signature = await PvpInstructions.initConfig(program, publicKey);
       setTxSignature(signature);
 
       console.log("✅ Config initialized successfully!");
       console.log("Transaction signature:", signature);
       console.log("Admin pubkey:", publicKey.toString());
-
-      // Refresh config after initialization
-      // The useGlobalConfig hook will pick it up
     } catch (err: any) {
       const errorMessage = parseAnchorError(err);
       setError(errorMessage);
@@ -364,7 +308,7 @@ export function useInitConfig() {
     } finally {
       setIsInitializing(false);
     }
-  }, [publicKey, connected, isInitialized]);
+  }, [publicKey, connected, isInitialized, program]);
 
   return {
     initConfig,
@@ -376,26 +320,26 @@ export function useInitConfig() {
 
 // Hook for event listeners
 export function usePvpEvents() {
-  const { isInitialized } = usePvpProgram();
+  const { program, isInitialized } = usePvpProgram();
   const [listeners, setListeners] = useState<number[]>([]);
 
   const addEventListener = useCallback(
     (eventName: string, callback: (event: any) => void) => {
-      if (!isInitialized) return;
+      if (!isInitialized || !program) return;
 
       let listenerId: number;
       switch (eventName) {
         case "LobbyCreated":
-          listenerId = PvpEventListeners.onLobbyCreated(callback);
+          listenerId = PvpEventListeners.onLobbyCreated(program, callback);
           break;
         case "PlayerJoined":
-          listenerId = PvpEventListeners.onPlayerJoined(callback);
+          listenerId = PvpEventListeners.onPlayerJoined(program, callback);
           break;
         case "LobbyResolved":
-          listenerId = PvpEventListeners.onLobbyResolved(callback);
+          listenerId = PvpEventListeners.onLobbyResolved(program, callback);
           break;
         case "LobbyRefunded":
-          listenerId = PvpEventListeners.onLobbyRefunded(callback);
+          listenerId = PvpEventListeners.onLobbyRefunded(program, callback);
           break;
         default:
           throw new Error(`Unknown event: ${eventName}`);
@@ -404,18 +348,25 @@ export function usePvpEvents() {
       setListeners((prev) => [...prev, listenerId]);
       return listenerId;
     },
-    [isInitialized]
+    [isInitialized, program]
   );
 
-  const removeEventListener = useCallback((listenerId: number) => {
-    PvpEventListeners.removeEventListener(listenerId);
-    setListeners((prev) => prev.filter((id) => id !== listenerId));
-  }, []);
+  const removeEventListener = useCallback(
+    (listenerId: number) => {
+      if (!program) return;
+      PvpEventListeners.removeEventListener(program, listenerId);
+      setListeners((prev) => prev.filter((id) => id !== listenerId));
+    },
+    [program]
+  );
 
   const removeAllListeners = useCallback(() => {
-    listeners.forEach((id) => PvpEventListeners.removeEventListener(id));
+    if (!program) return;
+    listeners.forEach((id) =>
+      PvpEventListeners.removeEventListener(program, id)
+    );
     setListeners([]);
-  }, [listeners]);
+  }, [listeners, program]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -1,9 +1,10 @@
-import * as anchor from "@coral-xyz/anchor";
-import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import { PublicKey, Transaction } from "@solana/web3.js";
 import BN from "bn.js";
+import { Program } from "@coral-xyz/anchor";
+import type { PvpProgram } from "@/idl/pvp_program";
 import { getSolanaConfig } from "./config";
 import { PdaUtils, LobbyAccount, GlobalConfigAccount } from "./accounts";
-import { getProgram, getProvider, parseAnchorError } from "./program";
+import { parseAnchorError } from "./program";
 
 // Instruction parameters
 export interface CreateLobbyParams {
@@ -40,32 +41,18 @@ export interface RefundLobbyParams {
   participants: PublicKey[];
 }
 
-// Instruction builders
+// Type-safe instruction builders
 export class PvpInstructions {
-  private static getProgram() {
-    const program = getProgram();
-    if (!program) throw new Error("Program not initialized");
-    return program;
-  }
-
-  private static getProvider() {
-    const provider = getProvider();
-    if (!provider) throw new Error("Provider not initialized");
-    return provider;
-  }
-
   // Initialize global config
-  static async initConfig(admin: PublicKey): Promise<string> {
+  static async initConfig(
+    program: Program<PvpProgram>,
+    admin: PublicKey
+  ): Promise<string> {
     try {
-      const program = this.getProgram();
-      const [configPda] = PdaUtils.getConfigPda();
-
       const tx = await program.methods
         .initConfig(admin)
         .accounts({
-          config: configPda,
           payer: admin,
-          systemProgram: SystemProgram.programId,
         })
         .rpc();
 
@@ -78,12 +65,11 @@ export class PvpInstructions {
   }
 
   // Create lobby
-  static async createLobby(params: CreateLobbyParams): Promise<string> {
+  static async createLobby(
+    program: Program<PvpProgram>,
+    params: CreateLobbyParams
+  ): Promise<string> {
     try {
-      const program = this.getProgram();
-      const [lobbyPda] = PdaUtils.getLobbyPda(params.creator, params.lobbyId);
-      const [activePda] = PdaUtils.getActiveLobbyPda(params.creator);
-
       const tx = await program.methods
         .createLobby(
           new BN(params.lobbyId),
@@ -92,10 +78,7 @@ export class PvpInstructions {
           params.side
         )
         .accounts({
-          lobby: lobbyPda,
-          active: activePda,
           creator: params.creator,
-          systemProgram: SystemProgram.programId,
         })
         .rpc();
 
@@ -106,27 +89,21 @@ export class PvpInstructions {
   }
 
   // Join lobby
-  static async joinLobby(params: JoinLobbyParams): Promise<string> {
+  static async joinLobby(
+    program: Program<PvpProgram>,
+    params: JoinLobbyParams
+  ): Promise<string> {
     try {
-      const program = this.getProgram();
-      const [activePda] = PdaUtils.getActiveLobbyPda(params.creator);
-      const [configPda] = PdaUtils.getConfigPda();
       const config = getSolanaConfig();
 
+      // Build accounts object - Anchor will derive PDAs automatically
       const accounts: any = {
-        lobby: params.lobbyPda,
         creator: params.creator,
         player: params.player,
-        active: activePda,
-        config: configPda,
-        systemProgram: SystemProgram.programId,
       };
 
-      // Add Switchboard accounts if provided (for last join)
+      // Add Switchboard accounts if provided (for last join triggering VRF)
       if (params.vrfAccount) {
-        accounts.switchboardProgram = new PublicKey(
-          config.switchboardProgramId
-        );
         accounts.vrf = params.vrfAccount;
         accounts.oracleQueue =
           params.oracleQueue || new PublicKey(config.switchboardOracleQueue);
@@ -136,13 +113,17 @@ export class PvpInstructions {
           new PublicKey(config.switchboardPermissionAccount);
         accounts.escrowWallet = params.escrowWallet;
         accounts.payerWallet = params.payerWallet;
-        accounts.payerAuthority = params.payerAuthority;
+        accounts.payerAuthority = params.payerAuthority || params.player;
         accounts.recentBlockhashes =
-          params.recentBlockhashes || SystemProgram.programId; // Placeholder
+          params.recentBlockhashes ||
+          new PublicKey("SysvarRecentB1ockHashes11111111111111111111");
         accounts.switchboardState = params.switchboardState;
-        accounts.tokenProgram = params.tokenProgram || SystemProgram.programId; // Placeholder
+        accounts.tokenProgram =
+          params.tokenProgram ||
+          new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
         accounts.associatedTokenProgram =
-          params.associatedTokenProgram || SystemProgram.programId; // Placeholder
+          params.associatedTokenProgram ||
+          new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
       }
 
       const tx = await program.methods
@@ -157,12 +138,11 @@ export class PvpInstructions {
   }
 
   // Refund lobby
-  static async refundLobby(params: RefundLobbyParams): Promise<string> {
+  static async refundLobby(
+    program: Program<PvpProgram>,
+    params: RefundLobbyParams
+  ): Promise<string> {
     try {
-      const program = this.getProgram();
-      const [activePda] = PdaUtils.getActiveLobbyPda(params.creator);
-      const [configPda] = PdaUtils.getConfigPda();
-
       const remainingAccounts = params.participants.map((pubkey) => ({
         pubkey,
         isSigner: false,
@@ -172,11 +152,8 @@ export class PvpInstructions {
       const tx = await program.methods
         .refund()
         .accounts({
-          lobby: params.lobbyPda,
+          creator: params.creator,
           requester: params.requester,
-          active: activePda,
-          config: configPda,
-          systemProgram: SystemProgram.programId,
         })
         .remainingAccounts(remainingAccounts)
         .rpc();
@@ -189,12 +166,9 @@ export class PvpInstructions {
 
   // Build transaction without sending
   static async buildCreateLobbyTransaction(
+    program: Program<PvpProgram>,
     params: CreateLobbyParams
   ): Promise<Transaction> {
-    const program = this.getProgram();
-    const [lobbyPda] = PdaUtils.getLobbyPda(params.creator, params.lobbyId);
-    const [activePda] = PdaUtils.getActiveLobbyPda(params.creator);
-
     const instruction = await program.methods
       .createLobby(
         new BN(params.lobbyId),
@@ -203,10 +177,7 @@ export class PvpInstructions {
         params.side
       )
       .accounts({
-        lobby: lobbyPda,
-        active: activePda,
         creator: params.creator,
-        systemProgram: SystemProgram.programId,
       })
       .instruction();
 
@@ -215,25 +186,18 @@ export class PvpInstructions {
   }
 
   static async buildJoinLobbyTransaction(
+    program: Program<PvpProgram>,
     params: JoinLobbyParams
   ): Promise<Transaction> {
-    const program = this.getProgram();
-    const [activePda] = PdaUtils.getActiveLobbyPda(params.creator);
-    const [configPda] = PdaUtils.getConfigPda();
     const config = getSolanaConfig();
 
     const accounts: any = {
-      lobby: params.lobbyPda,
       creator: params.creator,
       player: params.player,
-      active: activePda,
-      config: configPda,
-      systemProgram: SystemProgram.programId,
     };
 
-    // Add Switchboard accounts if provided
+    // Add Switchboard accounts if provided (for last join triggering VRF)
     if (params.vrfAccount) {
-      accounts.switchboardProgram = new PublicKey(config.switchboardProgramId);
       accounts.vrf = params.vrfAccount;
       accounts.oracleQueue =
         params.oracleQueue || new PublicKey(config.switchboardOracleQueue);
@@ -243,13 +207,17 @@ export class PvpInstructions {
         new PublicKey(config.switchboardPermissionAccount);
       accounts.escrowWallet = params.escrowWallet;
       accounts.payerWallet = params.payerWallet;
-      accounts.payerAuthority = params.payerAuthority;
+      accounts.payerAuthority = params.payerAuthority || params.player;
       accounts.recentBlockhashes =
-        params.recentBlockhashes || SystemProgram.programId;
+        params.recentBlockhashes ||
+        new PublicKey("SysvarRecentB1ockHashes11111111111111111111");
       accounts.switchboardState = params.switchboardState;
-      accounts.tokenProgram = params.tokenProgram || SystemProgram.programId;
+      accounts.tokenProgram =
+        params.tokenProgram ||
+        new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
       accounts.associatedTokenProgram =
-        params.associatedTokenProgram || SystemProgram.programId;
+        params.associatedTokenProgram ||
+        new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
     }
 
     const instruction = await program.methods
@@ -262,12 +230,9 @@ export class PvpInstructions {
   }
 
   static async buildRefundLobbyTransaction(
+    program: Program<PvpProgram>,
     params: RefundLobbyParams
   ): Promise<Transaction> {
-    const program = this.getProgram();
-    const [activePda] = PdaUtils.getActiveLobbyPda(params.creator);
-    const [configPda] = PdaUtils.getConfigPda();
-
     const remainingAccounts = params.participants.map((pubkey) => ({
       pubkey,
       isSigner: false,
@@ -277,11 +242,8 @@ export class PvpInstructions {
     const instruction = await program.methods
       .refund()
       .accounts({
-        lobby: params.lobbyPda,
+        creator: params.creator,
         requester: params.requester,
-        active: activePda,
-        config: configPda,
-        systemProgram: SystemProgram.programId,
       })
       .remainingAccounts(remainingAccounts)
       .instruction();
@@ -291,24 +253,19 @@ export class PvpInstructions {
   }
 }
 
-// Account fetchers
+// Type-safe account fetchers
 export class PvpAccountFetchers {
-  private static getProgram() {
-    const program = getProgram();
-    if (!program) throw new Error("Program not initialized");
-    return program;
-  }
-
   // Fetch global config
-  static async fetchGlobalConfig(): Promise<GlobalConfigAccount | null> {
+  static async fetchGlobalConfig(
+    program: Program<PvpProgram>
+  ): Promise<GlobalConfigAccount | null> {
     try {
-      const program = this.getProgram();
       const [configPda] = PdaUtils.getConfigPda();
 
-      const account =
-        (await (program as any).account?.globalConfig?.fetchNullable?.(
-          configPda
-        )) || null;
+      // Type-safe account fetch - no more 'as any'!
+      const account = await program.account.globalConfig.fetchNullable(
+        configPda
+      );
       return account as GlobalConfigAccount | null;
     } catch (error) {
       console.error("Failed to fetch global config:", error);
@@ -317,13 +274,13 @@ export class PvpAccountFetchers {
   }
 
   // Fetch lobby
-  static async fetchLobby(lobbyPda: PublicKey): Promise<LobbyAccount | null> {
+  static async fetchLobby(
+    program: Program<PvpProgram>,
+    lobbyPda: PublicKey
+  ): Promise<LobbyAccount | null> {
     try {
-      const program = this.getProgram();
-
-      const account =
-        (await (program as any).account?.lobby?.fetchNullable?.(lobbyPda)) ||
-        null;
+      // Type-safe account fetch - program.account.lobby is fully typed!
+      const account = await program.account.lobby.fetchNullable(lobbyPda);
       return account as LobbyAccount | null;
     } catch (error) {
       console.error("Failed to fetch lobby:", error);
@@ -332,15 +289,16 @@ export class PvpAccountFetchers {
   }
 
   // Fetch active lobby
-  static async fetchActiveLobby(creator: PublicKey): Promise<any | null> {
+  static async fetchActiveLobby(
+    program: Program<PvpProgram>,
+    creator: PublicKey
+  ): Promise<any | null> {
     try {
-      const program = this.getProgram();
       const [activePda] = PdaUtils.getActiveLobbyPda(creator);
 
-      const account =
-        (await (program as any).account?.activeLobby?.fetchNullable?.(
-          activePda
-        )) || null;
+      const account = await program.account.activeLobby.fetchNullable(
+        activePda
+      );
       return account;
     } catch (error) {
       console.error("Failed to fetch active lobby:", error);
@@ -350,14 +308,12 @@ export class PvpAccountFetchers {
 
   // Fetch multiple lobbies
   static async fetchLobbies(
+    program: Program<PvpProgram>,
     lobbyPdas: PublicKey[]
   ): Promise<(LobbyAccount | null)[]> {
     try {
-      const program = this.getProgram();
-
-      const accounts =
-        (await (program as any).account?.lobby?.fetchMultiple?.(lobbyPdas)) ||
-        [];
+      // Type-safe multiple fetch
+      const accounts = await program.account.lobby.fetchMultiple(lobbyPdas);
       return accounts as (LobbyAccount | null)[];
     } catch (error) {
       console.error("Failed to fetch lobbies:", error);
@@ -368,39 +324,54 @@ export class PvpAccountFetchers {
 
 // Event listeners
 export class PvpEventListeners {
-  private static getProgram() {
-    const program = getProgram();
-    if (!program) throw new Error("Program not initialized");
-    return program;
-  }
+  // Note: Events are not defined in the current program IDL
+  // These methods are placeholders for future event functionality
 
   // Listen for lobby created events
-  static onLobbyCreated(callback: (event: any) => void): number {
-    const program = this.getProgram();
-    return program.addEventListener("LobbyCreated", callback);
+  static onLobbyCreated(
+    program: Program<PvpProgram>,
+    callback: (event: any) => void
+  ): number {
+    console.warn("Event listeners not yet implemented in program", callback);
+    return 0;
   }
 
   // Listen for player joined events
-  static onPlayerJoined(callback: (event: any) => void): number {
-    const program = this.getProgram();
-    return program.addEventListener("PlayerJoined", callback);
+  static onPlayerJoined(
+    program: Program<PvpProgram>,
+    callback: (event: any) => void
+  ): number {
+    console.warn("Event listeners not yet implemented in program", callback);
+    return 0;
   }
 
   // Listen for lobby resolved events
-  static onLobbyResolved(callback: (event: any) => void): number {
-    const program = this.getProgram();
-    return program.addEventListener("LobbyResolved", callback);
+  static onLobbyResolved(
+    program: Program<PvpProgram>,
+    callback: (event: any) => void
+  ): number {
+    console.warn("Event listeners not yet implemented in program", callback);
+    return 0;
   }
 
   // Listen for lobby refunded events
-  static onLobbyRefunded(callback: (event: any) => void): number {
-    const program = this.getProgram();
-    return program.addEventListener("LobbyRefunded", callback);
+  static onLobbyRefunded(
+    program: Program<PvpProgram>,
+    callback: (event: any) => void
+  ): number {
+    console.warn("Event listeners not yet implemented in program", callback);
+    return 0;
   }
 
   // Remove event listener
-  static removeEventListener(listenerId: number): void {
-    const program = this.getProgram();
-    program.removeEventListener(listenerId);
+  static removeEventListener(
+    program: Program<PvpProgram>,
+    listenerId: number
+  ): void {
+    try {
+      program.removeEventListener(listenerId);
+    } catch (error) {
+      console.error("Failed to remove event listener:", error);
+    }
   }
 }
