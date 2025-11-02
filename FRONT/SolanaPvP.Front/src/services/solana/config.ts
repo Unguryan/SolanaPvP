@@ -14,8 +14,8 @@ export const DEVNET_CONFIG: SolanaConfig = {
   rpcUrl: "https://api.devnet.solana.com",
   wsUrl: "wss://api.devnet.solana.com",
   programId: "F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ",
-  // Switchboard OnDemand Program ID (same for devnet & mainnet)
-  switchboardProgramId: "SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv",
+  // Switchboard OnDemand Program ID (matches deployed program)
+  switchboardProgramId: "BeFxPRDreo8uLivyGgqDE87iGaU3o1Tw9hZw46NxYaej",
 };
 
 // Mainnet Configuration
@@ -24,8 +24,8 @@ export const MAINNET_CONFIG: SolanaConfig = {
   rpcUrl: "https://api.mainnet-beta.solana.com",
   wsUrl: "wss://api.mainnet-beta.solana.com",
   programId: "HL92RAc8cw6T2wjQeKVDjy9GcZVNvzaTe31v3p7kuKkR",
-  // Switchboard OnDemand Program ID (same for devnet & mainnet)
-  switchboardProgramId: "SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv",
+  // Switchboard OnDemand Program ID (matches deployed program)
+  switchboardProgramId: "BeFxPRDreo8uLivyGgqDE87iGaU3o1Tw9hZw46NxYaej",
 };
 
 // Get current configuration based on environment

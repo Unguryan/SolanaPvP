@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { UniversalGameBoard } from "@/components/game/UniversalGameBoard";
 import { Player, GameResult } from "@/types/game";
 import { generateDemoPlayers } from "@/lib/gameMockGenerator";
+import { usersApi } from "@/services/api/users";
 import * as anchor from "@coral-xyz/anchor";
 
 type PageMode = "preview" | "preparing" | "game";
@@ -65,6 +66,35 @@ export const MatchPreview: React.FC = () => {
   const [userBalance, setUserBalance] = useState<number>(0);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [joinMessage, setJoinMessage] = useState<string | null>(null);
+  const [usernames, setUsernames] = useState<Record<string, string>>({});
+
+  // Fetch usernames for all players in the lobby
+  useEffect(() => {
+    const fetchUsernames = async () => {
+      if (!lobby) return;
+
+      const allPlayers = [...lobby.team1, ...lobby.team2];
+      const newUsernames: Record<string, string> = {};
+
+      // Fetch usernames for each player
+      await Promise.all(
+        allPlayers.map(async (player) => {
+          const pubkey = player.toString();
+          try {
+            const userProfile = await usersApi.getUser(pubkey);
+            newUsernames[pubkey] = userProfile.username;
+          } catch {
+            // If user not found or error, keep wallet address
+            console.debug(`Could not fetch username for ${pubkey}`);
+          }
+        })
+      );
+
+      setUsernames(newUsernames);
+    };
+
+    fetchUsernames();
+  }, [lobby]);
 
   // Determine if user is a viewer (not participant and not connected)
   useEffect(() => {
@@ -99,7 +129,8 @@ export const MatchPreview: React.FC = () => {
     fetchBalance();
   }, [publicKey, connected]);
 
-  // Calculate time left (5 minutes timeout for lobby)
+  // Calculate time left with team-size-based timeout
+  // 1v1: 2 minutes, 2v2: 5 minutes, 5v5: 10 minutes
   useEffect(() => {
     if (!lobby) return;
 
@@ -107,7 +138,11 @@ export const MatchPreview: React.FC = () => {
       const createdAtSeconds = lobby.createdAt.toNumber();
       const nowSeconds = Date.now() / 1000;
       const elapsed = nowSeconds - createdAtSeconds;
-      const timeout = 300; // 5 minutes in seconds
+
+      // Determine timeout based on team size
+      const timeout =
+        lobby.teamSize === 1 ? 120 : lobby.teamSize === 2 ? 300 : 600;
+
       const remaining = Math.max(0, timeout - elapsed);
       setTimeLeft(Math.floor(remaining));
     };
@@ -339,16 +374,19 @@ export const MatchPreview: React.FC = () => {
     if (!lobby || !publicKey) return false;
     if (lobby.status !== LobbyStatus.Open) return false;
 
-    // Only creator can refund (or admin, but we don't check that here)
+    // Only creator can refund
     const isCreator = lobby.creator.toString() === publicKey?.toString();
-
     if (!isCreator) return false;
 
-    // Check if 2 minutes have passed
+    // Check if enough time has passed based on team size
+    // 1v1: 2 minutes, 2v2: 5 minutes, 5v5: 10 minutes
     const createdAtSeconds = lobby.createdAt.toNumber();
     const nowSeconds = Date.now() / 1000;
     const timePassed = nowSeconds - createdAtSeconds;
-    const canRefundTime = timePassed >= 120; // 2 minutes
+
+    const refundDelay =
+      lobby.teamSize === 1 ? 120 : lobby.teamSize === 2 ? 300 : 600;
+    const canRefundTime = timePassed >= refundDelay;
 
     return canRefundTime;
   };
@@ -380,6 +418,15 @@ export const MatchPreview: React.FC = () => {
     return `${mins.toString().padStart(2, "0")}:${secs
       .toString()
       .padStart(2, "0")}`;
+  };
+
+  const formatAddress = (address: string): string => {
+    if (address.length <= 8) return address;
+    return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  };
+
+  const getPlayerDisplay = (playerPubkey: string): string => {
+    return usernames[playerPubkey] || formatAddress(playerPubkey);
   };
 
   // No longer blocking viewers - removed the wallet check
@@ -642,8 +689,8 @@ export const MatchPreview: React.FC = () => {
                     {player ? (
                       <>
                         <div className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-green-400 rounded-full flex-shrink-0"></div>
-                        <span className="text-txt-base font-mono text-xs lg:text-sm flex-1 truncate">
-                          {player.toString()}
+                        <span className="text-txt-base text-xs lg:text-sm flex-1 truncate">
+                          {getPlayerDisplay(player.toString())}
                         </span>
                         {publicKey?.toString() === player.toString() && (
                           <span className="text-xs text-sol-purple flex-shrink-0">
@@ -705,8 +752,8 @@ export const MatchPreview: React.FC = () => {
                     {player ? (
                       <>
                         <div className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-green-400 rounded-full flex-shrink-0"></div>
-                        <span className="text-txt-base font-mono text-xs lg:text-sm flex-1 truncate">
-                          {player.toString()}
+                        <span className="text-txt-base text-xs lg:text-sm flex-1 truncate">
+                          {getPlayerDisplay(player.toString())}
                         </span>
                         {publicKey?.toString() === player.toString() && (
                           <span className="text-xs text-sol-purple flex-shrink-0">
@@ -765,29 +812,40 @@ export const MatchPreview: React.FC = () => {
             </GlassCard>
           )}
 
-        {/* Refund - Only for participants */}
-        {canRefund() && !isViewer && (
-          <GlassCard className="p-6 mb-6 border-red-500/30">
-            <GlassCardHeader>
-              <GlassCardTitle className="text-xl font-display text-red-400">
-                Refund Match
-              </GlassCardTitle>
-            </GlassCardHeader>
-            <div className="mt-4">
-              <p className="text-sm text-txt-muted mb-4">
-                You can refund this match after 2 minutes if it hasn't started.
-              </p>
-              <GlowButton
-                variant="ghost"
-                onClick={handleRefund}
-                disabled={isRefunding}
-                className="w-full border-red-500/30"
-              >
-                {isRefunding ? "Processing..." : "Request Refund"}
-              </GlowButton>
-            </div>
-          </GlassCard>
-        )}
+        {/* Refund - Only for creator after timeout */}
+        {lobby.creator.toString() === publicKey?.toString() &&
+          !isViewer &&
+          lobby.status === LobbyStatus.Open && (
+            <GlassCard className="p-6 mb-6 border-red-500/30">
+              <GlassCardHeader>
+                <GlassCardTitle className="text-xl font-display text-red-400">
+                  Refund Match
+                </GlassCardTitle>
+              </GlassCardHeader>
+              <div className="mt-4">
+                {canRefund() ? (
+                  <>
+                    <p className="text-sm text-txt-muted mb-4">
+                      No one joined your match? Request a refund to get your
+                      stake back.
+                    </p>
+                    <GlowButton
+                      variant="ghost"
+                      onClick={handleRefund}
+                      disabled={isRefunding}
+                      className="w-full border-red-500/30"
+                    >
+                      {isRefunding ? "Processing..." : "Request Refund"}
+                    </GlowButton>
+                  </>
+                ) : (
+                  <p className="text-sm text-txt-muted">
+                    Refund will be available in {formatTimeLeft(timeLeft)}
+                  </p>
+                )}
+              </div>
+            </GlassCard>
+          )}
 
         {/* Error */}
         {error && (

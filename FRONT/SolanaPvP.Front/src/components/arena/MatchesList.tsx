@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useWallet } from "@solana/wallet-adapter-react";
 import { useArenaStore, MatchLobby } from "@/store/arenaStore";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
@@ -9,7 +8,6 @@ import {
   GlassCardHeader,
   GlassCardTitle,
 } from "@/components/ui/GlassCard";
-import { GlowButton } from "@/components/ui/GlowButton";
 
 interface MatchesListProps {
   className?: string;
@@ -23,8 +21,7 @@ export const MatchesList: React.FC<MatchesListProps> = ({
   matches: propMatches,
 }) => {
   const navigate = useNavigate();
-  const { connected } = useWallet();
-  const { matches: storeMatches, isLoading, setJoinModal } = useArenaStore();
+  const { matches: storeMatches, isLoading } = useArenaStore();
   const matches = propMatches || storeMatches;
   const [timeLeft, setTimeLeft] = useState<Record<string, number>>({});
 
@@ -81,12 +78,6 @@ export const MatchesList: React.FC<MatchesListProps> = ({
     return "border-txt-muted/30";
   };
 
-  const handleJoinMatch = (e: React.MouseEvent, matchId: string) => {
-    e.stopPropagation(); // Prevent card click
-    if (!connected) return;
-    setJoinModal(matchId);
-  };
-
   const handleMatchClick = (match: MatchLobby) => {
     // Use matchPda if available, otherwise use id
     const matchPda = match.matchPda || match.id;
@@ -127,7 +118,6 @@ export const MatchesList: React.FC<MatchesListProps> = ({
           );
           const timeRemaining = timeLeft[match.id] || 0;
           const isEnded = timeRemaining <= 0;
-          const isFull = match.playersReady >= match.playersMax;
 
           return (
             <motion.div
@@ -170,32 +160,16 @@ export const MatchesList: React.FC<MatchesListProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-4">
-                  <div className="text-right">
-                    <div className="text-xs text-txt-muted mb-1">
-                      {fillPercentage}% full
-                    </div>
-                    <div className="w-16 h-1 bg-txt-muted/20 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-sol-purple to-sol-mint transition-all duration-300"
-                        style={{ width: `${fillPercentage}%` }}
-                      />
-                    </div>
+                <div className="text-right">
+                  <div className="text-xs text-txt-muted mb-1">
+                    {fillPercentage}% full
                   </div>
-
-                  <GlowButton
-                    size="sm"
-                    variant={isFull || isEnded || !connected ? "ghost" : "neon"}
-                    disabled={isFull || isEnded || !connected}
-                    onClick={(e) => handleJoinMatch(e, match.id)}
-                    className={
-                      isFull || isEnded || !connected
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
-                    }
-                  >
-                    {isFull ? "Full" : isEnded ? "Ended" : "Join"}
-                  </GlowButton>
+                  <div className="w-16 h-1 bg-txt-muted/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-sol-purple to-sol-mint transition-all duration-300"
+                      style={{ width: `${fillPercentage}%` }}
+                    />
+                  </div>
                 </div>
               </div>
             </motion.div>

@@ -7,6 +7,7 @@ using SolanaPvP.Domain.Enums;
 using SolanaPvP.Domain.Models;
 using SolanaPvP.Domain.Settings;
 using System.Collections.Concurrent;
+using MatchType = SolanaPvP.Domain.Enums.MatchType;
 
 namespace SolanaPvP.API_Project.Workers;
 
@@ -225,9 +226,18 @@ public class IndexerWorker : BackgroundService
         await userRepository.CreateOrUpdateAsync(user);
         _logger.LogDebug("[ProcessMatchCreated] User created/updated: {Creator}", matchData.Creator);
 
-        // Schedule refund task
-        await refundScheduler.ScheduleAsync(parsedEvent.MatchPda, matchData.DeadlineTs);
-        _logger.LogDebug("[ProcessMatchCreated] Refund task scheduled for {MatchPda}", parsedEvent.MatchPda);
+        // Schedule refund task with deadline based on team size
+        // 1v1: 2 minutes, 2v2: 5 minutes, 5v5: 10 minutes
+        int refundDelaySeconds = match.MatchType switch
+        {
+            MatchType.Solo => 120,  // 2 minutes
+            MatchType.Duo => 300,   // 5 minutes
+            MatchType.Team => 600,  // 10 minutes
+            _ => 120
+        };
+        long refundDeadline = ((DateTimeOffset)match.CreatedAt).ToUnixTimeSeconds() + refundDelaySeconds;
+        await refundScheduler.ScheduleAsync(parsedEvent.MatchPda, refundDeadline);
+        _logger.LogDebug("[ProcessMatchCreated] Refund task scheduled for {MatchPda} with {Delay}s delay", parsedEvent.MatchPda, refundDelaySeconds);
 
         _logger.LogInformation("✅ Match created successfully: {MatchPda} by {Creator}", 
             parsedEvent.MatchPda, matchData.Creator);
@@ -341,7 +351,6 @@ public class IndexerWorker : BackgroundService
 
     private async Task ProcessMatchRefundedAsync(ParsedEvent parsedEvent, string signature, IServiceProvider serviceProvider)
     {
-        var matchRepository = serviceProvider.GetRequiredService<IMatchRepository>();
         var refundScheduler = serviceProvider.GetRequiredService<IRefundScheduler>();
         var matchService = serviceProvider.GetRequiredService<IMatchService>();
 
@@ -349,16 +358,7 @@ public class IndexerWorker : BackgroundService
         var refundData = ParseMatchRefundedPayload(parsedEvent.PayloadJson);
         if (refundData == null) return;
 
-        // Get existing match
-        var match = await matchRepository.GetByMatchPdaAsync(parsedEvent.MatchPda);
-        if (match == null) return;
-
-        // Update match
-        match.Status = MatchStatus.Refunded;
-        match.PayoutTx = signature;
-        await matchRepository.UpdateAsync(match);
-
-        // Mark refund task as executed
+        // Mark refund task as executed (this will update the match status internally)
         await refundScheduler.MarkAsExecutedAsync(parsedEvent.MatchPda, signature);
 
         _logger.LogInformation("Match refunded: {MatchPda}", parsedEvent.MatchPda);

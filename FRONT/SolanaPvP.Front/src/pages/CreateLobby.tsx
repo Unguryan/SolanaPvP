@@ -39,6 +39,7 @@ export const CreateLobby: React.FC = () => {
   const [validationMessage, setValidationMessage] = useState<string | null>(
     null
   );
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [userBalance, setUserBalance] = useState<number>(0);
 
   const gameModes: { mode: GameMode; label: string; icon: string }[] = [
@@ -141,15 +142,54 @@ export const CreateLobby: React.FC = () => {
 
       console.log("[CreateLobby] Transaction successful:", tx);
 
-      // Navigate to match preview
+      // Show success message
+      setSuccessMessage("Lobby created successfully! Redirecting...");
+
+      // Navigate to match preview after brief delay
       const [lobbyPda] = PdaUtils.getLobbyPda(publicKey, lobbyId);
       console.log("[CreateLobby] Lobby PDA:", lobbyPda.toString());
 
-      navigate(`/match/${lobbyPda.toString()}`);
-    } catch (err) {
+      setTimeout(() => {
+        navigate(`/match/${lobbyPda.toString()}`);
+      }, 1000);
+    } catch (err: any) {
       console.error("[CreateLobby] Failed to create lobby:", err);
-      setValidationMessage(`Failed to create lobby: ${err}`);
-      setTimeout(() => setValidationMessage(null), 5000);
+
+      // Extract meaningful error message
+      let errorMessage = "Failed to create lobby";
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (typeof err === "string") {
+        errorMessage = err;
+      } else if (err?.toString) {
+        errorMessage = err.toString();
+      }
+
+      // Check if the error is "already processed" - this means the transaction actually succeeded
+      const isAlreadyProcessed = errorMessage
+        .toLowerCase()
+        .includes("already been processed");
+
+      if (isAlreadyProcessed) {
+        console.log(
+          "[CreateLobby] Transaction was already processed - treating as success"
+        );
+
+        // Show success message
+        setSuccessMessage("Lobby created successfully! Redirecting...");
+
+        // Navigate to match preview
+        const [lobbyPda] = PdaUtils.getLobbyPda(publicKey, lobbyId);
+        console.log("[CreateLobby] Lobby PDA:", lobbyPda.toString());
+
+        setTimeout(() => {
+          navigate(`/match/${lobbyPda.toString()}`);
+        }, 1000);
+      } else {
+        // Show actual error
+        setValidationMessage(errorMessage);
+        setTimeout(() => setValidationMessage(null), 5000);
+      }
     }
   };
 
@@ -179,6 +219,25 @@ export const CreateLobby: React.FC = () => {
             <div className="glass-card p-4 border-yellow-500/50 bg-yellow-500/10 max-w-md w-full pointer-events-auto">
               <p className="text-yellow-400 text-sm text-center font-semibold">
                 {validationMessage}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Success Message Toast */}
+      <AnimatePresence>
+        {successMessage && (
+          <motion.div
+            className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[6vh] pt-[6vh] px-4 pointer-events-none"
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className="glass-card p-4 border-sol-mint/50 bg-sol-mint/10 max-w-md w-full pointer-events-auto">
+              <p className="text-sol-mint text-sm text-center font-semibold">
+                {successMessage}
               </p>
             </div>
           </motion.div>
