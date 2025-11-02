@@ -12,7 +12,6 @@ public class SolanaPvPDbContext : DbContext
     public DbSet<MatchDBO> Matches { get; set; }
     public DbSet<MatchParticipantDBO> MatchParticipants { get; set; }
     public DbSet<GameDataDBO> GameData { get; set; }
-    public DbSet<EventDBO> Events { get; set; }
     public DbSet<RefundTaskDBO> RefundTasks { get; set; }
     public DbSet<UserDBO> Users { get; set; }
     public DbSet<MatchInvitationDBO> MatchInvitations { get; set; }
@@ -70,25 +69,6 @@ public class SolanaPvPDbContext : DbContext
             entity.HasOne(e => e.Match)
                 .WithOne(m => m.GameData)
                 .HasForeignKey<GameDataDBO>(e => e.MatchPda)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // Event configuration
-        modelBuilder.Entity<EventDBO>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Signature).HasMaxLength(88).IsRequired();
-            entity.Property(e => e.MatchPda).HasMaxLength(44).IsRequired();
-            entity.Property(e => e.PayloadJson).IsRequired();
-            
-            entity.HasIndex(e => e.Signature).IsUnique();
-            entity.HasIndex(e => e.Slot);
-            entity.HasIndex(e => e.MatchPda);
-            entity.HasIndex(e => e.Kind);
-            
-            entity.HasOne(e => e.Match)
-                .WithMany(m => m.Events)
-                .HasForeignKey(e => e.MatchPda)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

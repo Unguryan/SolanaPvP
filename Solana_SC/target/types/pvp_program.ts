@@ -349,6 +349,111 @@ export type PvpProgram = {
           }
         },
         {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "side",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "joinSideFinal",
+      "discriminator": [
+        145,
+        130,
+        102,
+        65,
+        104,
+        78,
+        171,
+        113
+      ],
+      "accounts": [
+        {
+          "name": "lobby",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  98,
+                  98,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "account",
+                "path": "lobby.lobby_id",
+                "account": "lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "relations": [
+            "lobby"
+          ]
+        },
+        {
+          "name": "player",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "active",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "switchboardProgram",
           "address": "6sjKhUwzNRtFh6EmC32GwNRH7v7vCjfgeWpxYEcdvEBL"
         },
@@ -710,6 +815,11 @@ export type PvpProgram = {
       "code": 6016,
       "name": "notPending",
       "msg": "Lobby not pending"
+    },
+    {
+      "code": 6017,
+      "name": "mustUseFinalJoin",
+      "msg": "Lobby is full - must use join_side_final instruction"
     }
   ],
   "types": [

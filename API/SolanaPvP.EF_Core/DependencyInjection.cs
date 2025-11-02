@@ -26,7 +26,6 @@ public static class DependencyInjection
 
         // Register repositories
         services.AddScoped<IMatchRepository, MatchRepository>();
-        services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefundTaskRepository, RefundTaskRepository>();
         services.AddScoped<IMatchInvitationRepository, MatchInvitationRepository>();

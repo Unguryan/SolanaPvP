@@ -1,3 +1,5 @@
+// Security: See security.txt in the repository root for security policy and contact information
+// --------------------------------------------------------------------------
 // Final Anchor program with Switchboard VRF v2 integration (English comments)
 // --------------------------------------------------------------------------
 // Key properties:
@@ -143,6 +145,8 @@ pub enum PvpError {
     WrongVrfAuthority,
     #[msg("Lobby not pending")]
     NotPending,
+    #[msg("Lobby is full - must use join_side_final instruction")]
+    MustUseFinalJoin,
 }
 
 
@@ -190,12 +194,44 @@ pub struct CreateLobby<'info> {
     pub system_program: Program<'info, System>,
 }
 
-// A player joins a side. If the lobby becomes full after this join, we request VRF.
-// All required Switchboard accounts must be provided for the last-join call.
-// NOTE: For non-last joins, VRF-related accounts are still required in this context
-// but they won't be used if the lobby isn't full yet.
+// JoinSideSimple - for non-final joins (when lobby won't be full after this join)
+// Only requires minimal accounts, no VRF accounts needed.
 #[derive(Accounts)]
-pub struct JoinSide<'info> {
+pub struct JoinSideSimple<'info> {
+    #[account(
+        mut,
+        has_one = creator @ PvpError::Unauthorized,
+        seeds = [SEED_LOBBY, creator.key().as_ref(), &lobby.lobby_id.to_le_bytes()],
+        bump
+    )]
+    pub lobby: Account<'info, Lobby>,
+
+    /// CHECK: Just to satisfy has_one and PDA seeds
+    pub creator: UncheckedAccount<'info>,
+
+    #[account(mut)]
+    pub player: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [SEED_ACTIVE, lobby.creator.as_ref()],
+        bump
+    )]
+    pub active: Account<'info, ActiveLobby>,
+
+    #[account(
+        seeds = [SEED_CONFIG],
+        bump
+    )]
+    pub config: Account<'info, GlobalConfig>,
+
+    pub system_program: Program<'info, System>,
+}
+
+// JoinSideFull - for the final join (when lobby becomes full after this join)
+// Requires all Switchboard VRF accounts to trigger randomness request.
+#[derive(Accounts)]
+pub struct JoinSideFull<'info> {
     #[account(
         mut,
         has_one = creator @ PvpError::Unauthorized,
@@ -399,13 +435,9 @@ pub mod pvp_program {
         Ok(())
     }
 
-    // A player joins a side (0 or 1). If this join fills the lobby, we immediately
-    // request randomness from Switchboard VRF and move the lobby to Pending state.
-    //
-    // IMPORTANT:
-    // - If the lobby becomes full after this join, the caller MUST provide valid VRF accounts.
-    // - We store the VRF account pubkey in the lobby so we can validate the fulfill callback.
-    pub fn join_side(ctx: Context<JoinSide>, side: u8) -> Result<()> {
+    // A player joins a side (0 or 1) - for non-final joins only.
+    // If this join would fill the lobby, this will error - caller must use join_side_final instead.
+    pub fn join_side(ctx: Context<JoinSideSimple>, side: u8) -> Result<()> {
         require!(side <= 1, PvpError::InvalidSide);
 
         // Must be Open to accept more players
@@ -435,6 +467,45 @@ pub mod pvp_program {
             is_full: full_now,
         });
 
+        // If lobby is full, this is an error - should have used join_side_final
+        require!(!full_now, PvpError::MustUseFinalJoin);
+
+        Ok(())
+    }
+
+    // Final join - when this join will fill the lobby and trigger VRF request.
+    // IMPORTANT: Caller must provide all Switchboard VRF accounts.
+    pub fn join_side_final(ctx: Context<JoinSideFull>, side: u8) -> Result<()> {
+        require!(side <= 1, PvpError::InvalidSide);
+
+        // Must be Open to accept more players
+        let lobby = &mut ctx.accounts.lobby;
+        require!(matches!(lobby.status, LobbyStatus::Open), PvpError::LobbyNotOpenForJoin);
+
+        // Collect stake and add player
+        internal_join_side(
+            &ctx.accounts.player,
+            lobby,
+            ctx.accounts.system_program.to_account_info(),
+            side,
+        )?;
+
+        // Check if lobby is now full
+        let full_now =
+            (lobby.team1.len() as u8 == lobby.team_size) &&
+            (lobby.team2.len() as u8 == lobby.team_size);
+
+        // Emit player joined event
+        emit!(PlayerJoined {
+            lobby: lobby.key(),
+            player: ctx.accounts.player.key(),
+            side,
+            team1_count: lobby.team1.len() as u8,
+            team2_count: lobby.team2.len() as u8,
+            is_full: full_now,
+        });
+
+        // This instruction should only be called when lobby becomes full
         if full_now {
             // Validate Switchboard program
             require!(
@@ -442,16 +513,7 @@ pub mod pvp_program {
                 PvpError::WrongSwitchboardProgram
             );
 
-            // The VRF authority must be the lobby PDA (so we can verify callback later).
-            // We'll sign with PDA seeds in the CPI.
-
             // Store VRF key for validation in fulfill callback
-            
-            // Use raw CPI to call Switchboard VRF request
-            // Since switchboard-solana 0.30.4 doesn't expose VRF types, we use raw CPI
-            // For now, store VRF key and let Switchboard call back to fulfill_randomness
-            // The actual VRF request will be handled by the VRF account setup off-chain
-            // Switchboard will automatically call fulfill_randomness once randomness is ready
             let vrf_key = ctx.accounts.vrf.key();
             lobby.vrf = vrf_key;
             

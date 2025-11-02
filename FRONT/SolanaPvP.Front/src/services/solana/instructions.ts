@@ -126,14 +126,40 @@ export class PvpInstructions {
     try {
       const config = getSolanaConfig();
 
-      // Build accounts object - Anchor will derive PDAs automatically
+      // Fetch current lobby state to determine if this is the final join
+      const lobby = await PvpAccountFetchers.fetchLobby(
+        program,
+        params.lobbyPda
+      );
+      if (!lobby) {
+        throw new Error("Lobby not found");
+      }
+
+      // Calculate current player count and required count
+      const currentPlayers = lobby.team1.length + lobby.team2.length;
+      const requiredPlayers = lobby.teamSize * 2;
+      const willBeFinalJoin = currentPlayers + 1 === requiredPlayers;
+
+      console.log(
+        `[JoinLobby] Current: ${currentPlayers}/${requiredPlayers}, Final: ${willBeFinalJoin}`
+      );
+
+      // Build base accounts object
       const accounts: any = {
         creator: params.creator,
         player: params.player,
       };
 
-      // Add Switchboard accounts if provided (for last join triggering VRF)
-      if (params.vrfAccount) {
+      // If this is the final join, use join_side_final with VRF accounts
+      if (willBeFinalJoin) {
+        console.log("[JoinLobby] Using join_side_final (with VRF accounts)");
+
+        // Ensure VRF accounts are provided for final join
+        if (!params.vrfAccount) {
+          throw new Error("VRF account required for final join");
+        }
+
+        // Add all Switchboard VRF accounts
         accounts.vrf = params.vrfAccount;
         accounts.oracleQueue =
           params.oracleQueue || new PublicKey(config.switchboardOracleQueue);
@@ -154,17 +180,30 @@ export class PvpInstructions {
         accounts.associatedTokenProgram =
           params.associatedTokenProgram ||
           new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+
+        const tx = await program.methods
+          .joinSideFinal(params.side)
+          .accounts(accounts)
+          .rpc({
+            skipPreflight: false,
+            commitment: "confirmed",
+          });
+
+        return tx;
+      } else {
+        console.log("[JoinLobby] Using join_side (simple, no VRF)");
+
+        // Use simple join_side for non-final joins
+        const tx = await program.methods
+          .joinSide(params.side)
+          .accounts(accounts)
+          .rpc({
+            skipPreflight: false,
+            commitment: "confirmed",
+          });
+
+        return tx;
       }
-
-      const tx = await program.methods
-        .joinSide(params.side)
-        .accounts(accounts)
-        .rpc({
-          skipPreflight: false,
-          commitment: "confirmed",
-        });
-
-      return tx;
     } catch (error: any) {
       console.error("Join lobby error details:", error);
 

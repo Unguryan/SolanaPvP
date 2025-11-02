@@ -233,8 +233,7 @@ public class MatchService : IMatchService
                 Side0TotalScore = match.GameData.Side0TotalScore,
                 Side1TotalScore = match.GameData.Side1TotalScore,
                 GeneratedAt = match.GameData.GeneratedAt
-            } : null,
-            Events = match.Events.Select(ConvertToEventView).ToList()
+            } : null
         };
     }
 
@@ -247,18 +246,6 @@ public class MatchService : IMatchService
             Position = participant.Position,
             TargetScore = participant.TargetScore,
             IsWinner = participant.IsWinner
-        };
-    }
-
-    private EventView ConvertToEventView(Event eventEntity)
-    {
-        return new EventView
-        {
-            Signature = eventEntity.Signature,
-            Slot = eventEntity.Slot,
-            Kind = eventEntity.Kind.ToString(),
-            PayloadJson = eventEntity.PayloadJson,
-            Ts = eventEntity.Ts
         };
     }
 

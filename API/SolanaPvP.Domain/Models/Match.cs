@@ -23,6 +23,5 @@ public class Match
     // Navigation properties
     public ICollection<MatchParticipant> Participants { get; set; } = new List<MatchParticipant>();
     public GameData? GameData { get; set; }
-    public ICollection<Event> Events { get; set; } = new List<Event>();
     public MatchInvitation? Invitation { get; set; }
 }

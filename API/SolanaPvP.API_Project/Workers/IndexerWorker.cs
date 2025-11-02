@@ -6,6 +6,7 @@ using SolanaPvP.Application.Interfaces.SolanaRPC;
 using SolanaPvP.Domain.Enums;
 using SolanaPvP.Domain.Models;
 using SolanaPvP.Domain.Settings;
+using System.Collections.Concurrent;
 
 namespace SolanaPvP.API_Project.Workers;
 
@@ -17,6 +18,10 @@ public class IndexerWorker : BackgroundService
     private readonly IndexerSettings _indexerSettings;
     private readonly IWsSubscriber _wsSubscriber;
     private readonly IHubContext<MatchHub> _hubContext;
+    
+    // In-memory deduplication: store last 1000 signatures
+    private readonly ConcurrentDictionary<string, byte> _processedSignatures = new();
+    private const int MAX_SIGNATURES = 1000;
 
     public IndexerWorker(
         ILogger<IndexerWorker> logger,
@@ -61,21 +66,21 @@ public class IndexerWorker : BackgroundService
             _logger.LogDebug("Received log event - Signature: {Signature}, Slot: {Slot}, Logs count: {Count}", 
                 logEvent.Signature, logEvent.Slot, logEvent.Logs?.Count ?? 0);
 
+            // Check if we've already processed this event (in-memory deduplication)
+            if (_processedSignatures.ContainsKey(logEvent.Signature))
+            {
+                _logger.LogDebug("Event already processed, skipping: {Signature}", logEvent.Signature);
+                return;
+            }
+
             using var scope = _serviceProvider.CreateScope();
             var eventParser = scope.ServiceProvider.GetRequiredService<IEventParser>();
-            var eventRepository = scope.ServiceProvider.GetRequiredService<IEventRepository>();
             var matchRepository = scope.ServiceProvider.GetRequiredService<IMatchRepository>();
             var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
             var refundScheduler = scope.ServiceProvider.GetRequiredService<IRefundScheduler>();
             var gameDataGenerator = scope.ServiceProvider.GetRequiredService<IGameDataGenerator>();
             var indexerStateManager = scope.ServiceProvider.GetRequiredService<IIndexerStateManager>();
-
-            // Check if we've already processed this event
-            if (await eventRepository.ExistsBySignatureAsync(logEvent.Signature))
-            {
-                _logger.LogDebug("Event already processed, skipping: {Signature}", logEvent.Signature);
-                return;
-            }
+            var matchService = scope.ServiceProvider.GetRequiredService<IMatchService>();
 
             // Log all log lines for debugging
             if (logEvent.Logs != null && logEvent.Logs.Count > 0)
@@ -106,6 +111,20 @@ public class IndexerWorker : BackgroundService
                 _logger.LogDebug("No parseable events found in transaction {Signature}", logEvent.Signature);
             }
 
+            // Mark signature as processed
+            _processedSignatures.TryAdd(logEvent.Signature, 0);
+            
+            // Clean up old signatures if we exceed the limit
+            if (_processedSignatures.Count > MAX_SIGNATURES)
+            {
+                var keysToRemove = _processedSignatures.Keys.Take(_processedSignatures.Count - MAX_SIGNATURES).ToList();
+                foreach (var key in keysToRemove)
+                {
+                    _processedSignatures.TryRemove(key, out _);
+                }
+                _logger.LogDebug("Cleaned up {Count} old signatures from cache", keysToRemove.Count);
+            }
+
             // Update last processed slot
             await indexerStateManager.SetLastProcessedSlotAsync(logEvent.Slot);
         }
@@ -117,50 +136,42 @@ public class IndexerWorker : BackgroundService
 
     private async Task ProcessEventAsync(ParsedEvent parsedEvent, WsLogEvent logEvent, IServiceProvider serviceProvider)
     {
-        var eventRepository = serviceProvider.GetRequiredService<IEventRepository>();
         var matchRepository = serviceProvider.GetRequiredService<IMatchRepository>();
         var userRepository = serviceProvider.GetRequiredService<IUserRepository>();
         var refundScheduler = serviceProvider.GetRequiredService<IRefundScheduler>();
         var gameDataGenerator = serviceProvider.GetRequiredService<IGameDataGenerator>();
+        var matchService = serviceProvider.GetRequiredService<IMatchService>();
 
-        // Create event record
-        var eventEntity = new Event
-        {
-            Signature = logEvent.Signature,
-            Slot = logEvent.Slot,
-            Kind = parsedEvent.Kind,
-            MatchPda = parsedEvent.MatchPda,
-            PayloadJson = parsedEvent.PayloadJson,
-            Ts = DateTime.UtcNow
-        };
-
-        await eventRepository.CreateAsync(eventEntity);
+        // Log event to file for debugging
+        _logger.LogInformation("[Event] {EventKind} - Match: {MatchPda} - Signature: {Signature} - Slot: {Slot}", 
+            parsedEvent.Kind, parsedEvent.MatchPda, logEvent.Signature, logEvent.Slot);
 
         // Process based on event type
         switch (parsedEvent.Kind)
         {
             case EventKind.MatchCreated:
-                await ProcessMatchCreatedAsync(parsedEvent, serviceProvider);
+                await ProcessMatchCreatedAsync(parsedEvent, logEvent.Signature, serviceProvider);
                 break;
             case EventKind.MatchJoined:
-                await ProcessMatchJoinedAsync(parsedEvent, serviceProvider);
+                await ProcessMatchJoinedAsync(parsedEvent, logEvent.Signature, serviceProvider);
                 break;
             case EventKind.MatchResolved:
-                await ProcessMatchResolvedAsync(parsedEvent, serviceProvider);
+                await ProcessMatchResolvedAsync(parsedEvent, logEvent.Signature, serviceProvider);
                 break;
             case EventKind.MatchRefunded:
-                await ProcessMatchRefundedAsync(parsedEvent, serviceProvider);
+                await ProcessMatchRefundedAsync(parsedEvent, logEvent.Signature, serviceProvider);
                 break;
         }
     }
 
-    private async Task ProcessMatchCreatedAsync(ParsedEvent parsedEvent, IServiceProvider serviceProvider)
+    private async Task ProcessMatchCreatedAsync(ParsedEvent parsedEvent, string signature, IServiceProvider serviceProvider)
     {
         _logger.LogInformation("[ProcessMatchCreated] Starting processing for {MatchPda}", parsedEvent.MatchPda);
         
         var matchRepository = serviceProvider.GetRequiredService<IMatchRepository>();
         var userRepository = serviceProvider.GetRequiredService<IUserRepository>();
         var refundScheduler = serviceProvider.GetRequiredService<IRefundScheduler>();
+        var matchService = serviceProvider.GetRequiredService<IMatchService>();
 
         // Parse match creation data from payload
         _logger.LogDebug("[ProcessMatchCreated] Parsing payload: {Payload}", parsedEvent.PayloadJson);
@@ -180,7 +191,7 @@ public class IndexerWorker : BackgroundService
             StakeLamports = matchData.StakeLamports,
             Status = MatchStatus.Waiting,
             DeadlineTs = matchData.DeadlineTs,
-            CreateTx = parsedEvent.PayloadJson, // Store full payload for now
+            CreateTx = signature,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -212,13 +223,22 @@ public class IndexerWorker : BackgroundService
 
         _logger.LogInformation("✅ Match created successfully: {MatchPda} by {Creator}", 
             parsedEvent.MatchPda, matchData.Creator);
+
+        // Broadcast to all clients via SignalR
+        var matchView = await matchService.GetMatchAsync(parsedEvent.MatchPda);
+        if (matchView != null)
+        {
+            await _hubContext.NotifyMatchCreated(ConvertToMatchView(matchView));
+            _logger.LogDebug("[ProcessMatchCreated] Broadcasted match created to clients");
+        }
     }
 
-    private async Task ProcessMatchJoinedAsync(ParsedEvent parsedEvent, IServiceProvider serviceProvider)
+    private async Task ProcessMatchJoinedAsync(ParsedEvent parsedEvent, string signature, IServiceProvider serviceProvider)
     {
         var matchRepository = serviceProvider.GetRequiredService<IMatchRepository>();
         var userRepository = serviceProvider.GetRequiredService<IUserRepository>();
         var refundScheduler = serviceProvider.GetRequiredService<IRefundScheduler>();
+        var matchService = serviceProvider.GetRequiredService<IMatchService>();
 
         // Parse join data
         var joinData = ParseMatchJoinedPayload(parsedEvent.PayloadJson);
@@ -231,6 +251,7 @@ public class IndexerWorker : BackgroundService
         // Update match status
         match.Status = MatchStatus.AwaitingRandomness;
         match.JoinedAt = DateTime.UtcNow;
+        match.JoinTx = signature;
         await matchRepository.UpdateAsync(match);
 
         // Create joiner participant
@@ -255,13 +276,22 @@ public class IndexerWorker : BackgroundService
         await refundScheduler.CancelAsync(parsedEvent.MatchPda);
 
         _logger.LogInformation("Match joined: {MatchPda}", parsedEvent.MatchPda);
+
+        // Broadcast to all clients via SignalR
+        var matchView = await matchService.GetMatchAsync(parsedEvent.MatchPda);
+        if (matchView != null)
+        {
+            await _hubContext.NotifyMatchJoined(parsedEvent.MatchPda, ConvertToMatchView(matchView));
+            _logger.LogDebug("[ProcessMatchJoined] Broadcasted match updated to clients");
+        }
     }
 
-    private async Task ProcessMatchResolvedAsync(ParsedEvent parsedEvent, IServiceProvider serviceProvider)
+    private async Task ProcessMatchResolvedAsync(ParsedEvent parsedEvent, string signature, IServiceProvider serviceProvider)
     {
         var matchRepository = serviceProvider.GetRequiredService<IMatchRepository>();
         var userRepository = serviceProvider.GetRequiredService<IUserRepository>();
         var gameDataGenerator = serviceProvider.GetRequiredService<IGameDataGenerator>();
+        var matchService = serviceProvider.GetRequiredService<IMatchService>();
 
         // Parse resolution data
         var resolutionData = ParseMatchResolvedPayload(parsedEvent.PayloadJson);
@@ -278,6 +308,7 @@ public class IndexerWorker : BackgroundService
         match.Status = MatchStatus.Resolved;
         match.WinnerSide = DetermineWinnerSide(match, resolutionData.Winner);
         match.ResolvedAt = DateTime.UtcNow;
+        match.PayoutTx = signature;
         match.GameData = gameData;
         await matchRepository.UpdateAsync(match);
 
@@ -290,12 +321,21 @@ public class IndexerWorker : BackgroundService
         }
 
         _logger.LogInformation("Match resolved: {MatchPda}, Winner: {Winner}", parsedEvent.MatchPda, resolutionData.Winner);
+
+        // Broadcast to all clients via SignalR
+        var matchDetails = await matchService.GetMatchAsync(parsedEvent.MatchPda);
+        if (matchDetails != null)
+        {
+            await _hubContext.NotifyMatchResolved(parsedEvent.MatchPda, matchDetails);
+            _logger.LogDebug("[ProcessMatchResolved] Broadcasted match resolved to clients");
+        }
     }
 
-    private async Task ProcessMatchRefundedAsync(ParsedEvent parsedEvent, IServiceProvider serviceProvider)
+    private async Task ProcessMatchRefundedAsync(ParsedEvent parsedEvent, string signature, IServiceProvider serviceProvider)
     {
         var matchRepository = serviceProvider.GetRequiredService<IMatchRepository>();
         var refundScheduler = serviceProvider.GetRequiredService<IRefundScheduler>();
+        var matchService = serviceProvider.GetRequiredService<IMatchService>();
 
         // Parse refund data
         var refundData = ParseMatchRefundedPayload(parsedEvent.PayloadJson);
@@ -307,13 +347,21 @@ public class IndexerWorker : BackgroundService
 
         // Update match
         match.Status = MatchStatus.Refunded;
-        match.PayoutTx = refundData.RefundTx;
+        match.PayoutTx = signature;
         await matchRepository.UpdateAsync(match);
 
         // Mark refund task as executed
-        await refundScheduler.MarkAsExecutedAsync(parsedEvent.MatchPda, refundData.RefundTx);
+        await refundScheduler.MarkAsExecutedAsync(parsedEvent.MatchPda, signature);
 
         _logger.LogInformation("Match refunded: {MatchPda}", parsedEvent.MatchPda);
+
+        // Broadcast to all clients via SignalR
+        var matchView = await matchService.GetMatchAsync(parsedEvent.MatchPda);
+        if (matchView != null)
+        {
+            await _hubContext.NotifyMatchRefunded(parsedEvent.MatchPda, ConvertToMatchView(matchView));
+            _logger.LogDebug("[ProcessMatchRefunded] Broadcasted match refunded to clients");
+        }
     }
 
     private int DetermineWinnerSide(Match match, string winnerPubkey)
@@ -327,6 +375,24 @@ public class IndexerWorker : BackgroundService
     private MatchJoinedData? ParseMatchJoinedPayload(string payloadJson) => new MatchJoinedData();
     private MatchResolvedData? ParseMatchResolvedPayload(string payloadJson) => new MatchResolvedData();
     private MatchRefundedData? ParseMatchRefundedPayload(string payloadJson) => new MatchRefundedData();
+
+    private MatchView ConvertToMatchView(MatchDetails matchDetails)
+    {
+        return new MatchView
+        {
+            MatchPda = matchDetails.MatchPda,
+            GameMode = matchDetails.GameMode,
+            MatchType = matchDetails.MatchType,
+            StakeLamports = matchDetails.StakeLamports,
+            Status = matchDetails.Status,
+            DeadlineTs = matchDetails.DeadlineTs,
+            WinnerSide = matchDetails.WinnerSide,
+            CreatedAt = matchDetails.CreatedAt,
+            JoinedAt = matchDetails.JoinedAt,
+            ResolvedAt = matchDetails.ResolvedAt,
+            Participants = matchDetails.Participants
+        };
+    }
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {

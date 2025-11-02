@@ -69,7 +69,6 @@ public class MatchDetails
     public DateTime? ResolvedAt { get; set; }
     public List<ParticipantView> Participants { get; set; } = new();
     public GameDataView? GameData { get; set; }
-    public List<EventView> Events { get; set; } = new();
 }
 
 public class ParticipantView
@@ -87,15 +86,6 @@ public class GameDataView
     public int Side0TotalScore { get; set; }
     public int Side1TotalScore { get; set; }
     public DateTime GeneratedAt { get; set; }
-}
-
-public class EventView
-{
-    public string Signature { get; set; } = string.Empty;
-    public long Slot { get; set; }
-    public string Kind { get; set; } = string.Empty;
-    public string PayloadJson { get; set; } = string.Empty;
-    public DateTime Ts { get; set; }
 }
 
 public class UserProfile

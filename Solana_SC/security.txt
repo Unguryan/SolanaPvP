@@ -1,0 +1,29 @@
+# Security Policy
+
+name: "SolanaPvP"
+project_url: "https://github.com/Unguryan/SolanaPvP"
+contacts: "email:security@solanapvp.com"
+policy: "https://github.com/Unguryan/SolanaPvP/blob/main/SECURITY.md"
+
+# Preferred Languages
+preferred_languages: "en"
+
+# Program Information
+source_code: "https://github.com/Unguryan/SolanaPvP"
+source_release: "v1.0.0"
+source_revision: "main"
+
+# Audits
+# audits: "https://github.com/Unguryan/SolanaPvP/tree/main/audits"
+
+# Acknowledgements
+# acknowledgements: "https://github.com/Unguryan/SolanaPvP/blob/main/ACKNOWLEDGEMENTS.md"
+
+# Deployment Information
+deployment: "devnet"
+
+# Additional Notes
+# This program is currently in development/testing phase.
+# Please report any security vulnerabilities through the contacts above.
+# Bug bounty program details: TBD
+
