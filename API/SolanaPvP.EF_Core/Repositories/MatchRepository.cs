@@ -22,7 +22,6 @@ public class MatchRepository : IMatchRepository
         var dbo = await _context.Matches
             .Include(m => m.Participants)
             .Include(m => m.GameData)
-            .Include(m => m.Events)
             .FirstOrDefaultAsync(m => m.MatchPda == matchPda);
 
         return dbo?.ToDomain();

@@ -26,7 +26,6 @@ public static class MatchMapper
             InvitationId = dbo.InvitationId,
             Participants = dbo.Participants.Select(p => p.ToDomain()).ToList(),
             GameData = dbo.GameData?.ToDomain(),
-            Events = dbo.Events.Select(e => e.ToDomain()).ToList(),
             Invitation = dbo.Invitation?.ToDomain()
         };
     }
@@ -52,7 +51,6 @@ public static class MatchMapper
             InvitationId = domain.InvitationId,
             Participants = domain.Participants.Select(p => p.ToDBO()).ToList(),
             GameData = domain.GameData?.ToDBO(),
-            Events = domain.Events.Select(e => e.ToDBO()).ToList(),
             Invitation = domain.Invitation?.ToDBO()
         };
     }

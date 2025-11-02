@@ -1,44 +1,32 @@
-using SolanaPvP.Application.Interfaces.Repositories;
 using SolanaPvP.Application.Interfaces.Services;
 
 namespace SolanaPvP.Infrastructure.Services;
 
 public class IndexerStateManager : IIndexerStateManager
 {
-    private readonly IEventRepository _eventRepository;
+    // Simple in-memory tracking since we removed Events table
+    private long _lastProcessedSlot = 0;
+    private string? _lastProcessedSignature = null;
 
-    public IndexerStateManager(IEventRepository eventRepository)
+    public Task<long> GetLastProcessedSlotAsync()
     {
-        _eventRepository = eventRepository;
+        return Task.FromResult(_lastProcessedSlot);
     }
 
-    public async Task<long> GetLastProcessedSlotAsync()
+    public Task SetLastProcessedSlotAsync(long slot)
     {
-        return await _eventRepository.GetLastProcessedSlotAsync();
+        _lastProcessedSlot = slot;
+        return Task.CompletedTask;
     }
 
-    public async Task SetLastProcessedSlotAsync(long slot)
+    public Task<string?> GetLastProcessedSignatureAsync()
     {
-        await _eventRepository.SetLastProcessedSlotAsync(slot);
+        return Task.FromResult(_lastProcessedSignature);
     }
 
-    public async Task<string?> GetLastProcessedSignatureAsync()
+    public Task SetLastProcessedSignatureAsync(string signature)
     {
-        // This is a simplified implementation
-        // In a real scenario, you might want to store the last processed signature separately
-        // For now, we'll use the last event's signature as a proxy
-        var lastSlot = await GetLastProcessedSlotAsync();
-        if (lastSlot == 0) return null;
-
-        // This would need to be implemented properly with a dedicated method
-        // For now, return null to indicate no specific signature tracking
-        return null;
-    }
-
-    public async Task SetLastProcessedSignatureAsync(string signature)
-    {
-        // This is a simplified implementation
-        // In a real scenario, you would store this separately
-        await Task.CompletedTask;
+        _lastProcessedSignature = signature;
+        return Task.CompletedTask;
     }
 }
