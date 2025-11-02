@@ -26,6 +26,7 @@ builder.Services.AddSolanaRPC();
 // Register background workers
 builder.Services.AddHostedService<IndexerWorker>();
 builder.Services.AddHostedService<RefundBotWorker>();
+builder.Services.AddHostedService<ResolveBotWorker>();
 
 var app = builder.Build();
 

@@ -6,16 +6,16 @@ using Newtonsoft.Json;
 
 namespace SolanaPvP.SolanaRPC.Services;
 
-public class RefundSender : IRefundSender
+public class ResolveSender : IResolveSender
 {
     private readonly SolanaSettings _solanaSettings;
-    private readonly ILogger<RefundSender> _logger;
+    private readonly ILogger<ResolveSender> _logger;
     private readonly NodeScriptExecutor _nodeExecutor;
     private readonly IMatchRepository _matchRepository;
 
-    public RefundSender(
+    public ResolveSender(
         SolanaSettings solanaSettings,
-        ILogger<RefundSender> logger,
+        ILogger<ResolveSender> logger,
         NodeScriptExecutor nodeExecutor,
         IMatchRepository matchRepository)
     {
@@ -25,11 +25,12 @@ public class RefundSender : IRefundSender
         _matchRepository = matchRepository;
     }
 
-    public async Task<string> SendRefundAsync(string matchPda)
+    public async Task<string> SendResolveMatchAsync(string matchPda, string randomnessAccount)
     {
         try
         {
-            _logger.LogInformation("[RefundSender] Sending refund for match {MatchPda}", matchPda);
+            _logger.LogInformation("[ResolveSender] Resolving match {MatchPda} with randomness {RandomnessAccount}", 
+                matchPda, randomnessAccount);
 
             // Fetch lobby data from blockchain to get creator and participants
             var lobbyData = await FetchLobbyDataAsync(matchPda);
@@ -46,22 +47,24 @@ public class RefundSender : IRefundSender
             {
                 matchPda,                              // lobbyPda
                 lobbyData.Creator,                     // creator
-                participantsJson,                      // participants as JSON
+                randomnessAccount,                     // randomnessAccount
+                participantsJson,                      // participants as JSON (team1 + team2)
+                _solanaSettings.TreasuryPubkey,        // admin (fee receiver)
                 _solanaSettings.AdminKeypairPath,      // keypairPath
                 _solanaSettings.RpcPrimaryUrl,         // rpcUrl
                 _solanaSettings.ProgramId              // programId
             };
 
             // Execute Node.js script
-            var signature = await _nodeExecutor.ExecuteAsync("send-refund.js", args);
+            var signature = await _nodeExecutor.ExecuteAsync("send-resolve.js", args);
             
-            _logger.LogInformation("[RefundSender] ✅ Refund transaction sent: {Signature}", signature);
+            _logger.LogInformation("[ResolveSender] ✅ Resolve transaction sent: {Signature}", signature);
             
             return signature;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[RefundSender] Failed to send refund for match {MatchPda}", matchPda);
+            _logger.LogError(ex, "[ResolveSender] Failed to send resolve for {MatchPda}", matchPda);
             throw;
         }
     }
@@ -70,14 +73,14 @@ public class RefundSender : IRefundSender
     {
         try
         {
-            _logger.LogDebug("[RefundSender] Fetching match data from DB for {LobbyPda}", lobbyPda);
+            _logger.LogDebug("[ResolveSender] Fetching match data from DB for {LobbyPda}", lobbyPda);
             
             // Get match data from database (IndexerWorker already tracked all participants)
             var match = await _matchRepository.GetByMatchPdaAsync(lobbyPda);
             
             if (match == null)
             {
-                _logger.LogWarning("[RefundSender] Match not found in DB: {LobbyPda}", lobbyPda);
+                _logger.LogWarning("[ResolveSender] Match not found in DB: {LobbyPda}", lobbyPda);
                 return null;
             }
 
@@ -86,16 +89,18 @@ public class RefundSender : IRefundSender
             
             if (string.IsNullOrEmpty(creator))
             {
-                _logger.LogWarning("[RefundSender] Creator not found for match {LobbyPda}", lobbyPda);
+                _logger.LogWarning("[ResolveSender] Creator not found for match {LobbyPda}", lobbyPda);
                 return null;
             }
 
-            // Get all participants (team1 + team2)
+            // Get all participants (team1 + team2 in correct order)
             var participants = match.Participants
-                .OrderBy(p => p.Side) // Team1 first, then Team2
+                .OrderBy(p => p.Side) // Team1 (side 0) first, then Team2 (side 1)
                 .ThenBy(p => p.Position)
                 .Select(p => p.Pubkey)
                 .ToList();
+
+            _logger.LogDebug("[ResolveSender] Found {Count} participants for match {LobbyPda}", participants.Count, lobbyPda);
 
             return new LobbyData
             {
@@ -105,7 +110,7 @@ public class RefundSender : IRefundSender
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[RefundSender] Failed to fetch lobby data for {LobbyPda}", lobbyPda);
+            _logger.LogError(ex, "[ResolveSender] Failed to fetch lobby data for {LobbyPda}", lobbyPda);
             return null;
         }
     }
@@ -116,4 +121,5 @@ public class RefundSender : IRefundSender
         public List<string> Participants { get; set; } = new();
     }
 }
+
 

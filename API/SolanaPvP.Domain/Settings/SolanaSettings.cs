@@ -7,5 +7,5 @@ public class SolanaSettings
     public string RpcFallbackUrl { get; set; } = string.Empty;
     public string WsUrl { get; set; } = string.Empty;
     public string TreasuryPubkey { get; set; } = string.Empty;
-    public string RefundBotKeypairPath { get; set; } = string.Empty;
+    public string AdminKeypairPath { get; set; } = string.Empty;
 }

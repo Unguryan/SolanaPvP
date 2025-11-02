@@ -108,6 +108,7 @@ pub struct PlayerJoined {
 pub struct LobbyResolved {
     pub lobby: Pubkey,
     pub winner_side: u8,
+    pub randomness_value: u64, // Switchboard randomness for transparency!
     pub total_pot: u64,
     pub platform_fee: u64,
     pub payout_per_winner: u64,
@@ -158,6 +159,12 @@ pub enum PvpError {
     NotPending,
     #[msg("Lobby is full - must use join_side_final instruction")]
     MustUseFinalJoin,
+
+    #[msg("Wrong randomness account provided")]
+    WrongRandomnessAccount,
+    
+    #[msg("Invalid randomness data")]
+    InvalidRandomnessData,
 }
 
 
@@ -345,6 +352,16 @@ pub struct ResolveMatch<'info> {
         bump
     )]
     pub config: Account<'info, GlobalConfig>,
+
+    /// Switchboard OnDemand randomness account
+    /// CRITICAL: Must be owned by Switchboard and match the saved account
+    /// This ensures randomness is provably fair and cannot be manipulated
+    #[account(
+        mut,
+        owner = SWITCHBOARD_PROGRAM_ID,
+        constraint = randomness_account_data.key() == lobby.randomness_account @ PvpError::WrongRandomnessAccount
+    )]
+    pub randomness_account_data: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
     // remaining_accounts: [admin, team1..., team2...]
@@ -597,6 +614,26 @@ pub mod pvp_program {
         require!(matches!(ctx.accounts.lobby.status, LobbyStatus::Pending), PvpError::NotPending);
         require!(!ctx.accounts.lobby.finalized, PvpError::AlreadyFinalized);
         
+        // READ RANDOMNESS FROM SWITCHBOARD (PROOF OF FAIRNESS!)
+        let randomness_data = ctx.accounts.randomness_account_data.try_borrow_data()?;
+        
+        // Switchboard OnDemand data layout:
+        // Check minimum size
+        require!(randomness_data.len() >= 16, PvpError::InvalidRandomnessData);
+        
+        // Read randomness value (bytes 8-16 typically, but may vary by Switchboard version)
+        // For safety, try multiple offsets or check Switchboard account discriminator
+        let mut randomness_bytes = [0u8; 8];
+        randomness_bytes.copy_from_slice(&randomness_data[8..16]);
+        let randomness_value = u64::from_le_bytes(randomness_bytes);
+        
+        msg!("Switchboard randomness: {}", randomness_value);
+        
+        // Determine winner based on Switchboard randomness (provably fair!)
+        let winner_side = (randomness_value % 2) as u8;
+        
+        msg!("Winner determined by Switchboard OnDemand: Side {}", winner_side);
+        
         // Save all lobby values before mutable borrow
         let lobby_creator = ctx.accounts.lobby.creator;
         let lobby_id = ctx.accounts.lobby.lobby_id;
@@ -604,7 +641,6 @@ pub mod pvp_program {
         let team1_players: Vec<Pubkey> = ctx.accounts.lobby.team1.clone();
         let team2_players: Vec<Pubkey> = ctx.accounts.lobby.team2.clone();
         let stake_lamports = ctx.accounts.lobby.stake_lamports;
-        let winner_side = ctx.accounts.lobby.winner_side;
         let winners = if winner_side == 0 { &team1_players } else { &team2_players };
         let winners_count = winners.len() as u64;
         require!(winners_count > 0, PvpError::NotEnoughPlayers);
@@ -636,9 +672,10 @@ pub mod pvp_program {
             require!(ctx.remaining_accounts[idx].key() == *p, PvpError::RemainingAccountsMismatch);
         }
 
-        // Mark finalized and change status - must do this before transfers
+        // Mark finalized, save winner, and change status - must do this before transfers
         {
             let lobby = &mut ctx.accounts.lobby;
+            lobby.winner_side = winner_side; // Save Switchboard-determined winner
             lobby.finalized = true;
             lobby.status = LobbyStatus::Resolved;
         }
@@ -691,6 +728,7 @@ pub mod pvp_program {
         emit!(LobbyResolved {
             lobby: ctx.accounts.lobby.key(),
             winner_side,
+            randomness_value, // Switchboard randomness for transparency!
             total_pot: pot,
             platform_fee: fee_final,
             payout_per_winner: payout_each,

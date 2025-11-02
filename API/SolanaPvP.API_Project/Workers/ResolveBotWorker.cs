@@ -1,0 +1,103 @@
+using SolanaPvP.Application.Interfaces.Repositories;
+using SolanaPvP.Application.Interfaces.SolanaRPC;
+using SolanaPvP.Domain.Enums;
+
+namespace SolanaPvP.API_Project.Workers;
+
+public class ResolveBotWorker : BackgroundService
+{
+    private readonly ILogger<ResolveBotWorker> _logger;
+    private readonly IServiceProvider _serviceProvider;
+    private const int CHECK_PERIOD_SECONDS = 5; // Check every 5 seconds
+
+    public ResolveBotWorker(
+        ILogger<ResolveBotWorker> logger,
+        IServiceProvider serviceProvider)
+    {
+        _logger = logger;
+        _serviceProvider = serviceProvider;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInformation("ResolveBotWorker started");
+
+        // Wait 10 seconds before starting to allow other services to initialize
+        await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                await ProcessPendingMatchesAsync();
+                await Task.Delay(TimeSpan.FromSeconds(CHECK_PERIOD_SECONDS), stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in ResolveBotWorker");
+                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken); // Wait 30 seconds before retrying
+            }
+        }
+    }
+
+    private async Task ProcessPendingMatchesAsync()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var matchRepository = scope.ServiceProvider.GetRequiredService<IMatchRepository>();
+        var resolveSender = scope.ServiceProvider.GetRequiredService<IResolveSender>();
+        var switchboardClient = scope.ServiceProvider.GetRequiredService<ISwitchboardClient>();
+
+        // Get matches with AwaitingRandomness status
+        var pendingMatches = await matchRepository.GetMatchesAsync(
+            status: (int)MatchStatus.AwaitingRandomness, 
+            skip: 0, 
+            take: 10
+        );
+
+        foreach (var match in pendingMatches)
+        {
+            try
+            {
+                _logger.LogInformation("[ResolveBotWorker] Processing match {MatchPda} for resolution", match.MatchPda);
+
+                // For MVP: Use match PDA as randomness account (as passed in join_side_final)
+                // In production: Store the actual randomness account in match or fetch from blockchain
+                var randomnessAccount = match.MatchPda; // Placeholder - will use lobby PDA
+
+                // Check if randomness is ready from Switchboard
+                var isReady = await switchboardClient.IsRandomnessReadyAsync(randomnessAccount);
+                
+                if (!isReady)
+                {
+                    _logger.LogDebug("[ResolveBotWorker] Randomness not ready yet for match {MatchPda}, will retry later", match.MatchPda);
+                    continue;
+                }
+
+                _logger.LogInformation("[ResolveBotWorker] Randomness ready, sending resolve transaction for match {MatchPda}", match.MatchPda);
+
+                // Send resolve_match transaction
+                var resolveTx = await resolveSender.SendResolveMatchAsync(match.MatchPda, randomnessAccount);
+                
+                _logger.LogInformation("[ResolveBotWorker] ✅ Resolve transaction sent for match {MatchPda}: {TxSignature}", 
+                    match.MatchPda, resolveTx);
+                
+                // Note: Match status will be updated by IndexerWorker when it receives the LobbyResolved event
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ResolveBotWorker] Failed to process match {MatchPda}", match.MatchPda);
+                // Continue with next match
+            }
+        }
+
+        if (pendingMatches.Any())
+        {
+            _logger.LogDebug("[ResolveBotWorker] Processed {Count} pending matches", pendingMatches.Count());
+        }
+    }
+}
+

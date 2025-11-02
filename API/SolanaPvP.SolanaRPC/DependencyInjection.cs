@@ -22,7 +22,10 @@ public static class DependencyInjection
         // Register SolanaRPC services
         services.AddScoped<IEventParser, EventParser>();
         services.AddScoped<ITxVerifier, TxVerifier>();
+        services.AddScoped<NodeScriptExecutor>(); // Shared Node.js script executor
         services.AddScoped<IRefundSender, RefundSender>();
+        services.AddScoped<IResolveSender, ResolveSender>();
+        services.AddScoped<ISwitchboardClient, SwitchboardClient>();
         services.AddSingleton<IWsSubscriber, WsSubscriber>();
 
         return services;
