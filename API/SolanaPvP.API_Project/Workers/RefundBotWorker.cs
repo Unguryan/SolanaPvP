@@ -61,10 +61,25 @@ public class RefundBotWorker : BackgroundService
             {
                 // Check if match is still in waiting status
                 var match = await matchRepository.GetByMatchPdaAsync(task.MatchPda);
-                if (match == null || match.Status != MatchStatus.Waiting)
+                if (match == null)
                 {
-                    // Match no longer exists or has been joined, cancel the task
+                    // Match no longer exists, cancel the task
                     await refundScheduler.CancelAsync(task.MatchPda);
+                    continue;
+                }
+                
+                // Only cancel refund if match is resolved (finished), not if it's just joined
+                if (match.Status == MatchStatus.Resolved || match.Status == MatchStatus.Refunded)
+                {
+                    // Match already finished, cancel the refund task
+                    await refundScheduler.CancelAsync(task.MatchPda);
+                    continue;
+                }
+                
+                // If match is still waiting or awaiting randomness, proceed with refund check
+                if (match.Status != MatchStatus.Waiting)
+                {
+                    // Match has players but not yet resolved - skip refund for now
                     continue;
                 }
 

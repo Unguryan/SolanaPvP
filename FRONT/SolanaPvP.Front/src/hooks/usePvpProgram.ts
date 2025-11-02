@@ -109,8 +109,18 @@ export function useLobbyOperations() {
         });
 
         return tx;
-      } catch (err) {
+      } catch (err: any) {
         const errorMessage = parseAnchorError(err);
+
+        // Check if error is "already processed" - this means transaction succeeded
+        if (errorMessage.toLowerCase().includes("already been processed")) {
+          console.log(
+            "[JoinLobby] Transaction was already processed - treating as success"
+          );
+          // Return a placeholder transaction signature
+          return "success_already_processed";
+        }
+
         throw new Error(errorMessage);
       } finally {
         setIsJoining(false);

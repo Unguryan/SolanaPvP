@@ -80,6 +80,16 @@ public class MatchRepository : IMatchRepository
     public async Task<Match> UpdateAsync(Match match)
     {
         var dbo = match.ToDBO();
+        
+        // Detach any existing tracked entity with the same key
+        var existingEntry = _context.ChangeTracker.Entries<MatchDBO>()
+            .FirstOrDefault(e => e.Entity.MatchPda == dbo.MatchPda);
+        
+        if (existingEntry != null)
+        {
+            _context.Entry(existingEntry.Entity).State = EntityState.Detached;
+        }
+        
         _context.Matches.Update(dbo);
         await _context.SaveChangesAsync();
         return dbo.ToDomain();

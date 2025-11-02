@@ -16,39 +16,68 @@ export const useArenaRealtime = () => {
     // Subscribe to match events from backend (IndexerWorker broadcasts)
     signalRService.on("matchCreated", (match: any) => {
       console.log("Match created:", match);
+
+      // Calculate playersMax from matchType
+      const playersMax =
+        match.matchType === "Team" ? 10 : match.matchType === "Duo" ? 4 : 2;
+
       // Convert backend MatchView to arenaStore MatchLobby format
       const lobbyMatch: MatchLobby = {
         id: match.matchPda,
         matchPda: match.matchPda,
         stake: match.stakeLamports / 1000000000, // Convert lamports to SOL
         playersReady: match.participants?.length || 0,
-        playersMax: 2, // For 1v1, TODO: calculate from match type
+        playersMax,
         endsAt: match.deadlineTs * 1000, // Convert unix timestamp to ms
         gameMode: match.gameMode || "Pick3from9",
         matchType: match.matchType || "Solo",
+        status: match.status,
       };
       addMatch(lobbyMatch);
     });
 
     signalRService.on("matchJoined", (match: any) => {
       console.log("Match joined:", match);
+
+      // Calculate playersMax from matchType
+      const playersMax =
+        match.matchType === "Team" ? 10 : match.matchType === "Duo" ? 4 : 2;
+
       const lobbyMatch: MatchLobby = {
         id: match.matchPda,
         matchPda: match.matchPda,
         stake: match.stakeLamports / 1000000000,
         playersReady: match.participants?.length || 0,
-        playersMax: 2,
+        playersMax,
         endsAt: match.deadlineTs * 1000,
         gameMode: match.gameMode || "Pick3from9",
         matchType: match.matchType || "Solo",
+        status: match.status,
       };
       updateMatch(lobbyMatch);
     });
 
     signalRService.on("matchResolved", (match: any) => {
       console.log("Match resolved:", match);
-      // Remove from active matches
-      removeMatch(match.matchPda);
+
+      // Calculate playersMax from matchType
+      const playersMax =
+        match.matchType === "Team" ? 10 : match.matchType === "Duo" ? 4 : 2;
+
+      // Update match to show as ended (orange) for 5 seconds before removing
+      const lobbyMatch: MatchLobby = {
+        id: match.matchPda,
+        matchPda: match.matchPda,
+        stake: match.stakeLamports / 1000000000,
+        playersReady: match.participants?.length || 0,
+        playersMax,
+        endsAt: match.deadlineTs * 1000,
+        gameMode: match.gameMode || "Pick3from9",
+        matchType: match.matchType || "Solo",
+        status: "Resolved",
+        resolvedAt: Date.now(),
+      };
+      updateMatch(lobbyMatch);
 
       // Add to feed as win notification
       if (match.participants && match.winnerSide !== null) {
@@ -66,6 +95,11 @@ export const useArenaRealtime = () => {
           addFeedItemToTop(feedItem);
         });
       }
+
+      // Remove from active matches after 5 seconds
+      setTimeout(() => {
+        removeMatch(match.matchPda);
+      }, 5000);
     });
 
     signalRService.on("matchRefunded", (match: any) => {
@@ -83,16 +117,27 @@ export const useArenaRealtime = () => {
         // Load initial active matches from API
         const activeMatchesResult = await matchesApi.getActiveMatches(1, 20);
         const lobbyMatches: MatchLobby[] = activeMatchesResult.items.map(
-          (match: any) => ({
-            id: match.matchPda,
-            matchPda: match.matchPda,
-            stake: match.stakeLamports / 1000000000,
-            playersReady: match.participants?.length || 0,
-            playersMax: 2,
-            endsAt: match.deadlineTs * 1000,
-            gameMode: match.gameMode || "Pick3from9",
-            matchType: match.matchType || "Solo",
-          })
+          (match: any) => {
+            // Calculate playersMax from matchType
+            const playersMax =
+              match.matchType === "Team"
+                ? 10
+                : match.matchType === "Duo"
+                ? 4
+                : 2;
+
+            return {
+              id: match.matchPda,
+              matchPda: match.matchPda,
+              stake: match.stakeLamports / 1000000000,
+              playersReady: match.participants?.length || 0,
+              playersMax,
+              endsAt: match.deadlineTs * 1000,
+              gameMode: match.gameMode || "Pick3from9",
+              matchType: match.matchType || "Solo",
+              status: match.status,
+            };
+          }
         );
 
         // Set initial matches

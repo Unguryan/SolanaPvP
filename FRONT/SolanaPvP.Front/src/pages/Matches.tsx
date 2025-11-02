@@ -45,13 +45,9 @@ export const Matches: React.FC = () => {
     navigate(ROUTES.CREATE_LOBBY);
   };
 
-  // Filter only active matches (not full, not ended)
+  // Filter only active matches (Waiting or AwaitingRandomness)
   const activeMatches = matches.filter((match) => {
-    const now = Date.now();
-    const timeLeft = match.endsAt - now;
-    const isFull = match.playersReady >= match.playersMax;
-    const isEnded = timeLeft <= 0;
-    return !isFull && !isEnded;
+    return match.status === "Waiting" || match.status === "AwaitingRandomness";
   });
 
   const filteredMatches = activeMatches.filter((match) => {

@@ -134,9 +134,10 @@ public class EventParser : IEventParser
         return discHex switch
         {
             "6da91032a9f2ed41" => (EventKind.MatchCreated, "LobbyCreated"),
+            "2790316a6cd2b726" => (EventKind.MatchJoined, "PlayerJoined"),
             "2563224caff103ae" => (EventKind.MatchRefunded, "LobbyRefunded"),
             // Add more discriminators as we discover them from on-chain events:
-            // PlayerJoined and LobbyResolved discriminators will be added when observed
+            // LobbyResolved discriminator will be added when observed
             _ => (null, $"Unknown (discriminator: {discHex})")
         };
     }

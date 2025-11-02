@@ -17,6 +17,8 @@ export type MatchLobby = {
   endsAt: number;
   gameMode: string;
   matchType?: "Solo" | "Duo" | "Team";
+  status?: string; // "Waiting" | "AwaitingRandomness" | "Resolved" | "Refunded"
+  resolvedAt?: number; // Timestamp when match was resolved
 };
 
 interface ArenaState {

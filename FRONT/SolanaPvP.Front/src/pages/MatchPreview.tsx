@@ -19,8 +19,8 @@ import {
 import { Skeleton } from "@/components/ui/Skeleton";
 import { UniversalGameBoard } from "@/components/game/UniversalGameBoard";
 import { Player, GameResult } from "@/types/game";
-import { generateDemoPlayers } from "@/lib/gameMockGenerator";
 import { usersApi } from "@/services/api/users";
+import { matchesApi } from "@/services/api/matches";
 import * as anchor from "@coral-xyz/anchor";
 
 type PageMode = "preview" | "preparing" | "game";
@@ -181,30 +181,48 @@ export const MatchPreview: React.FC = () => {
 
   // Poll backend for game data when preparing
   useEffect(() => {
-    if (pageMode === "preparing" && lobby) {
+    if (pageMode === "preparing" && lobby && matchPda) {
       const pollGameData = async () => {
         try {
-          // TODO: Replace with actual API call to fetch game data
-          // For now, simulate with mock data after 3 seconds
-          console.log("Polling for game data...");
+          console.log("[MatchPreview] Polling for game data from backend...");
 
-          // Mock: After 3 seconds, generate game data
-          setTimeout(() => {
-            const mockPlayers = generateDemoPlayers("Solo", "You");
+          // Fetch match data from backend API
+          const matchData = await matchesApi.getMatch(matchPda);
+
+          // Check if game data is available and participants exist
+          if (matchData.gameData && matchData.participants) {
+            console.log("[MatchPreview] Game data received from backend");
+
+            // Convert participants to Player format for game board
+            const players = matchData.participants.map((p: any) => ({
+              username: p.username || p.pubkey.substring(0, 8) + "...",
+              targetScore: p.targetScore || 0,
+              currentScore: p.targetScore || 0,
+              selections: [], // Will be filled by game board
+              isReady: true,
+            }));
+
+            // Map game mode to frontend format
+            const gameModeMap: Record<string, any> = {
+              Pick3from9: "PickThreeFromNine",
+              Pick5from16: "PickFiveFromSixteen",
+              Pick1from3: "PickOneFromThree",
+            };
+
             setGameData({
-              players: mockPlayers,
-              gameMode: "PickThreeFromNine",
+              players,
+              gameMode: gameModeMap[matchData.gameMode] || "PickThreeFromNine",
             });
-          }, 3000);
+          }
         } catch (err) {
-          console.error("Failed to poll game data:", err);
+          console.error("[MatchPreview] Failed to poll game data:", err);
         }
       };
 
       pollGameData();
 
-      // Set up polling interval
-      pollingIntervalRef.current = setInterval(pollGameData, 3000);
+      // Set up polling interval (poll every 2 seconds)
+      pollingIntervalRef.current = setInterval(pollGameData, 2000);
 
       return () => {
         if (pollingIntervalRef.current) {
@@ -213,7 +231,7 @@ export const MatchPreview: React.FC = () => {
         }
       };
     }
-  }, [pageMode, lobby]);
+  }, [pageMode, lobby, matchPda]);
 
   // Load mock lobby data only for mock matches
   useEffect(() => {
@@ -286,6 +304,9 @@ export const MatchPreview: React.FC = () => {
     if (!lobby || !connected || !publicKey) return false;
     if (lobby.status !== LobbyStatus.Open) return false;
     if (isPlayerInLobby()) return false;
+
+    // Prevent joining if less than 2 seconds remaining (deadline buffer)
+    if (timeLeft <= 2) return false;
 
     const team = side === 0 ? lobby.team1 : lobby.team2;
     const hasSpace = team.length < lobby.teamSize;
@@ -603,9 +624,9 @@ export const MatchPreview: React.FC = () => {
                 ⚔️
               </motion.div>
               <h2 className="text-4xl font-display font-bold text-sol-purple mb-3">
-                Подготовка матча
+                Preparing Match
               </h2>
-              <p className="text-xl text-txt-muted">Ожидание результатов...</p>
+              <p className="text-xl text-txt-muted">Waiting for results...</p>
             </motion.div>
           </motion.div>
         )}

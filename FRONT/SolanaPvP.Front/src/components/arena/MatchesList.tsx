@@ -22,7 +22,28 @@ export const MatchesList: React.FC<MatchesListProps> = ({
 }) => {
   const navigate = useNavigate();
   const { matches: storeMatches, isLoading } = useArenaStore();
-  const matches = propMatches || storeMatches;
+  const allMatches = propMatches || storeMatches;
+
+  // Filter to show only active matches (Waiting or AwaitingRandomness)
+  // and resolved matches that are less than 5 seconds old
+  const matches = allMatches.filter((match) => {
+    const now = Date.now();
+
+    // Show Waiting and AwaitingRandomness matches
+    if (match.status === "Waiting" || match.status === "AwaitingRandomness") {
+      return true;
+    }
+
+    // Show resolved matches for 5 seconds
+    if (match.status === "Resolved" && match.resolvedAt) {
+      const timeSinceResolved = (now - match.resolvedAt) / 1000;
+      return timeSinceResolved < 5;
+    }
+
+    // Hide refunded and old resolved matches
+    return false;
+  });
+
   const [timeLeft, setTimeLeft] = useState<Record<string, number>>({});
 
   // Update countdown timers
@@ -71,11 +92,19 @@ export const MatchesList: React.FC<MatchesListProps> = ({
     return Math.round((ready / max) * 100);
   };
 
-  const getFillColor = (percentage: number) => {
-    if (percentage >= 90) return "border-sol-mint shadow-glow-mint";
-    if (percentage >= 70) return "border-yellow-400 shadow-yellow-400/20";
-    if (percentage >= 50) return "border-orange-400 shadow-orange-400/20";
-    return "border-txt-muted/30";
+  const getMatchStateColors = (match: MatchLobby) => {
+    // Resolved (ended) - orange
+    if (match.status === "Resolved") {
+      return "bg-orange-500/10 border-orange-500/30";
+    }
+
+    // AwaitingRandomness or Pending (started) - blue
+    if (match.status === "AwaitingRandomness" || match.status === "Pending") {
+      return "bg-blue-500/10 border-blue-500/30";
+    }
+
+    // Waiting (open for players) - green
+    return "bg-green-500/10 border-green-500/30";
   };
 
   const handleMatchClick = (match: MatchLobby) => {
@@ -117,7 +146,7 @@ export const MatchesList: React.FC<MatchesListProps> = ({
             match.playersMax
           );
           const timeRemaining = timeLeft[match.id] || 0;
-          const isEnded = timeRemaining <= 0;
+          const isEnded = match.status === "Resolved";
 
           return (
             <motion.div
@@ -125,8 +154,8 @@ export const MatchesList: React.FC<MatchesListProps> = ({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
-              className={`match-card ${getFillColor(
-                fillPercentage
+              className={`match-card ${getMatchStateColors(
+                match
               )} cursor-pointer hover:bg-white/5 transition-colors`}
               onClick={() => handleMatchClick(match)}
             >
@@ -161,15 +190,23 @@ export const MatchesList: React.FC<MatchesListProps> = ({
                 </div>
 
                 <div className="text-right">
-                  <div className="text-xs text-txt-muted mb-1">
-                    {fillPercentage}% full
-                  </div>
-                  <div className="w-16 h-1 bg-txt-muted/20 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-sol-purple to-sol-mint transition-all duration-300"
-                      style={{ width: `${fillPercentage}%` }}
-                    />
-                  </div>
+                  {isEnded ? (
+                    <div className="text-sm font-semibold text-orange-400">
+                      Ended
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-xs text-txt-muted mb-1">
+                        {fillPercentage}% full
+                      </div>
+                      <div className="w-16 h-1 bg-txt-muted/20 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-sol-purple to-sol-mint transition-all duration-300"
+                          style={{ width: `${fillPercentage}%` }}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>
