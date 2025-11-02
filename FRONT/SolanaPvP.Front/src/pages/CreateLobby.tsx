@@ -11,6 +11,7 @@ import {
   GlassCardTitle,
 } from "@/components/ui/GlassCard";
 import { usePvpProgram, useLobbyOperations } from "@/hooks/usePvpProgram";
+import { useActiveLobby } from "@/hooks/useActiveLobby";
 import { PdaUtils } from "@/services/solana/accounts";
 import { MIN_STAKE_LAMPORTS } from "@/services/solana/config";
 import { InitConfigButton } from "@/components/admin/InitConfigButton";
@@ -23,6 +24,11 @@ export const CreateLobby: React.FC = () => {
   const { publicKey, connected } = useWallet();
   const { isInitialized } = usePvpProgram();
   const { createLobby, isCreating } = useLobbyOperations();
+  const {
+    hasActiveLobby,
+    activeLobby,
+    isLoading: isLoadingActive,
+  } = useActiveLobby();
 
   const [gameMode, setGameMode] = useState<GameMode>("Pick3from9");
   const [teamSize, setTeamSize] = useState<TeamSize>(1);
@@ -84,6 +90,15 @@ export const CreateLobby: React.FC = () => {
       return;
     }
 
+    // Check for active lobby
+    if (hasActiveLobby && activeLobby) {
+      setValidationMessage(
+        `You already have an active lobby. Please finish or cancel it first.`
+      );
+      setTimeout(() => setValidationMessage(null), 5000);
+      return;
+    }
+
     if (stakeError) {
       setValidationMessage(stakeError);
       setTimeout(() => setValidationMessage(null), 5000);
@@ -109,6 +124,14 @@ export const CreateLobby: React.FC = () => {
     try {
       const stakeLamports = Math.floor(stakeSOL * LAMPORTS_PER_SOL);
 
+      console.log("[CreateLobby] Creating lobby with params:", {
+        lobbyId,
+        teamSize,
+        stakeLamports,
+        side,
+        creator: publicKey.toString(),
+      });
+
       const tx = await createLobby({
         lobbyId,
         teamSize,
@@ -116,13 +139,15 @@ export const CreateLobby: React.FC = () => {
         side,
       });
 
-      console.log("Lobby created successfully:", tx);
+      console.log("[CreateLobby] Transaction successful:", tx);
 
       // Navigate to match preview
       const [lobbyPda] = PdaUtils.getLobbyPda(publicKey, lobbyId);
+      console.log("[CreateLobby] Lobby PDA:", lobbyPda.toString());
+
       navigate(`/match/${lobbyPda.toString()}`);
     } catch (err) {
-      console.error("Failed to create lobby:", err);
+      console.error("[CreateLobby] Failed to create lobby:", err);
       setValidationMessage(`Failed to create lobby: ${err}`);
       setTimeout(() => setValidationMessage(null), 5000);
     }
@@ -130,10 +155,12 @@ export const CreateLobby: React.FC = () => {
 
   const canCreate = (): boolean => {
     if (!connected || !publicKey) return false;
+    if (hasActiveLobby) return false; // Already has active lobby
     if (stakeError) return false;
     if (stakeSOL < MIN_STAKE_LAMPORTS / LAMPORTS_PER_SOL) return false;
     if (userBalance < stakeSOL) return false;
     if (!isInitialized) return false;
+    if (isLoadingActive) return false; // Wait for active lobby check
     return true;
   };
 
@@ -177,6 +204,38 @@ export const CreateLobby: React.FC = () => {
         <div className="space-y-4">
           {/* Config Initialization Check */}
           <InitConfigButton />
+
+          {/* Active Lobby Warning */}
+          {hasActiveLobby && activeLobby && (
+            <GlassCard className="p-4 border-yellow-500/50 bg-yellow-500/10">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">⚠️</span>
+                <div className="flex-1">
+                  <h3 className="text-yellow-400 font-semibold mb-1">
+                    You already have an active lobby
+                  </h3>
+                  <p className="text-sm text-txt-muted mb-2">
+                    Lobby: {activeLobby.lobby.toString().slice(0, 8)}...
+                    {activeLobby.lobby.toString().slice(-8)}
+                  </p>
+                  <p className="text-xs text-txt-muted">
+                    Please finish or cancel your current lobby before creating a
+                    new one.
+                  </p>
+                  <GlowButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      navigate(`/match/${activeLobby.lobby.toString()}`)
+                    }
+                    className="mt-3 text-xs border-yellow-500/30"
+                  >
+                    Go to Active Lobby →
+                  </GlowButton>
+                </div>
+              </div>
+            </GlassCard>
+          )}
 
           {/* Game Mode Selection */}
           <GlassCard className="p-4">

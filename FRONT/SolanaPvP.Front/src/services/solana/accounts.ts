@@ -89,6 +89,18 @@ export enum LobbyStatus {
   Refunded = "refunded",
 }
 
+// Helper to normalize status from Anchor (returns object like {open: {}})
+export function normalizeLobbyStatus(status: any): LobbyStatus {
+  if (typeof status === "string") return status as LobbyStatus;
+
+  if (status.open !== undefined) return LobbyStatus.Open;
+  if (status.pending !== undefined) return LobbyStatus.Pending;
+  if (status.resolved !== undefined) return LobbyStatus.Resolved;
+  if (status.refunded !== undefined) return LobbyStatus.Refunded;
+
+  return LobbyStatus.Open; // fallback
+}
+
 // Account validation utilities
 export function validateLobbyAccount(account: LobbyAccount): boolean {
   return (

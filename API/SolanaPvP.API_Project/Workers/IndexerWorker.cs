@@ -37,15 +37,20 @@ public class IndexerWorker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("IndexerWorker started");
+        _logger.LogInformation("Monitoring program: {ProgramId}", _solanaSettings.ProgramId);
+        _logger.LogInformation("RPC URL: {RpcUrl}", _solanaSettings.RpcPrimaryUrl);
+        _logger.LogInformation("WS URL: {WsUrl}", _solanaSettings.WsUrl);
 
         try
         {
             // Start WebSocket subscription
+            _logger.LogInformation("Subscribing to program logs via WebSocket...");
             await _wsSubscriber.SubscribeLogsAsync(_solanaSettings.ProgramId, OnLogEvent, stoppingToken);
+            _logger.LogInformation("Successfully subscribed to program logs");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "IndexerWorker failed to start");
+            _logger.LogError(ex, "IndexerWorker failed to start subscription");
         }
     }
 
@@ -53,6 +58,9 @@ public class IndexerWorker : BackgroundService
     {
         try
         {
+            _logger.LogDebug("Received log event - Signature: {Signature}, Slot: {Slot}, Logs count: {Count}", 
+                logEvent.Signature, logEvent.Slot, logEvent.Logs?.Count ?? 0);
+
             using var scope = _serviceProvider.CreateScope();
             var eventParser = scope.ServiceProvider.GetRequiredService<IEventParser>();
             var eventRepository = scope.ServiceProvider.GetRequiredService<IEventRepository>();
@@ -65,16 +73,37 @@ public class IndexerWorker : BackgroundService
             // Check if we've already processed this event
             if (await eventRepository.ExistsBySignatureAsync(logEvent.Signature))
             {
+                _logger.LogDebug("Event already processed, skipping: {Signature}", logEvent.Signature);
                 return;
             }
 
+            // Log all log lines for debugging
+            if (logEvent.Logs != null && logEvent.Logs.Count > 0)
+            {
+                _logger.LogDebug("Transaction logs:");
+                foreach (var logLine in logEvent.Logs)
+                {
+                    _logger.LogDebug("  > {LogLine}", logLine);
+                }
+            }
+
             // Parse logs for our program events
+            int parsedCount = 0;
             foreach (var logLine in logEvent.Logs)
             {
                 var parsedEvent = eventParser.ParseProgramLog(logLine);
                 if (parsedEvent == null) continue;
 
+                parsedCount++;
+                _logger.LogInformation("Parsed event: {EventKind} for match {MatchPda}", 
+                    parsedEvent.Kind, parsedEvent.MatchPda);
+                
                 await ProcessEventAsync(parsedEvent, logEvent, scope.ServiceProvider);
+            }
+
+            if (parsedCount == 0)
+            {
+                _logger.LogDebug("No parseable events found in transaction {Signature}", logEvent.Signature);
             }
 
             // Update last processed slot
@@ -127,13 +156,20 @@ public class IndexerWorker : BackgroundService
 
     private async Task ProcessMatchCreatedAsync(ParsedEvent parsedEvent, IServiceProvider serviceProvider)
     {
+        _logger.LogInformation("[ProcessMatchCreated] Starting processing for {MatchPda}", parsedEvent.MatchPda);
+        
         var matchRepository = serviceProvider.GetRequiredService<IMatchRepository>();
         var userRepository = serviceProvider.GetRequiredService<IUserRepository>();
         var refundScheduler = serviceProvider.GetRequiredService<IRefundScheduler>();
 
         // Parse match creation data from payload
+        _logger.LogDebug("[ProcessMatchCreated] Parsing payload: {Payload}", parsedEvent.PayloadJson);
         var matchData = ParseMatchCreatedPayload(parsedEvent.PayloadJson);
-        if (matchData == null) return;
+        if (matchData == null)
+        {
+            _logger.LogWarning("[ProcessMatchCreated] Failed to parse match data for {MatchPda}", parsedEvent.MatchPda);
+            return;
+        }
 
         // Create match
         var match = new Match
@@ -149,6 +185,7 @@ public class IndexerWorker : BackgroundService
         };
 
         await matchRepository.CreateAsync(match);
+        _logger.LogInformation("[ProcessMatchCreated] Match saved to DB: {MatchPda}", parsedEvent.MatchPda);
 
         // Create creator participant
         var creatorParticipant = new MatchParticipant
@@ -167,11 +204,14 @@ public class IndexerWorker : BackgroundService
             LastSeen = DateTime.UtcNow
         };
         await userRepository.CreateOrUpdateAsync(user);
+        _logger.LogDebug("[ProcessMatchCreated] User created/updated: {Creator}", matchData.Creator);
 
         // Schedule refund task
         await refundScheduler.ScheduleAsync(parsedEvent.MatchPda, matchData.DeadlineTs);
+        _logger.LogDebug("[ProcessMatchCreated] Refund task scheduled for {MatchPda}", parsedEvent.MatchPda);
 
-        _logger.LogInformation("Match created: {MatchPda}", parsedEvent.MatchPda);
+        _logger.LogInformation("✅ Match created successfully: {MatchPda} by {Creator}", 
+            parsedEvent.MatchPda, matchData.Creator);
     }
 
     private async Task ProcessMatchJoinedAsync(ParsedEvent parsedEvent, IServiceProvider serviceProvider)

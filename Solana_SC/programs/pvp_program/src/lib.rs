@@ -69,6 +69,44 @@ pub enum LobbyStatus {
     Refunded, // refunded to participants
 }
 
+// ------------------------------ Events ------------------------------
+
+#[event]
+pub struct LobbyCreated {
+    pub lobby: Pubkey,
+    pub lobby_id: u64,
+    pub creator: Pubkey,
+    pub stake_lamports: u64,
+    pub team_size: u8,
+    pub created_at: i64,
+}
+
+#[event]
+pub struct PlayerJoined {
+    pub lobby: Pubkey,
+    pub player: Pubkey,
+    pub side: u8,
+    pub team1_count: u8,
+    pub team2_count: u8,
+    pub is_full: bool,
+}
+
+#[event]
+pub struct LobbyResolved {
+    pub lobby: Pubkey,
+    pub winner_side: u8,
+    pub total_pot: u64,
+    pub platform_fee: u64,
+    pub payout_per_winner: u64,
+}
+
+#[event]
+pub struct LobbyRefunded {
+    pub lobby: Pubkey,
+    pub refunded_count: u8,
+    pub total_refunded: u64,
+}
+
 #[error_code]
 pub enum PvpError {
     #[msg("Invalid side (must be 0 or 1)")]
@@ -348,6 +386,16 @@ pub mod pvp_program {
             side,
         )?;
 
+        // Emit lobby created event
+        emit!(LobbyCreated {
+            lobby: lobby.key(),
+            lobby_id,
+            creator: ctx.accounts.creator.key(),
+            stake_lamports,
+            team_size,
+            created_at: lobby.created_at,
+        });
+
         Ok(())
     }
 
@@ -372,10 +420,20 @@ pub mod pvp_program {
             side,
         )?;
 
-        // If now the lobby is full, request VRF and move to Pending
+        // Check if lobby is now full
         let full_now =
             (lobby.team1.len() as u8 == lobby.team_size) &&
             (lobby.team2.len() as u8 == lobby.team_size);
+
+        // Emit player joined event
+        emit!(PlayerJoined {
+            lobby: lobby.key(),
+            player: ctx.accounts.player.key(),
+            side,
+            team1_count: lobby.team1.len() as u8,
+            team2_count: lobby.team2.len() as u8,
+            is_full: full_now,
+        });
 
         if full_now {
             // Validate Switchboard program
@@ -471,6 +529,13 @@ pub mod pvp_program {
                 stake_amount
             )?;
         }
+
+        // Emit refund event
+        emit!(LobbyRefunded {
+            lobby: ctx.accounts.lobby.key(),
+            refunded_count: total as u8,
+            total_refunded: stake_amount * total as u64,
+        });
 
         Ok(())
     }
@@ -597,6 +662,16 @@ pub mod pvp_program {
                 )?;
             }
         }
+
+        // Emit lobby resolved event
+        emit!(LobbyResolved {
+            lobby: ctx.accounts.lobby.key(),
+            winner_side,
+            total_pot: pot,
+            platform_fee: fee_final,
+            payout_per_winner: payout_each,
+        });
+
         Ok(())
     }
 }
@@ -693,6 +768,8 @@ fn internal_join_side<'info>(
 
 // Transfer lamports from the lobby PDA to the given account.
 // The `to` AccountInfo must be present in the instruction's account list (remaining_accounts).
+// NOTE: For accounts with data, we cannot use system_instruction::transfer
+// Instead, we directly modify lamports (proper way for PDA with Account data)
 fn pay_from_lobby_pda<'info>(
     lobby_creator: Pubkey,
     lobby_id: u64,
@@ -705,17 +782,9 @@ fn pay_from_lobby_pda<'info>(
     if lamports == 0 { return Ok(()); }
     require!(**from_account.lamports.borrow() >= lamports, PvpError::Unauthorized);
 
-    let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
-        &from_account.key(),
-        &to_account.key(),
-        lamports,
-    );
-
-    anchor_lang::solana_program::program::invoke_signed(
-        &transfer_ix,
-        &[from_account, to_account, system_program_account],
-        &[&[SEED_LOBBY, lobby_creator.as_ref(), &lobby_id.to_le_bytes(), &[lobby_bump]]],
-    )?;
+    // Direct lamports manipulation for accounts with data
+    **from_account.try_borrow_mut_lamports()? -= lamports;
+    **to_account.try_borrow_mut_lamports()? += lamports;
 
     Ok(())
 }

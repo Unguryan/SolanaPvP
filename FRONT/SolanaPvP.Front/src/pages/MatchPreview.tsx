@@ -10,7 +10,7 @@ import {
   GlassCardHeader,
   GlassCardTitle,
 } from "@/components/ui/GlassCard";
-import { useLobbyOperations } from "@/hooks/usePvpProgram";
+import { useLobbyOperations, useLobbyData } from "@/hooks/usePvpProgram";
 import {
   LobbyAccount,
   LobbyStatus,
@@ -31,8 +31,29 @@ export const MatchPreview: React.FC = () => {
   const { joinLobby, refundLobby, isJoining, isRefunding } =
     useLobbyOperations();
 
-  const [lobby, setLobby] = useState<LobbyAccount | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Use the hook to fetch lobby data from blockchain
+  const lobbyPdaPubkey =
+    matchPda && !matchPda.startsWith("mock-")
+      ? new PublicKey(matchPda)
+      : undefined;
+  const {
+    lobby: lobbyFromChain,
+    isLoading: isLoadingChain,
+    error: errorChain,
+    refetch: refetchLobby,
+  } = useLobbyData(lobbyPdaPubkey);
+
+  // For mock lobbies only
+  const [mockLobby, setMockLobby] = useState<LobbyAccount | null>(null);
+
+  // Use lobby from hook or mock
+  const lobby = matchPda?.startsWith("mock-") ? mockLobby : lobbyFromChain;
+  const isLoading = matchPda?.startsWith("mock-")
+    ? mockLobby === null
+    : isLoadingChain;
+  const loadError = matchPda?.startsWith("mock-") ? null : errorChain;
+
+  // UI state for operations (join/refund errors)
   const [error, setError] = useState<string | null>(null);
   const [isViewer, setIsViewer] = useState(false);
   const [pageMode, setPageMode] = useState<PageMode>("preview");
@@ -159,55 +180,31 @@ export const MatchPreview: React.FC = () => {
     }
   }, [pageMode, lobby]);
 
-  // Fetch lobby data - allow loading without wallet
+  // Load mock lobby data only for mock matches
   useEffect(() => {
-    if (!matchPda) return;
+    if (!matchPda || !matchPda.startsWith("mock-")) return;
 
-    // Allow loading even if wallet is not connected
-    const loadLobby = async () => {
-      try {
-        setIsLoading(true);
-
-        // Check if this is a mock match
-        if (matchPda.startsWith("mock-")) {
-          // Create mock lobby data
-          const mockLobby: LobbyAccount = {
-            bump: 255,
-            lobbyId: new anchor.BN(1),
-            creator: new PublicKey("11111111111111111111111111111111"),
-            stakeLamports: new anchor.BN(2.5 * 1_000_000_000),
-            teamSize: 3,
-            team1: [
-              new PublicKey("11111111111111111111111111111112"),
-              new PublicKey("11111111111111111111111111111113"),
-            ],
-            team2: [new PublicKey("11111111111111111111111111111114")],
-            status: LobbyStatus.Open,
-            createdAt: new anchor.BN(Math.floor(Date.now() / 1000)),
-            finalized: false,
-            vrf: new PublicKey("11111111111111111111111111111115"),
-          };
-
-          setTimeout(() => {
-            setLobby(mockLobby);
-            setIsLoading(false);
-          }, 500);
-          return;
-        }
-
-        // TODO: Fetch lobby data from blockchain/API
-        // For now, showing loading state
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 1000);
-      } catch (err) {
-        console.error("Failed to load lobby:", err);
-        setError("Failed to load match data");
-        setIsLoading(false);
-      }
+    // Create mock lobby data
+    const mockData: LobbyAccount = {
+      bump: 255,
+      lobbyId: new anchor.BN(1),
+      creator: new PublicKey("11111111111111111111111111111111"),
+      stakeLamports: new anchor.BN(2.5 * 1_000_000_000),
+      teamSize: 3,
+      team1: [
+        new PublicKey("11111111111111111111111111111112"),
+        new PublicKey("11111111111111111111111111111113"),
+      ],
+      team2: [new PublicKey("11111111111111111111111111111114")],
+      status: LobbyStatus.Open,
+      createdAt: new anchor.BN(Math.floor(Date.now() / 1000)),
+      finalized: false,
+      vrf: new PublicKey("11111111111111111111111111111115"),
     };
 
-    loadLobby();
+    setTimeout(() => {
+      setMockLobby(mockData);
+    }, 500);
   }, [matchPda]);
 
   const handleJoin = async (side: 0 | 1) => {
@@ -217,6 +214,13 @@ export const MatchPreview: React.FC = () => {
       setError(null);
       const lobbyPubkey = new PublicKey(matchPda);
 
+      console.log("[MatchPreview] Joining lobby:", {
+        lobbyPda: lobbyPubkey.toString(),
+        creator: lobby.creator.toString(),
+        player: publicKey.toString(),
+        side,
+      });
+
       // TODO: Get VRF accounts for last join if needed
       const tx = await joinLobby({
         lobbyPda: lobbyPubkey,
@@ -224,12 +228,15 @@ export const MatchPreview: React.FC = () => {
         side,
       });
 
-      console.log("Joined lobby successfully:", tx);
+      console.log("[MatchPreview] Join transaction successful:", tx);
 
-      // Reload lobby data
+      // Reload lobby data from blockchain
+      await refetchLobby();
+
+      // Also reload the page state
       window.location.reload();
     } catch (err: any) {
-      console.error("Failed to join lobby:", err);
+      console.error("[MatchPreview] Failed to join lobby:", err);
       setError(err.message || "Failed to join match");
     }
   };
@@ -285,13 +292,13 @@ export const MatchPreview: React.FC = () => {
   const handleRefund = async () => {
     if (!publicKey || !matchPda || !lobby) return;
 
-    // Check if user is authorized to refund
-    const isParticipant = [...lobby.team1, ...lobby.team2].some(
-      (p) => p.toString() === publicKey?.toString()
-    );
+    // Check if user is authorized to refund (only creator or admin)
+    const isCreator = lobby.creator.toString() === publicKey?.toString();
+    // TODO: Check if user is admin from GlobalConfig
+    // For now, allow creator only
 
-    if (!isParticipant && lobby.creator.toString() !== publicKey?.toString()) {
-      setError("Only participants and creator can refund");
+    if (!isCreator) {
+      setError("Only the lobby creator can request a refund");
       return;
     }
 
@@ -300,18 +307,29 @@ export const MatchPreview: React.FC = () => {
       const lobbyPubkey = new PublicKey(matchPda);
       const participants = [...lobby.team1, ...lobby.team2];
 
+      console.log("[MatchPreview] Requesting refund:", {
+        lobbyPda: lobbyPubkey.toString(),
+        creator: lobby.creator.toString(),
+        requester: publicKey.toString(),
+        participantsCount: participants.length,
+      });
+
       const tx = await refundLobby({
         lobbyPda: lobbyPubkey,
         creator: lobby.creator,
         participants,
+        lobbyAccount: lobby, // Pass lobby data for PDA resolution
       });
 
-      console.log("Refund successful:", tx);
+      console.log("[MatchPreview] Refund transaction successful:", tx);
 
-      // Navigate back
-      navigate("/matches");
+      // Wait a bit for blockchain to confirm
+      setTimeout(() => {
+        // Navigate back
+        navigate("/matches");
+      }, 1500);
     } catch (err: any) {
-      console.error("Failed to refund:", err);
+      console.error("[MatchPreview] Failed to refund:", err);
       setError(err.message || "Failed to refund");
     }
   };
@@ -320,10 +338,10 @@ export const MatchPreview: React.FC = () => {
     if (!lobby || !publicKey) return false;
     if (lobby.status !== LobbyStatus.Open) return false;
 
-    const isParticipant = [...lobby.team1, ...lobby.team2].some(
-      (p) => p.toString() === publicKey?.toString()
-    );
+    // Only creator can refund (or admin, but we don't check that here)
     const isCreator = lobby.creator.toString() === publicKey?.toString();
+
+    if (!isCreator) return false;
 
     // Check if 2 minutes have passed
     const createdAtSeconds = lobby.createdAt.toNumber();
@@ -331,7 +349,7 @@ export const MatchPreview: React.FC = () => {
     const timePassed = nowSeconds - createdAtSeconds;
     const canRefundTime = timePassed >= 120; // 2 minutes
 
-    return canRefundTime && (isParticipant || isCreator);
+    return canRefundTime;
   };
 
   const isPlayerInLobby = () => {
@@ -377,7 +395,7 @@ export const MatchPreview: React.FC = () => {
     );
   }
 
-  if (!lobby) {
+  if (!lobby && !isLoading) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
         <GlassCard className="p-8 text-center">
@@ -385,7 +403,7 @@ export const MatchPreview: React.FC = () => {
             Match Not Found
           </h2>
           <p className="text-txt-muted mb-6">
-            This match does not exist or has been removed
+            {loadError || "This match does not exist or has been removed"}
           </p>
           <GlowButton onClick={() => navigate("/matches")} variant="neon">
             Go Back
@@ -393,6 +411,11 @@ export const MatchPreview: React.FC = () => {
         </GlassCard>
       </div>
     );
+  }
+
+  // Early return if still loading or no lobby
+  if (!lobby) {
+    return null; // Will show loading skeleton above
   }
 
   const stakeSOL = lobby.stakeLamports.toNumber() / LAMPORTS_PER_SOL;

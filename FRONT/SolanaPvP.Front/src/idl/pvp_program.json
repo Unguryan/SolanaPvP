@@ -565,6 +565,60 @@
       ]
     }
   ],
+  "events": [
+    {
+      "name": "LobbyCreated",
+      "discriminator": [
+        109,
+        169,
+        16,
+        50,
+        169,
+        242,
+        237,
+        65
+      ]
+    },
+    {
+      "name": "LobbyRefunded",
+      "discriminator": [
+        37,
+        99,
+        34,
+        76,
+        175,
+        241,
+        3,
+        174
+      ]
+    },
+    {
+      "name": "LobbyResolved",
+      "discriminator": [
+        155,
+        179,
+        219,
+        168,
+        63,
+        242,
+        104,
+        137
+      ]
+    },
+    {
+      "name": "PlayerJoined",
+      "discriminator": [
+        39,
+        144,
+        49,
+        106,
+        108,
+        210,
+        183,
+        38
+      ]
+    }
+  ],
   "errors": [
     {
       "code": 6000,
@@ -745,6 +799,86 @@
             "type": {
               "vec": "pubkey"
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "LobbyCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "lobby_id",
+            "type": "u64"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "stake_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "team_size",
+            "type": "u8"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LobbyRefunded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "refunded_count",
+            "type": "u8"
+          },
+          {
+            "name": "total_refunded",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LobbyResolved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "winner_side",
+            "type": "u8"
+          },
+          {
+            "name": "total_pot",
+            "type": "u64"
+          },
+          {
+            "name": "platform_fee",
+            "type": "u64"
+          },
+          {
+            "name": "payout_per_winner",
+            "type": "u64"
           }
         ]
       }
@@ -1034,6 +1168,38 @@
                 255
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlayerJoined",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "player",
+            "type": "pubkey"
+          },
+          {
+            "name": "side",
+            "type": "u8"
+          },
+          {
+            "name": "team1_count",
+            "type": "u8"
+          },
+          {
+            "name": "team2_count",
+            "type": "u8"
+          },
+          {
+            "name": "is_full",
+            "type": "bool"
           }
         ]
       }

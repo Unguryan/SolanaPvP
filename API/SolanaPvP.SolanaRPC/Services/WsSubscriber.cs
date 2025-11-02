@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using SolanaPvP.Application.Interfaces.SolanaRPC;
 using SolanaPvP.Domain.Settings;
@@ -10,6 +11,7 @@ namespace SolanaPvP.SolanaRPC.Services;
 public class WsSubscriber : IWsSubscriber, IDisposable
 {
     private readonly SolanaSettings _solanaSettings;
+    private readonly ILogger<WsSubscriber> _logger;
     private ClientWebSocket? _webSocket;
     private CancellationTokenSource? _cancellationTokenSource;
     private Task? _receiveTask;
@@ -17,9 +19,10 @@ public class WsSubscriber : IWsSubscriber, IDisposable
 
     public bool IsConnected => _webSocket?.State == WebSocketState.Open;
 
-    public WsSubscriber(SolanaSettings solanaSettings)
+    public WsSubscriber(SolanaSettings solanaSettings, ILogger<WsSubscriber> logger)
     {
         _solanaSettings = solanaSettings;
+        _logger = logger;
     }
 
     public async Task SubscribeLogsAsync(string programId, Action<SolanaPvP.Application.Interfaces.SolanaRPC.WsLogEvent> onEvent, CancellationToken cancellationToken)
@@ -74,7 +77,7 @@ public class WsSubscriber : IWsSubscriber, IDisposable
 
     private async Task ReceiveMessagesAsync(Action<SolanaPvP.Application.Interfaces.SolanaRPC.WsLogEvent> onEvent, CancellationToken cancellationToken)
     {
-        var buffer = new byte[4096];
+        var buffer = new byte[8192]; // Increased buffer size for larger messages
         
         while (!cancellationToken.IsCancellationRequested && _webSocket?.State == WebSocketState.Open)
         {
@@ -85,23 +88,34 @@ public class WsSubscriber : IWsSubscriber, IDisposable
                 if (result.MessageType == WebSocketMessageType.Text)
                 {
                     var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    _logger.LogDebug("[WS] Received message: {Message}", message);
+                    
                     var wsLogEvent = ParseWebSocketMessage(message);
                     if (wsLogEvent != null)
                     {
+                        _logger.LogDebug("[WS] Parsed event - Signature: {Signature}, Logs: {LogCount}", 
+                            wsLogEvent.Signature, wsLogEvent.Logs?.Count ?? 0);
                         onEvent(wsLogEvent);
+                    }
+                    else
+                    {
+                        _logger.LogDebug("[WS] Message did not contain parseable log event");
                     }
                 }
                 else if (result.MessageType == WebSocketMessageType.Close)
                 {
+                    _logger.LogInformation("[WS] WebSocket closed by server");
                     break;
                 }
             }
             catch (OperationCanceledException)
             {
+                _logger.LogInformation("[WS] Receive operation cancelled");
                 break;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "[WS] Error receiving message, attempting reconnection");
                 // Handle receive errors and attempt reconnection
                 await ReconnectWithBackoffAsync(string.Empty, onEvent, cancellationToken);
                 break;
@@ -114,19 +128,28 @@ public class WsSubscriber : IWsSubscriber, IDisposable
         try
         {
             var response = JsonConvert.DeserializeObject<dynamic>(message);
-            if (response?.result?.value == null) return null;
+            
+            // Check if this is a notification (not a subscription confirmation)
+            if (response?.method != "logsNotification") return null;
+            
+            // Use indexer to access "params" (reserved keyword)
+            dynamic paramsObj = response["params"];
+            if (paramsObj?.result?.value == null) return null;
 
-            var value = response.result.value;
+            var value = paramsObj.result.value;
+            var context = paramsObj.result.context;
+            
             return new SolanaPvP.Application.Interfaces.SolanaRPC.WsLogEvent
             {
                 Signature = value.signature?.ToString() ?? string.Empty,
-                Slot = value.slot?.ToObject<long>() ?? 0,
+                Slot = context?.slot?.ToObject<long>() ?? 0,
                 Logs = value.logs?.ToObject<List<string>>() ?? new List<string>(),
                 Error = value.err?.ToString()
             };
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "[WS] Error parsing WebSocket message: {Message}", message);
             return null;
         }
     }

@@ -161,9 +161,11 @@ export function useLobbyData(lobbyPda?: PublicKey) {
   const [lobby, setLobby] = useState<LobbyAccount | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasFetched, setHasFetched] = useState(false);
 
   const fetchLobby = useCallback(async () => {
     if (!lobbyPda || !isInitialized || !program) return;
+    if (hasFetched) return; // IMPORTANT: Fetch only once!
 
     try {
       setIsLoading(true);
@@ -171,23 +173,30 @@ export function useLobbyData(lobbyPda?: PublicKey) {
 
       const lobbyData = await PvpAccountFetchers.fetchLobby(program, lobbyPda);
       setLobby(lobbyData);
+      setHasFetched(true);
     } catch (err) {
       setError(parseAnchorError(err));
       console.error("Failed to fetch lobby:", err);
+      setHasFetched(true);
     } finally {
       setIsLoading(false);
     }
-  }, [lobbyPda, isInitialized, program]);
+  }, [lobbyPda, isInitialized, program, hasFetched]);
 
   useEffect(() => {
     fetchLobby();
+  }, [lobbyPda?.toString(), isInitialized]); // FIXED: stable dependencies
+
+  const manualRefetch = useCallback(async () => {
+    setHasFetched(false);
+    await fetchLobby();
   }, [fetchLobby]);
 
   return {
     lobby,
     isLoading,
     error,
-    refetch: fetchLobby,
+    refetch: manualRefetch,
   };
 }
 

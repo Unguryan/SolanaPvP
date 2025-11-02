@@ -30,15 +30,17 @@ export function usePvpProgram(): Program<PvpProgram> | null {
     if (!wallet) return null;
 
     // Connection with commitment and wsEndpoint in config object
+    // Using "confirmed" for reliability on devnet
     const connection = new Connection(RPC_URL, {
       commitment: "confirmed",
       wsEndpoint: config.wsUrl,
     });
 
+    // Provider config - sync commitment levels to avoid blockhash issues
     const provider = new AnchorProvider(connection, wallet, {
-      preflightCommitment: "processed",
+      preflightCommitment: "confirmed", // Sync with connection commitment
       commitment: "confirmed",
-      skipPreflight: false,
+      skipPreflight: false, // Keep preflight for better error messages
     });
 
     // Create typed program instance - NO MORE 'as any'!

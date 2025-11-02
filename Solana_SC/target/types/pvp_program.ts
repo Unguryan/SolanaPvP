@@ -571,6 +571,60 @@ export type PvpProgram = {
       ]
     }
   ],
+  "events": [
+    {
+      "name": "lobbyCreated",
+      "discriminator": [
+        109,
+        169,
+        16,
+        50,
+        169,
+        242,
+        237,
+        65
+      ]
+    },
+    {
+      "name": "lobbyRefunded",
+      "discriminator": [
+        37,
+        99,
+        34,
+        76,
+        175,
+        241,
+        3,
+        174
+      ]
+    },
+    {
+      "name": "lobbyResolved",
+      "discriminator": [
+        155,
+        179,
+        219,
+        168,
+        63,
+        242,
+        104,
+        137
+      ]
+    },
+    {
+      "name": "playerJoined",
+      "discriminator": [
+        39,
+        144,
+        49,
+        106,
+        108,
+        210,
+        183,
+        38
+      ]
+    }
+  ],
   "errors": [
     {
       "code": 6000,
@@ -751,6 +805,86 @@ export type PvpProgram = {
             "type": {
               "vec": "pubkey"
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "lobbyCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "lobbyId",
+            "type": "u64"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "stakeLamports",
+            "type": "u64"
+          },
+          {
+            "name": "teamSize",
+            "type": "u8"
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "lobbyRefunded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "refundedCount",
+            "type": "u8"
+          },
+          {
+            "name": "totalRefunded",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "lobbyResolved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "winnerSide",
+            "type": "u8"
+          },
+          {
+            "name": "totalPot",
+            "type": "u64"
+          },
+          {
+            "name": "platformFee",
+            "type": "u64"
+          },
+          {
+            "name": "payoutPerWinner",
+            "type": "u64"
           }
         ]
       }
@@ -1040,6 +1174,38 @@ export type PvpProgram = {
                 255
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "playerJoined",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "player",
+            "type": "pubkey"
+          },
+          {
+            "name": "side",
+            "type": "u8"
+          },
+          {
+            "name": "team1Count",
+            "type": "u8"
+          },
+          {
+            "name": "team2Count",
+            "type": "u8"
+          },
+          {
+            "name": "isFull",
+            "type": "bool"
           }
         ]
       }

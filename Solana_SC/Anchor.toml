@@ -23,7 +23,7 @@ members = ["programs/pvp_program"]
 
 [scripts]
 migrate = "ts-node migrations/deploy.ts"
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
 
 [test]
 startup_wait = 5000

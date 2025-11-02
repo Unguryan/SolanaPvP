@@ -1,9 +1,14 @@
-import { PublicKey, Transaction } from "@solana/web3.js";
+import { PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
 import BN from "bn.js";
 import { Program } from "@coral-xyz/anchor";
 import type { PvpProgram } from "@/idl/pvp_program";
 import { getSolanaConfig } from "./config";
-import { PdaUtils, LobbyAccount, GlobalConfigAccount } from "./accounts";
+import {
+  PdaUtils,
+  LobbyAccount,
+  GlobalConfigAccount,
+  normalizeLobbyStatus,
+} from "./accounts";
 import { parseAnchorError } from "./program";
 
 // Instruction parameters
@@ -39,6 +44,7 @@ export interface RefundLobbyParams {
   creator: PublicKey;
   requester: PublicKey;
   participants: PublicKey[];
+  lobbyAccount?: LobbyAccount; // Optional: lobby data for PDA resolution
 }
 
 // Type-safe instruction builders
@@ -54,13 +60,23 @@ export class PvpInstructions {
         .accounts({
           payer: admin,
         })
-        .rpc();
+        .rpc({
+          skipPreflight: false,
+          commitment: "confirmed",
+        });
 
       return tx;
-    } catch (error) {
-      throw new Error(
-        `Failed to initialize config: ${parseAnchorError(error)}`
-      );
+    } catch (error: any) {
+      console.error("Init config error details:", error);
+
+      const errorMsg = parseAnchorError(error);
+      if (error.message?.includes("Blockhash not found")) {
+        throw new Error(
+          `Transaction failed: Network issue (blockhash expired). Please try again.`
+        );
+      }
+
+      throw new Error(`Failed to initialize config: ${errorMsg}`);
     }
   }
 
@@ -70,6 +86,7 @@ export class PvpInstructions {
     params: CreateLobbyParams
   ): Promise<string> {
     try {
+      // Add explicit RPC options for better reliability
       const tx = await program.methods
         .createLobby(
           new BN(params.lobbyId),
@@ -80,11 +97,24 @@ export class PvpInstructions {
         .accounts({
           creator: params.creator,
         })
-        .rpc();
+        .rpc({
+          skipPreflight: false,
+          commitment: "confirmed",
+        });
 
       return tx;
-    } catch (error) {
-      throw new Error(`Failed to create lobby: ${parseAnchorError(error)}`);
+    } catch (error: any) {
+      console.error("Create lobby error details:", error);
+
+      // More detailed error message
+      const errorMsg = parseAnchorError(error);
+      if (error.message?.includes("Blockhash not found")) {
+        throw new Error(
+          `Transaction failed: Network issue (blockhash expired). Please try again.`
+        );
+      }
+
+      throw new Error(`Failed to create lobby: ${errorMsg}`);
     }
   }
 
@@ -129,11 +159,23 @@ export class PvpInstructions {
       const tx = await program.methods
         .joinSide(params.side)
         .accounts(accounts)
-        .rpc();
+        .rpc({
+          skipPreflight: false,
+          commitment: "confirmed",
+        });
 
       return tx;
-    } catch (error) {
-      throw new Error(`Failed to join lobby: ${parseAnchorError(error)}`);
+    } catch (error: any) {
+      console.error("Join lobby error details:", error);
+
+      const errorMsg = parseAnchorError(error);
+      if (error.message?.includes("Blockhash not found")) {
+        throw new Error(
+          `Transaction failed: Network issue (blockhash expired). Please try again.`
+        );
+      }
+
+      throw new Error(`Failed to join lobby: ${errorMsg}`);
     }
   }
 
@@ -143,24 +185,46 @@ export class PvpInstructions {
     params: RefundLobbyParams
   ): Promise<string> {
     try {
+      // Derive PDAs
+      const [configPda] = PdaUtils.getConfigPda();
+      const [activePda] = PdaUtils.getActiveLobbyPda(params.creator);
+
       const remainingAccounts = params.participants.map((pubkey) => ({
         pubkey,
         isSigner: false,
         isWritable: true,
       }));
 
+      // Refund seeds use lobby.creator and lobby.lobby_id - circular dependency
+      // Solution: use accountsStrict with all accounts including systemProgram
       const tx = await program.methods
         .refund()
-        .accounts({
+        .accountsStrict({
+          lobby: params.lobbyPda,
           creator: params.creator,
           requester: params.requester,
-        })
+          active: activePda,
+          config: configPda,
+          systemProgram: SystemProgram.programId,
+        } as any) // Bypass TypeScript for circular PDA seeds
         .remainingAccounts(remainingAccounts)
-        .rpc();
+        .rpc({
+          skipPreflight: false,
+          commitment: "confirmed",
+        });
 
       return tx;
-    } catch (error) {
-      throw new Error(`Failed to refund lobby: ${parseAnchorError(error)}`);
+    } catch (error: any) {
+      console.error("Refund lobby error details:", error);
+
+      const errorMsg = parseAnchorError(error);
+      if (error.message?.includes("Blockhash not found")) {
+        throw new Error(
+          `Transaction failed: Network issue (blockhash expired). Please try again.`
+        );
+      }
+
+      throw new Error(`Failed to refund lobby: ${errorMsg}`);
     }
   }
 
@@ -233,6 +297,10 @@ export class PvpInstructions {
     program: Program<PvpProgram>,
     params: RefundLobbyParams
   ): Promise<Transaction> {
+    // Derive PDAs
+    const [configPda] = PdaUtils.getConfigPda();
+    const [activePda] = PdaUtils.getActiveLobbyPda(params.creator);
+
     const remainingAccounts = params.participants.map((pubkey) => ({
       pubkey,
       isSigner: false,
@@ -242,9 +310,12 @@ export class PvpInstructions {
     const instruction = await program.methods
       .refund()
       .accounts({
+        lobby: params.lobbyPda,
         creator: params.creator,
         requester: params.requester,
-      })
+        active: activePda,
+        config: configPda,
+      } as any)
       .remainingAccounts(remainingAccounts)
       .instruction();
 
@@ -281,7 +352,16 @@ export class PvpAccountFetchers {
     try {
       // Type-safe account fetch - program.account.lobby is fully typed!
       const account = await program.account.lobby.fetchNullable(lobbyPda);
-      return account as LobbyAccount | null;
+
+      if (!account) return null;
+
+      // Normalize status from Anchor enum format {open: {}} to string "open"
+      const normalized = {
+        ...account,
+        status: normalizeLobbyStatus(account.status),
+      } as LobbyAccount;
+
+      return normalized;
     } catch (error) {
       console.error("Failed to fetch lobby:", error);
       return null;
@@ -314,7 +394,16 @@ export class PvpAccountFetchers {
     try {
       // Type-safe multiple fetch
       const accounts = await program.account.lobby.fetchMultiple(lobbyPdas);
-      return accounts as (LobbyAccount | null)[];
+
+      // Normalize status for each account
+      return accounts.map((account) => {
+        if (!account) return null;
+
+        return {
+          ...account,
+          status: normalizeLobbyStatus(account.status),
+        } as LobbyAccount;
+      });
     } catch (error) {
       console.error("Failed to fetch lobbies:", error);
       return lobbyPdas.map(() => null);
