@@ -108,7 +108,7 @@ export const Leaderboard: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bg py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-8">
             <Skeleton className="h-12 w-64 mx-auto mb-4" />
             <Skeleton className="h-6 w-96 mx-auto" />
@@ -125,7 +125,7 @@ export const Leaderboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-bg py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-6">
         {/* Header */}
         <div className="text-center mb-8">
           <motion.h1
@@ -147,23 +147,19 @@ export const Leaderboard: React.FC = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <GlassCard className="p-3 md:p-4 text-center">
-            <TrophyIcon className="w-5 h-5 md:w-8 md:h-8 text-sol-mint mx-auto mb-2" />
-            <div className="text-lg md:text-2xl font-bold text-txt-base">
+          <GlassCard className="p-4 text-center">
+            <TrophyIcon className="w-6 h-6 text-sol-mint mx-auto mb-2" />
+            <div className="text-xl font-bold text-txt-base">
               {totalPlayers}
             </div>
-            <div className="text-xs md:text-sm text-txt-muted">
-              Total Players
-            </div>
+            <div className="text-sm text-txt-muted">Total Players</div>
           </GlassCard>
-          <GlassCard className="p-3 md:p-4 text-center">
-            <UserGroupIcon className="w-5 h-5 md:w-8 md:h-8 text-sol-purple mx-auto mb-2" />
-            <div className="text-lg md:text-2xl font-bold text-txt-base">
+          <GlassCard className="p-4 text-center">
+            <UserGroupIcon className="w-6 h-6 text-sol-purple mx-auto mb-2" />
+            <div className="text-xl font-bold text-txt-base">
               {totalGamesPlayed}
             </div>
-            <div className="text-xs md:text-sm text-txt-muted">
-              Games Played
-            </div>
+            <div className="text-sm text-txt-muted">Games Played</div>
           </GlassCard>
         </div>
 
@@ -174,7 +170,7 @@ export const Leaderboard: React.FC = () => {
               <span className="text-txt-muted text-sm font-medium block">
                 Time Period
               </span>
-              <div className="flex flex-wrap items-center gap-2 md:gap-4 ml-2">
+              <div className="flex flex-wrap items-center gap-4 ml-2">
                 {(["month", "allTime"] as const).map((period) => (
                   <GlowButton
                     key={period}
@@ -194,7 +190,7 @@ export const Leaderboard: React.FC = () => {
         {/* Leaderboard Table */}
         <GlassCard className="overflow-hidden">
           <GlassCardHeader>
-            <GlassCardTitle className="text-xl font-display text-sol-purple px-3 md:px-6 py-3 md:py-4">
+            <GlassCardTitle className="text-xl font-display text-sol-purple px-6 py-4">
               Player Rankings
             </GlassCardTitle>
           </GlassCardHeader>
@@ -285,7 +281,7 @@ export const Leaderboard: React.FC = () => {
           </div>
 
           {/* Mobile Cards */}
-          <div className="md:hidden space-y-4 md:p-6">
+          <div className="md:hidden space-y-4 p-4">
             {filteredLeaderboard.map((player, index) => (
               <motion.div
                 key={player.pubkey}

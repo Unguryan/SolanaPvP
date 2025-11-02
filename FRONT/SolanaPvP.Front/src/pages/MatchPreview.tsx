@@ -429,7 +429,7 @@ export const MatchPreview: React.FC = () => {
       // Spectators only see stats, not the game board
       return (
         <div className="min-h-screen bg-bg py-8">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto px-6">
             <motion.div
               className="text-center mb-8"
               initial={{ opacity: 0, y: 20 }}
@@ -478,7 +478,7 @@ export const MatchPreview: React.FC = () => {
     // Participants see the full game
     return (
       <div className="min-h-screen bg-bg py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-6">
           <motion.div
             className="text-center mb-8"
             initial={{ opacity: 0, y: 20 }}
@@ -564,7 +564,7 @@ export const MatchPreview: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-6">
         {/* Header */}
         <motion.div
           className="text-center mb-6 lg:mb-8"
@@ -625,7 +625,7 @@ export const MatchPreview: React.FC = () => {
         {/* Teams - Side by side */}
         <div className="grid grid-cols-2 gap-4 lg:gap-6 mb-6">
           {/* Team 1 */}
-          <GlassCard className="p-3 lg:p-6">
+          <GlassCard className="p-6">
             <GlassCardHeader>
               <GlassCardTitle className="text-base lg:text-xl font-display text-sol-purple">
                 Team 1 ({lobby.team1.length}/{lobby.teamSize})
@@ -688,7 +688,7 @@ export const MatchPreview: React.FC = () => {
           </GlassCard>
 
           {/* Team 2 */}
-          <GlassCard className="p-3 lg:p-6">
+          <GlassCard className="p-6">
             <GlassCardHeader>
               <GlassCardTitle className="text-base lg:text-xl font-display text-sol-purple">
                 Team 2 ({lobby.team2.length}/{lobby.teamSize})

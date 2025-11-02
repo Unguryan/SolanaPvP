@@ -185,7 +185,7 @@ export const CreateLobby: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto px-6">
         {/* Header */}
         <motion.div
           className="text-center mb-8"
@@ -255,7 +255,7 @@ export const CreateLobby: React.FC = () => {
                     key={mode}
                     variant={selectedVariant as any}
                     onClick={() => setGameMode(mode)}
-                    className="flex flex-col items-center space-y-1 p-2 md:p-3 h-16 md:h-20"
+                    className="flex flex-col items-center space-y-1 p-3 h-18"
                   >
                     <span className="text-xl md:text-2xl">{icon}</span>
                     <span className="text-xs md:text-sm font-medium">
@@ -284,7 +284,7 @@ export const CreateLobby: React.FC = () => {
                     key={size}
                     variant={selectedVariant as any}
                     onClick={() => setTeamSize(size)}
-                    className="flex flex-col items-center space-y-1 p-2 md:p-3 h-16 md:h-20"
+                    className="flex flex-col items-center space-y-1 p-3 h-18"
                   >
                     <span className="text-sm md:text-lg font-bold">
                       {label}
@@ -352,7 +352,7 @@ export const CreateLobby: React.FC = () => {
               <GlowButton
                 variant={side === 0 ? "blue" : "ghost"}
                 onClick={() => setSide(0)}
-                className="p-4 h-16 md:h-20"
+                className="p-4 h-18"
               >
                 <div className="flex flex-col items-center">
                   <span className="text-lg font-bold">Team 1</span>
@@ -362,7 +362,7 @@ export const CreateLobby: React.FC = () => {
               <GlowButton
                 variant={side === 1 ? "orange" : "ghost"}
                 onClick={() => setSide(1)}
-                className="p-4 h-16 md:h-20"
+                className="p-4 h-18"
               >
                 <div className="flex flex-col items-center">
                   <span className="text-lg font-bold">Team 2</span>

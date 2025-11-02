@@ -9,6 +9,7 @@ import {
   normalizeLobbyStatus,
 } from "./accounts";
 import { parseAnchorError } from "./program";
+import { getSolanaConfig } from "./config";
 
 // Instruction parameters
 export interface CreateLobbyParams {
@@ -141,11 +142,9 @@ export class PvpInstructions {
         `[JoinLobby] Current: ${currentPlayers}/${requiredPlayers}, Final: ${willBeFinalJoin}`
       );
 
-      // Build base accounts object
-      const accounts: any = {
-        creator: params.creator,
-        player: params.player,
-      };
+      // Derive required PDAs
+      const [configPda] = PdaUtils.getConfigPda();
+      const [activePda] = PdaUtils.getActiveLobbyPda(params.creator);
 
       // If this is the final join, use join_side_final with Switchboard OnDemand
       if (willBeFinalJoin) {
@@ -158,11 +157,24 @@ export class PvpInstructions {
         // For devnet testing: use lobby PDA as placeholder (will need proper randomness account later)
         const randomnessAccount = params.vrfAccount || params.lobbyPda;
 
-        accounts.randomnessAccountData = randomnessAccount;
+        // Get Switchboard program ID from config
+        const switchboardProgramId = new PublicKey(
+          getSolanaConfig().switchboardProgramId
+        );
 
+        // Use accountsPartial to explicitly provide accounts and avoid circular resolution
         const tx = await program.methods
           .joinSideFinal(params.side)
-          .accounts(accounts)
+          .accountsPartial({
+            lobby: params.lobbyPda,
+            creator: params.creator,
+            player: params.player,
+            active: activePda,
+            config: configPda,
+            randomnessAccountData: randomnessAccount,
+            switchboardProgram: switchboardProgramId,
+            systemProgram: SystemProgram.programId,
+          })
           .rpc({
             skipPreflight: false,
             commitment: "confirmed",
@@ -175,7 +187,14 @@ export class PvpInstructions {
         // Use simple join_side for non-final joins
         const tx = await program.methods
           .joinSide(params.side)
-          .accounts(accounts)
+          .accountsPartial({
+            lobby: params.lobbyPda,
+            creator: params.creator,
+            player: params.player,
+            active: activePda,
+            config: configPda,
+            systemProgram: SystemProgram.programId,
+          })
           .rpc({
             skipPreflight: false,
             commitment: "confirmed",

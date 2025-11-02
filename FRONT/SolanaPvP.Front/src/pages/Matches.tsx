@@ -136,7 +136,7 @@ export const Matches: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bg py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-8">
             <Skeleton className="h-12 w-64 mx-auto mb-4" />
             <Skeleton className="h-6 w-96 mx-auto" />
@@ -172,7 +172,7 @@ export const Matches: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-6">
         {/* Header */}
         <div className="text-center mb-8">
           <motion.h1
@@ -210,7 +210,7 @@ export const Matches: React.FC = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 md:gap-4 mb-4">
-          <GlassCard className="p-3 md:p-4 text-center">
+          <GlassCard className="p-4 text-center">
             <ClockIcon className="w-5 h-5 md:w-6 md:h-6 text-sol-mint mx-auto mb-2" />
             <div className="text-lg md:text-xl font-bold text-txt-base">
               {activeMatches.length}
@@ -219,7 +219,7 @@ export const Matches: React.FC = () => {
               Active Matches
             </div>
           </GlassCard>
-          <GlassCard className="p-3 md:p-4 text-center">
+          <GlassCard className="p-4 text-center">
             <FunnelIcon className="w-5 h-5 md:w-6 md:h-6 text-sol-purple mx-auto mb-2" />
             <div className="text-lg md:text-xl font-bold text-txt-base">
               {filteredMatches.length}

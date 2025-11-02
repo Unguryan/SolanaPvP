@@ -23,14 +23,14 @@ export const Home: React.FC = () => {
       <main className="relative">
         {/* Desktop Layout (≥1024px) */}
         <div className="hidden lg:block">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+          <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
             {/* Hero CTA at top */}
             <div className="flex justify-center">
               <HeroCTA />
             </div>
 
             {/* Live Feed and Matches in two columns below */}
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-2 gap-6">
               {/* Left Column - Live Feed */}
               <div className="space-y-6">
                 <LiveFeed className="h-fit" />
@@ -46,7 +46,7 @@ export const Home: React.FC = () => {
 
         {/* Mobile/Tablet Layout (<1024px) */}
         <div className="lg:hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+          <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
             {/* Hero CTA */}
             <div className="text-center">
               <HeroCTA />

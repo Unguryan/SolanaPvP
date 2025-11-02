@@ -170,7 +170,7 @@ export const MatchesList: React.FC<MatchesListProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2 md:space-x-4">
+                <div className="flex items-center space-x-4">
                   <div className="text-right">
                     <div className="text-xs text-txt-muted mb-1">
                       {fillPercentage}% full

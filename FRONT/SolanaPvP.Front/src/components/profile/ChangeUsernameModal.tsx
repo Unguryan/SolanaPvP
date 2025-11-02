@@ -55,6 +55,12 @@ export const ChangeUsernameModal: React.FC<ChangeUsernameModalProps> = ({
       return;
     }
 
+    // Check for spaces inside username
+    if (/\s/.test(trimmedUsername)) {
+      setAvailabilityStatus(null);
+      return;
+    }
+
     const timer = setTimeout(async () => {
       try {
         setAvailabilityStatus("checking");
@@ -77,6 +83,12 @@ export const ChangeUsernameModal: React.FC<ChangeUsernameModalProps> = ({
     const trimmedUsername = newUsername.trim();
 
     if (!trimmedUsername || trimmedUsername === currentUsername) {
+      return;
+    }
+
+    // Check for spaces inside username
+    if (/\s/.test(trimmedUsername)) {
+      setError("Username cannot contain spaces");
       return;
     }
 
@@ -184,6 +196,8 @@ export const ChangeUsernameModal: React.FC<ChangeUsernameModalProps> = ({
                       onChange={(e) => setNewUsername(e.target.value)}
                       placeholder="Enter new username"
                       className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-txt-base placeholder-txt-muted focus:outline-none focus:border-sol-purple transition-colors"
+                      pattern="^\S+$"
+                      title="Username cannot contain spaces"
                       minLength={3}
                       maxLength={20}
                       required
@@ -206,25 +220,34 @@ export const ChangeUsernameModal: React.FC<ChangeUsernameModalProps> = ({
                   {/* Availability Message */}
                   {availabilityStatus === "taken" && (
                     <p className="mt-2 text-sm text-red-400">
-                      This username is already taken
+                      ❌ This username is already taken
                     </p>
                   )}
                   {availabilityStatus === "available" && (
                     <p className="mt-2 text-sm text-sol-mint">
-                      This username is available
+                      ✅ This username is available
                     </p>
                   )}
+                  {/* Validation Messages */}
                   {newUsername.length > 0 &&
                     newUsername.trim().length === 0 && (
                       <p className="mt-2 text-sm text-red-400">
-                        Username cannot contain only spaces
+                        ❌ Username cannot contain only spaces
                       </p>
                     )}
                   {newUsername.length > 0 &&
                     newUsername.trim().length > 0 &&
+                    /\s/.test(newUsername.trim()) && (
+                      <p className="mt-2 text-sm text-red-400">
+                        ❌ Username cannot contain spaces
+                      </p>
+                    )}
+                  {newUsername.length > 0 &&
+                    newUsername.trim().length > 0 &&
+                    !/\s/.test(newUsername.trim()) &&
                     newUsername.trim().length < 3 && (
                       <p className="mt-2 text-sm text-txt-muted">
-                        Username must be at least 3 characters
+                        ℹ️ Username must be at least 3 characters
                       </p>
                     )}
                 </div>
@@ -243,20 +266,21 @@ export const ChangeUsernameModal: React.FC<ChangeUsernameModalProps> = ({
                     variant="ghost"
                     onClick={onClose}
                     disabled={isSubmitting}
-                    className="flex-1"
+                    className="flex-1 py-2 text-sm"
                   >
                     Cancel
                   </GlowButton>
                   <GlowButton
                     type="submit"
-                    variant="neon"
+                    variant="mint"
                     disabled={
                       isSubmitting ||
                       !newUsername.trim() ||
                       newUsername.trim() === currentUsername ||
+                      /\s/.test(newUsername.trim()) ||
                       availabilityStatus !== "available"
                     }
-                    className="flex-1"
+                    className="flex-1 py-2 text-sm"
                   >
                     {isSubmitting ? "Changing..." : "Change Username"}
                   </GlowButton>

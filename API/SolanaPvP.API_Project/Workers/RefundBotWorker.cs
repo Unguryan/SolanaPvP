@@ -71,13 +71,10 @@ public class RefundBotWorker : BackgroundService
                 // Execute refund
                 var refundTx = await refundSender.SendRefundAsync(task.MatchPda);
                 
+                _logger.LogInformation("Refund transaction sent for match {MatchPda}: {RefundTx}", task.MatchPda, refundTx);
+                
                 // Mark task as executed
                 await refundScheduler.MarkAsExecutedAsync(task.MatchPda, refundTx);
-
-                // Update match status
-                match.Status = MatchStatus.Refunded;
-                match.PayoutTx = refundTx;
-                await matchRepository.UpdateAsync(match);
 
                 _logger.LogInformation("Refund executed for match {MatchPda}, tx: {RefundTx}", task.MatchPda, refundTx);
             }
