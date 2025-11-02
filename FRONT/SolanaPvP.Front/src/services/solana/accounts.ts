@@ -65,7 +65,8 @@ export interface LobbyAccount {
   stakeLamports: BN;
   createdAt: BN;
   finalized: boolean;
-  vrf: PublicKey;
+  randomnessAccount: PublicKey;
+  winnerSide: number;
   team1: PublicKey[];
   team2: PublicKey[];
 }
@@ -123,7 +124,8 @@ export function serializeLobbyAccount(account: LobbyAccount): string {
     stakeLamports: account.stakeLamports.toString(),
     createdAt: account.createdAt.toString(),
     finalized: account.finalized,
-    vrf: account.vrf.toString(),
+    randomnessAccount: account.randomnessAccount.toString(),
+    winnerSide: account.winnerSide,
     team1: account.team1.map((pk) => pk.toString()),
     team2: account.team2.map((pk) => pk.toString()),
   });
@@ -140,7 +142,8 @@ export function deserializeLobbyAccount(data: string): LobbyAccount {
     stakeLamports: new BN(parsed.stakeLamports),
     createdAt: new BN(parsed.createdAt),
     finalized: parsed.finalized,
-    vrf: new PublicKey(parsed.vrf),
+    randomnessAccount: new PublicKey(parsed.randomnessAccount),
+    winnerSide: parsed.winnerSide,
     team1: parsed.team1.map((pk: string) => new PublicKey(pk)),
     team2: parsed.team2.map((pk: string) => new PublicKey(pk)),
   };

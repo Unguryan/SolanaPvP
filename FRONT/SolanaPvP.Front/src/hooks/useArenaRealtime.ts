@@ -79,7 +79,7 @@ export const useArenaRealtime = () => {
       try {
         setLoading(true);
         await signalRService.connect();
-        await signalRService.joinGroup("lobby");
+        await signalRService.joinArena();
 
         // Load initial active matches from API
         const activeMatchesResult = await matchesApi.getActiveMatches(1, 20);
@@ -110,31 +110,10 @@ export const useArenaRealtime = () => {
 
     // Cleanup on unmount
     return () => {
-      signalRService.leaveGroup("lobby");
+      signalRService.leaveArena();
       isSubscribed.current = false;
     };
   }, [addFeedItemToTop, addMatch, updateMatch, removeMatch, setLoading]);
 
-  // Helper functions for match actions
-  const joinMatch = async (matchId: string) => {
-    try {
-      await signalRService.joinMatch(matchId);
-      setJoinModal(matchId);
-    } catch (error) {
-      console.error("Failed to join match:", error);
-    }
-  };
-
-  const leaveMatch = async (matchId: string) => {
-    try {
-      await signalRService.leaveMatch(matchId);
-    } catch (error) {
-      console.error("Failed to leave match:", error);
-    }
-  };
-
-  return {
-    joinMatch,
-    leaveMatch,
-  };
+  return {};
 };

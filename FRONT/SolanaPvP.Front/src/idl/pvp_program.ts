@@ -105,108 +105,6 @@ export type PvpProgram = {
       ]
     },
     {
-      "name": "fulfillRandomness",
-      "discriminator": [
-        235,
-        105,
-        140,
-        46,
-        40,
-        88,
-        117,
-        2
-      ],
-      "accounts": [
-        {
-          "name": "lobby",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  111,
-                  98,
-                  98,
-                  121
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "lobby.creator",
-                "account": "lobby"
-              },
-              {
-                "kind": "account",
-                "path": "lobby.lobby_id",
-                "account": "lobby"
-              }
-            ]
-          }
-        },
-        {
-          "name": "creator",
-          "writable": true
-        },
-        {
-          "name": "active",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  97,
-                  99,
-                  116,
-                  105,
-                  118,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "lobby.creator",
-                "account": "lobby"
-              }
-            ]
-          }
-        },
-        {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "vrf",
-          "writable": true
-        },
-        {
-          "name": "switchboardProgram",
-          "address": "6sjKhUwzNRtFh6EmC32GwNRH7v7vCjfgeWpxYEcdvEBL"
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "initConfig",
       "discriminator": [
         23,
@@ -454,49 +352,15 @@ export type PvpProgram = {
           }
         },
         {
+          "name": "randomnessAccountData",
+          "docs": [
+            "Switchboard OnDemand randomness account"
+          ],
+          "writable": true
+        },
+        {
           "name": "switchboardProgram",
-          "address": "6sjKhUwzNRtFh6EmC32GwNRH7v7vCjfgeWpxYEcdvEBL"
-        },
-        {
-          "name": "vrf",
-          "writable": true
-        },
-        {
-          "name": "oracleQueue",
-          "writable": true
-        },
-        {
-          "name": "queueAuthority"
-        },
-        {
-          "name": "permissionAccount",
-          "writable": true
-        },
-        {
-          "name": "escrowWallet",
-          "writable": true
-        },
-        {
-          "name": "payerWallet",
-          "writable": true
-        },
-        {
-          "name": "payerAuthority",
-          "signer": true
-        },
-        {
-          "name": "recentBlockhashes"
-        },
-        {
-          "name": "switchboardState"
-        },
-        {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "associatedTokenProgram",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          "address": "BeFxPRDreo8uLivyGgqDE87iGaU3o1Tw9hZw46NxYaej"
         },
         {
           "name": "systemProgram",
@@ -607,6 +471,100 @@ export type PvpProgram = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "resolveMatch",
+      "discriminator": [
+        73,
+        0,
+        15,
+        197,
+        178,
+        47,
+        21,
+        193
+      ],
+      "accounts": [
+        {
+          "name": "lobby",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  98,
+                  98,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "lobby"
+              },
+              {
+                "kind": "account",
+                "path": "lobby.lobby_id",
+                "account": "lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true
+        },
+        {
+          "name": "active",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -647,32 +605,6 @@ export type PvpProgram = {
         92,
         103,
         49
-      ]
-    },
-    {
-      "name": "oracleQueueAccountData",
-      "discriminator": [
-        164,
-        207,
-        200,
-        51,
-        199,
-        113,
-        35,
-        109
-      ]
-    },
-    {
-      "name": "permissionAccountData",
-      "discriminator": [
-        77,
-        37,
-        177,
-        164,
-        38,
-        39,
-        34,
-        109
       ]
     }
   ],
@@ -901,8 +833,12 @@ export type PvpProgram = {
             "type": "bool"
           },
           {
-            "name": "vrf",
+            "name": "randomnessAccount",
             "type": "pubkey"
+          },
+          {
+            "name": "winnerSide",
+            "type": "u8"
           },
           {
             "name": "team1",
@@ -1020,275 +956,6 @@ export type PvpProgram = {
       }
     },
     {
-      "name": "oracleQueueAccountData",
-      "serialization": "bytemuckunsafe",
-      "repr": {
-        "kind": "rust",
-        "packed": true
-      },
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "name",
-            "docs": [
-              "Name of the queue to store on-chain."
-            ],
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "metadata",
-            "docs": [
-              "Metadata of the queue to store on-chain."
-            ],
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "authority",
-            "docs": [
-              "The account delegated as the authority for making account changes or assigning permissions targeted at the queue."
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "oracleTimeout",
-            "docs": [
-              "Interval when stale oracles will be removed if they fail to heartbeat."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "reward",
-            "docs": [
-              "Rewards to provide oracles and round openers on this queue."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "minStake",
-            "docs": [
-              "The minimum amount of stake oracles must present to remain on the queue."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "slashingEnabled",
-            "docs": [
-              "Whether slashing is enabled on this queue."
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "varianceToleranceMultiplier",
-            "docs": [
-              "The tolerated variance amount oracle results can have from the accepted round result before being slashed.",
-              "slashBound = varianceToleranceMultiplier * stdDeviation Default: 2"
-            ],
-            "type": {
-              "defined": {
-                "name": "switchboardDecimal"
-              }
-            }
-          },
-          {
-            "name": "feedProbationPeriod",
-            "docs": [
-              "Number of update rounds new feeds are on probation for.",
-              "If a feed returns 429s within probation period, auto disable permissions."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "currIdx",
-            "docs": [
-              "Current index of the oracle rotation."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "size",
-            "docs": [
-              "Current number of oracles on a queue."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "gcIdx",
-            "docs": [
-              "Garbage collection index."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "consecutiveFeedFailureLimit",
-            "docs": [
-              "Consecutive failure limit for a feed before feed permission is revoked."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "consecutiveOracleFailureLimit",
-            "docs": [
-              "Consecutive failure limit for an oracle before oracle permission is revoked."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "unpermissionedFeedsEnabled",
-            "docs": [
-              "Enabling this setting means data feeds do not need explicit permission to join the queue and request new values from its oracles."
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "unpermissionedVrfEnabled",
-            "docs": [
-              "Enabling this setting means VRF accounts do not need explicit permission to join the queue and request new values from its oracles."
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "curatorRewardCut",
-            "docs": [
-              "TODO: Revenue percentage rewarded to job curators overall."
-            ],
-            "type": {
-              "defined": {
-                "name": "switchboardDecimal"
-              }
-            }
-          },
-          {
-            "name": "lockLeaseFunding",
-            "docs": [
-              "Prevent new leases from being funded n this queue.",
-              "Useful to turn down a queue for migrations, since authority is always immutable."
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "mint",
-            "docs": [
-              "Token mint used for the oracle queue rewards and slashing."
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "enableBufferRelayers",
-            "docs": [
-              "Whether oracles are permitted to fulfill buffer relayer update request."
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "ebuf",
-            "docs": [
-              "Reserved for future info."
-            ],
-            "type": {
-              "array": [
-                "u8",
-                968
-              ]
-            }
-          },
-          {
-            "name": "maxSize",
-            "docs": [
-              "Maximum number of oracles a queue can support."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "dataBuffer",
-            "docs": [
-              "The public key of the OracleQueueBuffer account holding a collection of Oracle pubkeys that haver successfully heartbeated before the queues `oracleTimeout`."
-            ],
-            "type": "pubkey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "permissionAccountData",
-      "serialization": "bytemuckunsafe",
-      "repr": {
-        "kind": "rust",
-        "packed": true
-      },
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "docs": [
-              "The authority that is allowed to set permissions for this account."
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "permissions",
-            "docs": [
-              "The SwitchboardPermission enumeration assigned by the granter to the grantee."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "granter",
-            "docs": [
-              "Public key of account that is granting permissions to use its resources."
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "grantee",
-            "docs": [
-              "Public key of account that is being assigned permissions to use a granters resources."
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "expiration",
-            "docs": [
-              "unused currently. may want permission PDA per permission for",
-              "unique expiration periods, BUT currently only one permission",
-              "per account makes sense for the infra. Dont over engineer."
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "bump",
-            "docs": [
-              "The PDA bump to derive the pubkey."
-            ],
-            "type": "u8"
-          },
-          {
-            "name": "ebuf",
-            "docs": [
-              "Reserved for future info."
-            ],
-            "type": {
-              "array": [
-                "u8",
-                255
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
       "name": "playerJoined",
       "type": {
         "kind": "struct",
@@ -1316,33 +983,6 @@ export type PvpProgram = {
           {
             "name": "isFull",
             "type": "bool"
-          }
-        ]
-      }
-    },
-    {
-      "name": "switchboardDecimal",
-      "serialization": "bytemuckunsafe",
-      "repr": {
-        "kind": "rust",
-        "packed": true
-      },
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "mantissa",
-            "docs": [
-              "The part of a floating-point number that represents the significant digits of that number, and that is multiplied by the base, 10, raised to the power of scale to give the actual value of the number."
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "scale",
-            "docs": [
-              "The number of decimal places to move to the left to yield the actual value."
-            ],
-            "type": "u32"
           }
         ]
       }

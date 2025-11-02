@@ -99,108 +99,6 @@
       ]
     },
     {
-      "name": "fulfill_randomness",
-      "discriminator": [
-        235,
-        105,
-        140,
-        46,
-        40,
-        88,
-        117,
-        2
-      ],
-      "accounts": [
-        {
-          "name": "lobby",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  111,
-                  98,
-                  98,
-                  121
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "lobby.creator",
-                "account": "Lobby"
-              },
-              {
-                "kind": "account",
-                "path": "lobby.lobby_id",
-                "account": "Lobby"
-              }
-            ]
-          }
-        },
-        {
-          "name": "creator",
-          "writable": true
-        },
-        {
-          "name": "active",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  97,
-                  99,
-                  116,
-                  105,
-                  118,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "lobby.creator",
-                "account": "Lobby"
-              }
-            ]
-          }
-        },
-        {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "vrf",
-          "writable": true
-        },
-        {
-          "name": "switchboard_program",
-          "address": "6sjKhUwzNRtFh6EmC32GwNRH7v7vCjfgeWpxYEcdvEBL"
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "init_config",
       "discriminator": [
         23,
@@ -343,49 +241,120 @@
           }
         },
         {
-          "name": "switchboard_program",
-          "address": "6sjKhUwzNRtFh6EmC32GwNRH7v7vCjfgeWpxYEcdvEBL"
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "side",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "join_side_final",
+      "discriminator": [
+        145,
+        130,
+        102,
+        65,
+        104,
+        78,
+        171,
+        113
+      ],
+      "accounts": [
+        {
+          "name": "lobby",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  98,
+                  98,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "account",
+                "path": "lobby.lobby_id",
+                "account": "Lobby"
+              }
+            ]
+          }
         },
         {
-          "name": "vrf",
-          "writable": true
+          "name": "creator",
+          "relations": [
+            "lobby"
+          ]
         },
         {
-          "name": "oracle_queue",
-          "writable": true
-        },
-        {
-          "name": "queue_authority"
-        },
-        {
-          "name": "permission_account",
-          "writable": true
-        },
-        {
-          "name": "escrow_wallet",
-          "writable": true
-        },
-        {
-          "name": "payer_wallet",
-          "writable": true
-        },
-        {
-          "name": "payer_authority",
+          "name": "player",
+          "writable": true,
           "signer": true
         },
         {
-          "name": "recent_blockhashes"
+          "name": "active",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "Lobby"
+              }
+            ]
+          }
         },
         {
-          "name": "switchboard_state"
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "randomness_account_data",
+          "docs": [
+            "Switchboard OnDemand randomness account"
+          ],
+          "writable": true
         },
         {
-          "name": "associated_token_program",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          "name": "switchboard_program",
+          "address": "BeFxPRDreo8uLivyGgqDE87iGaU3o1Tw9hZw46NxYaej"
         },
         {
           "name": "system_program",
@@ -496,6 +465,100 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "resolve_match",
+      "discriminator": [
+        73,
+        0,
+        15,
+        197,
+        178,
+        47,
+        21,
+        193
+      ],
+      "accounts": [
+        {
+          "name": "lobby",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  98,
+                  98,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "Lobby"
+              },
+              {
+                "kind": "account",
+                "path": "lobby.lobby_id",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true
+        },
+        {
+          "name": "active",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -537,31 +600,59 @@
         103,
         49
       ]
-    },
+    }
+  ],
+  "events": [
     {
-      "name": "OracleQueueAccountData",
+      "name": "LobbyCreated",
       "discriminator": [
-        164,
-        207,
-        200,
-        51,
-        199,
-        113,
-        35,
-        109
+        109,
+        169,
+        16,
+        50,
+        169,
+        242,
+        237,
+        65
       ]
     },
     {
-      "name": "PermissionAccountData",
+      "name": "LobbyRefunded",
       "discriminator": [
-        77,
         37,
-        177,
-        164,
-        38,
-        39,
+        99,
         34,
-        109
+        76,
+        175,
+        241,
+        3,
+        174
+      ]
+    },
+    {
+      "name": "LobbyResolved",
+      "discriminator": [
+        155,
+        179,
+        219,
+        168,
+        63,
+        242,
+        104,
+        137
+      ]
+    },
+    {
+      "name": "PlayerJoined",
+      "discriminator": [
+        39,
+        144,
+        49,
+        106,
+        108,
+        210,
+        183,
+        38
       ]
     }
   ],
@@ -650,6 +741,11 @@
       "code": 6016,
       "name": "NotPending",
       "msg": "Lobby not pending"
+    },
+    {
+      "code": 6017,
+      "name": "MustUseFinalJoin",
+      "msg": "Lobby is full - must use join_side_final instruction"
     }
   ],
   "types": [
@@ -731,8 +827,12 @@
             "type": "bool"
           },
           {
-            "name": "vrf",
+            "name": "randomness_account",
             "type": "pubkey"
+          },
+          {
+            "name": "winner_side",
+            "type": "u8"
           },
           {
             "name": "team1",
@@ -745,6 +845,86 @@
             "type": {
               "vec": "pubkey"
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "LobbyCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "lobby_id",
+            "type": "u64"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "stake_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "team_size",
+            "type": "u8"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LobbyRefunded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "refunded_count",
+            "type": "u8"
+          },
+          {
+            "name": "total_refunded",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LobbyResolved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "winner_side",
+            "type": "u8"
+          },
+          {
+            "name": "total_pot",
+            "type": "u64"
+          },
+          {
+            "name": "platform_fee",
+            "type": "u64"
+          },
+          {
+            "name": "payout_per_winner",
+            "type": "u64"
           }
         ]
       }
@@ -770,297 +950,33 @@
       }
     },
     {
-      "name": "OracleQueueAccountData",
-      "serialization": "bytemuckunsafe",
-      "repr": {
-        "kind": "rust",
-        "packed": true
-      },
+      "name": "PlayerJoined",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "name",
-            "docs": [
-              "Name of the queue to store on-chain."
-            ],
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "metadata",
-            "docs": [
-              "Metadata of the queue to store on-chain."
-            ],
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "authority",
-            "docs": [
-              "The account delegated as the authority for making account changes or assigning permissions targeted at the queue."
-            ],
+            "name": "lobby",
             "type": "pubkey"
           },
           {
-            "name": "oracle_timeout",
-            "docs": [
-              "Interval when stale oracles will be removed if they fail to heartbeat."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "reward",
-            "docs": [
-              "Rewards to provide oracles and round openers on this queue."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "min_stake",
-            "docs": [
-              "The minimum amount of stake oracles must present to remain on the queue."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "slashing_enabled",
-            "docs": [
-              "Whether slashing is enabled on this queue."
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "variance_tolerance_multiplier",
-            "docs": [
-              "The tolerated variance amount oracle results can have from the accepted round result before being slashed.",
-              "slashBound = varianceToleranceMultiplier * stdDeviation Default: 2"
-            ],
-            "type": {
-              "defined": {
-                "name": "SwitchboardDecimal"
-              }
-            }
-          },
-          {
-            "name": "feed_probation_period",
-            "docs": [
-              "Number of update rounds new feeds are on probation for.",
-              "If a feed returns 429s within probation period, auto disable permissions."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "curr_idx",
-            "docs": [
-              "Current index of the oracle rotation."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "size",
-            "docs": [
-              "Current number of oracles on a queue."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "gc_idx",
-            "docs": [
-              "Garbage collection index."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "consecutive_feed_failure_limit",
-            "docs": [
-              "Consecutive failure limit for a feed before feed permission is revoked."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "consecutive_oracle_failure_limit",
-            "docs": [
-              "Consecutive failure limit for an oracle before oracle permission is revoked."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "unpermissioned_feeds_enabled",
-            "docs": [
-              "Enabling this setting means data feeds do not need explicit permission to join the queue and request new values from its oracles."
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "unpermissioned_vrf_enabled",
-            "docs": [
-              "Enabling this setting means VRF accounts do not need explicit permission to join the queue and request new values from its oracles."
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "curator_reward_cut",
-            "docs": [
-              "TODO: Revenue percentage rewarded to job curators overall."
-            ],
-            "type": {
-              "defined": {
-                "name": "SwitchboardDecimal"
-              }
-            }
-          },
-          {
-            "name": "lock_lease_funding",
-            "docs": [
-              "Prevent new leases from being funded n this queue.",
-              "Useful to turn down a queue for migrations, since authority is always immutable."
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "mint",
-            "docs": [
-              "Token mint used for the oracle queue rewards and slashing."
-            ],
+            "name": "player",
             "type": "pubkey"
           },
           {
-            "name": "enable_buffer_relayers",
-            "docs": [
-              "Whether oracles are permitted to fulfill buffer relayer update request."
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "_ebuf",
-            "docs": [
-              "Reserved for future info."
-            ],
-            "type": {
-              "array": [
-                "u8",
-                968
-              ]
-            }
-          },
-          {
-            "name": "max_size",
-            "docs": [
-              "Maximum number of oracles a queue can support."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "data_buffer",
-            "docs": [
-              "The public key of the OracleQueueBuffer account holding a collection of Oracle pubkeys that haver successfully heartbeated before the queues `oracleTimeout`."
-            ],
-            "type": "pubkey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "PermissionAccountData",
-      "serialization": "bytemuckunsafe",
-      "repr": {
-        "kind": "rust",
-        "packed": true
-      },
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "docs": [
-              "The authority that is allowed to set permissions for this account."
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "permissions",
-            "docs": [
-              "The SwitchboardPermission enumeration assigned by the granter to the grantee."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "granter",
-            "docs": [
-              "Public key of account that is granting permissions to use its resources."
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "grantee",
-            "docs": [
-              "Public key of account that is being assigned permissions to use a granters resources."
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "expiration",
-            "docs": [
-              "unused currently. may want permission PDA per permission for",
-              "unique expiration periods, BUT currently only one permission",
-              "per account makes sense for the infra. Dont over engineer."
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "bump",
-            "docs": [
-              "The PDA bump to derive the pubkey."
-            ],
+            "name": "side",
             "type": "u8"
           },
           {
-            "name": "_ebuf",
-            "docs": [
-              "Reserved for future info."
-            ],
-            "type": {
-              "array": [
-                "u8",
-                255
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "SwitchboardDecimal",
-      "serialization": "bytemuckunsafe",
-      "repr": {
-        "kind": "rust",
-        "packed": true
-      },
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "mantissa",
-            "docs": [
-              "The part of a floating-point number that represents the significant digits of that number, and that is multiplied by the base, 10, raised to the power of scale to give the actual value of the number."
-            ],
-            "type": "i128"
+            "name": "team1_count",
+            "type": "u8"
           },
           {
-            "name": "scale",
-            "docs": [
-              "The number of decimal places to move to the left to yield the actual value."
-            ],
-            "type": "u32"
+            "name": "team2_count",
+            "type": "u8"
+          },
+          {
+            "name": "is_full",
+            "type": "bool"
           }
         ]
       }

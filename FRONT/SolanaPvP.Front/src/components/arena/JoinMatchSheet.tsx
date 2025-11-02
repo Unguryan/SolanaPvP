@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useArenaStore } from "@/store/arenaStore";
-import { useArenaRealtime } from "@/hooks/useArenaRealtime";
 import { GlowButton } from "@/components/ui/GlowButton";
 import {
   GlassCard,
@@ -21,7 +20,6 @@ export const JoinMatchSheet: React.FC<JoinMatchSheetProps> = ({
   onClose,
 }) => {
   const { joinModalMatchId, matches } = useArenaStore();
-  const { joinMatch } = useArenaRealtime();
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
 
@@ -62,11 +60,12 @@ export const JoinMatchSheet: React.FC<JoinMatchSheetProps> = ({
     setJoinError(null);
 
     try {
-      await joinMatch(match.id);
-      // Success - close modal and show success message
-      onClose();
-      // TODO: Show success toast/notification
-      console.log("Successfully joined match:", match.id);
+      // TODO: Implement blockchain join via useLobbyOperations
+      // For now, just show error message
+      setJoinError(
+        "Join match functionality is being implemented via blockchain"
+      );
+      console.log("Join match requested for:", match.id);
     } catch (error) {
       console.error("Failed to join match:", error);
       setJoinError(
