@@ -6,7 +6,6 @@ export class SignalRService {
   private connection: signalR.HubConnection | null = null;
   private reconnectAttempts = 0;
   private reconnectTimer: number | null = null;
-  private pingTimer: number | null = null;
 
   // Event handlers
   private eventHandlers: Map<string, Array<(data: unknown) => void>> =
@@ -108,7 +107,6 @@ export class SignalRService {
       console.log("SignalR reconnected:", connectionId);
       this.reconnectAttempts = 0;
       this.emit("reconnected", connectionId);
-      this.startPing();
     });
   }
 
@@ -125,7 +123,6 @@ export class SignalRService {
       await this.connection?.start();
       console.log("SignalR connected");
       this.emit("connected");
-      this.startPing();
     } catch (error) {
       console.error("SignalR connection failed:", error);
       this.emit("connectionFailed", error);
@@ -135,7 +132,6 @@ export class SignalRService {
 
   async disconnect(): Promise<void> {
     if (this.connection) {
-      this.stopPing();
       await this.connection.stop();
       this.connection = null;
     }
@@ -159,22 +155,6 @@ export class SignalRService {
     this.reconnectTimer = window.setTimeout(() => {
       this.connect();
     }, delay);
-  }
-
-  private startPing() {
-    this.stopPing();
-    this.pingTimer = window.setInterval(() => {
-      if (this.connection?.state === signalR.HubConnectionState.Connected) {
-        this.connection.invoke("Ping");
-      }
-    }, WEBSOCKET.PING_INTERVAL);
-  }
-
-  private stopPing() {
-    if (this.pingTimer) {
-      window.clearInterval(this.pingTimer);
-      this.pingTimer = null;
-    }
   }
 
   // Hub methods
@@ -203,18 +183,6 @@ export class SignalRService {
   }
 
   // Arena methods
-  async joinArena(): Promise<void> {
-    if (this.connection?.state === signalR.HubConnectionState.Connected) {
-      await this.connection.invoke("JoinArena");
-    }
-  }
-
-  async leaveArena(): Promise<void> {
-    if (this.connection?.state === signalR.HubConnectionState.Connected) {
-      await this.connection.invoke("LeaveArena");
-    }
-  }
-
   async getLatestFeed(): Promise<void> {
     if (this.connection?.state === signalR.HubConnectionState.Connected) {
       await this.connection.invoke("GetLatestFeed");

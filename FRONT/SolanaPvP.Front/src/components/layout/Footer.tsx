@@ -43,7 +43,7 @@ export const Footer: React.FC = () => {
               <ul className="space-y-2">
                 <li>
                   <a
-                    href="/arena"
+                    href="/matches"
                     className="text-txt-muted hover:text-sol-purple text-sm transition-colors"
                   >
                     Active Matches

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { usersApi } from "@/services/api/users";
+import { useWalletBalance } from "@/hooks/usePvpProgram";
 import type { UserProfile as APIUserProfile } from "@/types/user";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
@@ -12,12 +13,14 @@ import {
   GlassCardContent,
 } from "@/components/ui/GlassCard";
 import { GlowButton } from "@/components/ui/GlowButton";
+import { ChangeUsernameModal } from "@/components/profile/ChangeUsernameModal";
 import {
   TrophyIcon,
   ChartBarIcon,
   CurrencyDollarIcon,
   ClockIcon,
   StarIcon,
+  PencilIcon,
 } from "@heroicons/react/24/outline";
 
 // Helper functions
@@ -63,12 +66,20 @@ const formatTimeAgo = (timestamp: number | string) => {
 
 export const Profile: React.FC = () => {
   const { publicKey } = useWallet();
+  const { balance, refetch } = useWalletBalance();
   const [profile, setProfile] = useState<APIUserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "history" | "stats">(
     "overview"
   );
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+
+  const handleUsernameChange = (newUsername: string) => {
+    if (profile) {
+      setProfile({ ...profile, username: newUsername });
+    }
+  };
 
   useEffect(() => {
     if (!publicKey) {
@@ -85,6 +96,9 @@ export const Profile: React.FC = () => {
         // Fetch user profile (includes recentMatches)
         const userProfile = await usersApi.getUser(publicKey.toString());
         setProfile(userProfile);
+
+        // Fetch wallet balance
+        refetch();
       } catch (err: any) {
         console.error("Failed to load profile:", err);
         setError(err.message || "Failed to load profile");
@@ -94,7 +108,7 @@ export const Profile: React.FC = () => {
     };
 
     loadUserData();
-  }, [publicKey]);
+  }, [publicKey, refetch]);
 
   const formatWinRate = (rate: number) => {
     return `${(rate * 100).toFixed(1)}%`;
@@ -184,11 +198,28 @@ export const Profile: React.FC = () => {
                     {profile.username.charAt(0).toUpperCase()}
                   </span>
                 </div>
-                <h2 className="text-2xl font-display font-bold text-txt-base mb-2">
-                  {profile.username}
-                </h2>
-                <div className="text-xs text-txt-muted break-all px-4">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <h2 className="text-2xl font-display font-bold text-txt-base">
+                    {profile.username}
+                  </h2>
+                  <button
+                    onClick={() => setShowUsernameModal(true)}
+                    className="text-sol-purple hover:text-sol-mint transition-colors"
+                    title="Change username"
+                  >
+                    <PencilIcon className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="text-xs text-txt-muted break-all px-4 mb-3">
                   {publicKey.toString()}
+                </div>
+                <div className="text-center py-2 px-4 bg-sol-purple/10 border border-sol-purple/30 rounded-lg mx-4">
+                  <div className="text-xs text-txt-muted mb-1">
+                    Wallet Balance
+                  </div>
+                  <div className="text-lg font-bold text-sol-mint">
+                    {balance.toFixed(4)} SOL
+                  </div>
                 </div>
               </div>
 
@@ -237,13 +268,32 @@ export const Profile: React.FC = () => {
             {/* Tabs */}
             <div className="flex justify-center space-x-2 mb-6">
               {[
-                { id: "overview", label: "Overview", icon: ChartBarIcon },
-                { id: "history", label: "History", icon: ClockIcon },
-                { id: "stats", label: "Statistics", icon: TrophyIcon },
+                {
+                  id: "overview",
+                  label: "Overview",
+                  icon: ChartBarIcon,
+                  color: "purple",
+                },
+                {
+                  id: "history",
+                  label: "History",
+                  icon: ClockIcon,
+                  color: "blue",
+                },
+                {
+                  id: "stats",
+                  label: "Statistics",
+                  icon: TrophyIcon,
+                  color: "mint",
+                },
               ].map((tab) => (
                 <GlowButton
                   key={tab.id}
-                  variant={activeTab === tab.id ? "neon" : "ghost"}
+                  variant={
+                    activeTab === tab.id
+                      ? (tab.color as "purple" | "blue" | "mint")
+                      : "ghost"
+                  }
                   onClick={() =>
                     setActiveTab(tab.id as "overview" | "history" | "stats")
                   }
@@ -522,6 +572,14 @@ export const Profile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Change Username Modal */}
+      <ChangeUsernameModal
+        isOpen={showUsernameModal}
+        currentUsername={profile.username}
+        onClose={() => setShowUsernameModal(false)}
+        onSuccess={handleUsernameChange}
+      />
     </div>
   );
 };

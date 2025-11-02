@@ -12,7 +12,6 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { ROUTES } from "@/constants/routes";
 import { FunnelIcon, ClockIcon, PlusIcon } from "@heroicons/react/24/outline";
-import { MatchLobby } from "@/store/arenaStore";
 
 type GameModeFilter = "all" | "Pick3from9" | "Pick5from16" | "Pick1from3";
 type StakeFilter = "all" | "low" | "medium" | "high";
@@ -46,25 +45,8 @@ export const Matches: React.FC = () => {
     navigate(ROUTES.CREATE_LOBBY);
   };
 
-  // Add mock match for preview if no matches exist
-  const matchesWithMock = React.useMemo(() => {
-    if (matches.length === 0 && !isLoading) {
-      const mockMatch: MatchLobby = {
-        id: "mock-1",
-        stake: 2.5,
-        playersReady: 3,
-        playersMax: 6,
-        endsAt: Date.now() + 300000, // 5 minutes from now
-        gameMode: "Pick3from9",
-        matchType: "Duo",
-      };
-      return [mockMatch];
-    }
-    return matches;
-  }, [matches, isLoading]);
-
   // Filter only active matches (not full, not ended)
-  const activeMatches = matchesWithMock.filter((match) => {
+  const activeMatches = matches.filter((match) => {
     const now = Date.now();
     const timeLeft = match.endsAt - now;
     const isFull = match.playersReady >= match.playersMax;

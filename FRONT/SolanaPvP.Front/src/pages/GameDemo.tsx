@@ -36,9 +36,9 @@ export const GameDemo: React.FC = () => {
 
   const matchTypes: { type: MatchType; label: string; description: string }[] =
     [
-      { type: "Solo", label: "1v1", description: "Classic duel" },
-      { type: "Duo", label: "2v2", description: "Team battle" },
-      { type: "Team", label: "5v5", description: "Epic showdown" },
+      { type: "Solo", label: "1v1", description: "Solo" },
+      { type: "Duo", label: "2v2", description: "Duo" },
+      { type: "Team", label: "5v5", description: "Team" },
     ];
 
   const handleStartGame = () => {
@@ -124,14 +124,14 @@ export const GameDemo: React.FC = () => {
                     Choose Game Mode
                   </GlassCardTitle>
                 </GlassCardHeader>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div className="grid grid-cols-3 gap-4 mt-4">
                   {gameModes.map(({ mode, label, icon }, index) => {
                     const variants = [
-                      "neon",
+                      "orange",
                       "purple",
                       "mint",
-                      "orange",
                       "blue",
+                      "neon",
                     ];
                     const selectedVariant =
                       currentGameMode === mode ? variants[index] : "ghost";
@@ -165,7 +165,7 @@ export const GameDemo: React.FC = () => {
                     Match Type
                   </GlassCardTitle>
                 </GlassCardHeader>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div className="grid grid-cols-3 gap-4 mt-4">
                   {matchTypes.map(({ type, label, description }, index) => {
                     const variants = ["blue", "orange", "purple"];
                     const selectedVariant =

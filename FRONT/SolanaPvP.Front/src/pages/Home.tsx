@@ -23,16 +23,17 @@ export const Home: React.FC = () => {
       <main className="relative">
         {/* Desktop Layout (≥1024px) */}
         <div className="hidden lg:block">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="grid grid-cols-3 gap-8 min-h-[calc(100vh-8rem)]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            {/* Hero CTA at top */}
+            <div className="flex justify-center">
+              <HeroCTA />
+            </div>
+
+            {/* Live Feed and Matches in two columns below */}
+            <div className="grid grid-cols-2 gap-8">
               {/* Left Column - Live Feed */}
               <div className="space-y-6">
                 <LiveFeed className="h-fit" />
-              </div>
-
-              {/* Center Column - Hero CTA */}
-              <div className="flex items-center justify-center">
-                <HeroCTA />
               </div>
 
               {/* Right Column - Live Matches */}
@@ -51,14 +52,14 @@ export const Home: React.FC = () => {
               <HeroCTA />
             </div>
 
-            {/* Live Matches */}
-            <div id="matches-section">
-              <MatchesList />
-            </div>
-
-            {/* Live Feed */}
+            {/* Live Feed - первый ряд */}
             <div>
               <LiveFeed />
+            </div>
+
+            {/* Live Matches - второй ряд */}
+            <div id="matches-section">
+              <MatchesList />
             </div>
           </div>
         </div>

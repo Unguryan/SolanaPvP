@@ -79,7 +79,6 @@ export const useArenaRealtime = () => {
       try {
         setLoading(true);
         await signalRService.connect();
-        await signalRService.joinArena();
 
         // Load initial active matches from API
         const activeMatchesResult = await matchesApi.getActiveMatches(1, 20);
@@ -110,7 +109,8 @@ export const useArenaRealtime = () => {
 
     // Cleanup on unmount
     return () => {
-      signalRService.leaveArena();
+      // No need to call leaveArena - backend doesn't have this method
+      // SignalR will automatically disconnect when component unmounts
       isSubscribed.current = false;
     };
   }, [addFeedItemToTop, addMatch, updateMatch, removeMatch, setLoading]);

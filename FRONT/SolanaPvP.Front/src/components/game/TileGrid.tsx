@@ -77,7 +77,7 @@ export const TileGrid: React.FC<TileGridProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-3 gap-3 md:gap-4 p-2 w-full">
+    <div className="grid grid-cols-3 gap-3 md:gap-4 p-2">
       {tiles.map((tile, index) => (
         <div key={tile.index} className="relative">
           <motion.div

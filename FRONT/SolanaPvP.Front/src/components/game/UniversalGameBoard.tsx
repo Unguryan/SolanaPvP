@@ -521,9 +521,9 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
       )}
 
       {/* Game Grid */}
-      <div className="w-full">
+      <div className="flex justify-center">
         <motion.div
-          className="glass-card p-6 rounded-xl w-full"
+          className="glass-card p-6 rounded-xl w-fit"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}

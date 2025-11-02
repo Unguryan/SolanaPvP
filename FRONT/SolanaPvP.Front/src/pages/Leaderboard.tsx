@@ -1,13 +1,12 @@
 // Leaderboard page component
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { leaderboardApi } from "@/services/api/leaderboard";
 import {
-  mockLeaderboard,
-  getRankIcon,
-  getRankColor,
-  getWinRateColor,
-  getPnLColor,
-} from "@/lib/mockLeaderboard";
+  LeaderboardType,
+  LeaderboardPeriod,
+  LeaderboardEntry,
+} from "@/types/leaderboard";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
   GlassCard,
@@ -17,36 +16,94 @@ import {
 import { GlowButton } from "@/components/ui/GlowButton";
 import { TrophyIcon, UserGroupIcon } from "@heroicons/react/24/outline";
 
+// Helper functions
+const getRankIcon = (rank: number) => {
+  switch (rank) {
+    case 1:
+      return "🥇";
+    case 2:
+      return "🥈";
+    case 3:
+      return "🥉";
+    default:
+      return "";
+  }
+};
+
+const getRankColor = (rank: number) => {
+  switch (rank) {
+    case 1:
+      return "text-yellow-400";
+    case 2:
+      return "text-gray-400";
+    case 3:
+      return "text-orange-400";
+    default:
+      return "text-txt-base";
+  }
+};
+
+const getWinRateColor = (rate: number) => {
+  if (rate >= 0.7) return "text-sol-mint";
+  if (rate >= 0.5) return "text-blue-400";
+  if (rate >= 0.3) return "text-yellow-400";
+  return "text-red-400";
+};
+
+const getPnLColor = (pnl: number) => {
+  if (pnl > 0) return "text-sol-mint";
+  if (pnl < 0) return "text-red-400";
+  return "text-txt-muted";
+};
+
 export const Leaderboard: React.FC = () => {
-  const [leaderboard] = useState(mockLeaderboard);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState<"month" | "allTime">("allTime");
 
   useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+    const loadLeaderboard = async () => {
+      try {
+        setIsLoading(true);
+        const period =
+          timeFilter === "month"
+            ? LeaderboardPeriod.Monthly
+            : LeaderboardPeriod.AllTime;
+        const result = await leaderboardApi.getLeaderboard(
+          LeaderboardType.WinRate,
+          period,
+          1,
+          50
+        );
+        setLeaderboard(result.entries);
+      } catch (err: any) {
+        console.error("Failed to load leaderboard:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    return () => clearTimeout(timer);
-  }, []);
+    loadLeaderboard();
+  }, [timeFilter]);
 
-  // Sort by rank always
-  const sortedLeaderboard = [...leaderboard].sort((a, b) => {
-    return a.rank - b.rank;
-  });
-
-  // Filter by time period if needed (for now just return all)
-  const filteredLeaderboard = sortedLeaderboard;
+  const filteredLeaderboard = leaderboard;
 
   const formatWinRate = (rate: number) => {
     return `${(rate * 100).toFixed(1)}%`;
   };
 
-  const formatPnL = (pnl: number) => {
-    const sign = pnl >= 0 ? "+" : "";
-    return `${sign}${pnl.toFixed(1)} SOL`;
+  const formatPnL = (earnings: number) => {
+    // Convert lamports to SOL
+    const sol = earnings / 1000000000;
+    const sign = sol >= 0 ? "+" : "";
+    return `${sign}${sol.toFixed(2)} SOL`;
   };
+
+  const totalPlayers = leaderboard.length;
+  const totalGamesPlayed = leaderboard.reduce(
+    (sum, p) => sum + p.totalMatches,
+    0
+  );
 
   if (isLoading) {
     return (
@@ -93,7 +150,7 @@ export const Leaderboard: React.FC = () => {
           <GlassCard className="p-3 md:p-4 text-center">
             <TrophyIcon className="w-5 h-5 md:w-8 md:h-8 text-sol-mint mx-auto mb-2" />
             <div className="text-lg md:text-2xl font-bold text-txt-base">
-              {leaderboard.length}
+              {totalPlayers}
             </div>
             <div className="text-xs md:text-sm text-txt-muted">
               Total Players
@@ -102,7 +159,7 @@ export const Leaderboard: React.FC = () => {
           <GlassCard className="p-3 md:p-4 text-center">
             <UserGroupIcon className="w-5 h-5 md:w-8 md:h-8 text-sol-purple mx-auto mb-2" />
             <div className="text-lg md:text-2xl font-bold text-txt-base">
-              {leaderboard.reduce((sum, p) => sum + p.gamesPlayed, 0)}
+              {totalGamesPlayed}
             </div>
             <div className="text-xs md:text-sm text-txt-muted">
               Games Played
@@ -167,7 +224,7 @@ export const Leaderboard: React.FC = () => {
               <tbody>
                 {filteredLeaderboard.map((player, index) => (
                   <motion.tr
-                    key={player.id}
+                    key={player.pubkey}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
@@ -190,20 +247,17 @@ export const Leaderboard: React.FC = () => {
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 bg-gradient-to-r from-sol-purple to-sol-mint rounded-full flex items-center justify-center mr-3">
-                          <span className="text-white font-bold text-sm">
-                            {player.username.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <span className="text-txt-base font-medium">
-                          {player.username}
-                        </span>
-                      </div>
+                      <span className="text-txt-base font-medium">
+                        {player.username ||
+                          `${player.pubkey.slice(0, 6)}...${player.pubkey.slice(
+                            -4
+                          )}`}
+                      </span>
                     </td>
                     <td className="py-4 px-6 text-right">
                       <span className="text-txt-base">
-                        {player.totalWins}/{player.totalLosses}
+                        {player.wonMatches}/
+                        {player.totalMatches - player.wonMatches}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-right">
@@ -218,10 +272,10 @@ export const Leaderboard: React.FC = () => {
                     <td className="py-4 px-6 text-right">
                       <span
                         className={`font-semibold ${getPnLColor(
-                          player.totalPnL
+                          player.totalEarnings
                         )}`}
                       >
-                        {formatPnL(player.totalPnL)}
+                        {formatPnL(player.totalEarnings)}
                       </span>
                     </td>
                   </motion.tr>
@@ -234,7 +288,7 @@ export const Leaderboard: React.FC = () => {
           <div className="md:hidden space-y-4 md:p-6">
             {filteredLeaderboard.map((player, index) => (
               <motion.div
-                key={player.id}
+                key={player.pubkey}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
@@ -251,17 +305,20 @@ export const Leaderboard: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-txt-base font-medium">
-                        {player.username}
+                        {player.username ||
+                          `${player.pubkey.slice(0, 6)}...${player.pubkey.slice(
+                            -4
+                          )}`}
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
                     <div
                       className={`text-lg font-bold ${getPnLColor(
-                        player.totalPnL
+                        player.totalEarnings
                       )}`}
                     >
-                      {formatPnL(player.totalPnL)}
+                      {formatPnL(player.totalEarnings)}
                     </div>
                   </div>
                 </div>
@@ -269,7 +326,8 @@ export const Leaderboard: React.FC = () => {
                   <div>
                     <div className="text-txt-muted">W/L</div>
                     <div className="text-txt-base font-medium">
-                      {player.totalWins}/{player.totalLosses}
+                      {player.wonMatches}/
+                      {player.totalMatches - player.wonMatches}
                     </div>
                   </div>
                   <div className="text-right">

@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "devBuild": "tsc -b && vite build --mode development --outDir ../../API/SolanaPvP.API_Project/wwwroot",
-    "relBuild": "tsc -b && vite build --mode production --outDir ../../API/SolanaPvP.API_Project/wwwroot",
+    "clean": "node -e \"const fs = require('fs'); const path = require('path'); const dir = path.join(__dirname, '../../API/SolanaPvP.API_Project/wwwroot'); if (fs.existsSync(dir)) { fs.rmSync(dir, { recursive: true, force: true }); console.log('wwwroot cleaned'); }\"",
+    "devBuild": "node -e \"const fs = require('fs'); const path = require('path'); const dir = path.join(__dirname, '../../API/SolanaPvP.API_Project/wwwroot'); if (fs.existsSync(dir)) { fs.rmSync(dir, { recursive: true, force: true }); console.log('wwwroot cleaned'); }\" && tsc -b && vite build --mode development --outDir ../../API/SolanaPvP.API_Project/wwwroot",
+    "relBuild": "node -e \"const fs = require('fs'); const path = require('path'); const dir = path.join(__dirname, '../../API/SolanaPvP.API_Project/wwwroot'); if (fs.existsSync(dir)) { fs.rmSync(dir, { recursive: true, force: true }); console.log('wwwroot cleaned'); }\" && tsc -b && vite build --mode production --outDir ../../API/SolanaPvP.API_Project/wwwroot",
     "lint": "eslint .",
     "preview": "vite preview"
   },

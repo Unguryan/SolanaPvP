@@ -77,7 +77,7 @@ export const ChestGrid: React.FC<ChestGridProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-4 gap-2 md:gap-3 p-2 w-full">
+    <div className="grid grid-cols-4 gap-2 md:gap-3 p-2">
       {tiles.map((tile, index) => (
         <div key={tile.index} className="relative">
           <motion.div

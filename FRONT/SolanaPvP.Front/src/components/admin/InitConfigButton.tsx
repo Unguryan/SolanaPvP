@@ -1,11 +1,13 @@
 import React from "react";
 import { useInitConfig, useGlobalConfig } from "@/hooks/usePvpProgram";
+import { getSolanaConfig } from "@/services/solana/config";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { Button } from "@/components/common/Button";
 
 /**
  * Component for initializing the global config of the PvP program.
  * This should only be used once after deploying the program.
+ * Only shown on devnet.
  */
 export const InitConfigButton: React.FC = () => {
   const {
@@ -23,6 +25,15 @@ export const InitConfigButton: React.FC = () => {
       refetch();
     }, 2000);
   };
+
+  // Get current network
+  const solanaConfig = getSolanaConfig();
+  const isDevnet = solanaConfig.cluster === "devnet";
+
+  // Hide entire component on mainnet
+  if (!isDevnet) {
+    return null;
+  }
 
   // Config already exists
   if (config) {

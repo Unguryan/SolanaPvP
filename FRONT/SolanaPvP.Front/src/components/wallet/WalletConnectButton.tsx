@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useWalletUser } from "@/hooks/useWallet";
+import { useWalletBalance } from "@/hooks/usePvpProgram";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Toast } from "@/components/ui/Toast";
@@ -24,10 +25,29 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
   const navigate = useNavigate();
   const { connected, connecting, wallets, user, connect, disconnect } =
     useWalletUser();
+  const { balance, refetch } = useWalletBalance();
 
   const [showWalletSelector, setShowWalletSelector] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showToast, setShowToast] = useState(false);
+
+  // Fetch balance on mount and when connected
+  useEffect(() => {
+    if (connected) {
+      refetch();
+    }
+  }, [connected, refetch]);
+
+  // Auto-refresh balance every 30 seconds
+  useEffect(() => {
+    if (!connected) return;
+
+    const interval = setInterval(() => {
+      refetch();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [connected, refetch]);
 
   // Disable body scroll when modal is open
   useEffect(() => {
@@ -80,32 +100,23 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
     return (
       <div className={`relative ${className}`}>
         {/* Connected User Button */}
-        <GlowButton
-          variant="neon"
+        <button
           onClick={handleConnectClick}
-          className="flex items-center gap-2 min-w-0 px-3 py-2 text-sm"
+          className="flex items-center gap-3 px-4 py-1.5 border border-sol-purple rounded-lg bg-bg/80 backdrop-blur-sm shadow-glow-purple hover:shadow-glow-strong transition-all duration-300"
         >
-          <div className="w-6 h-6 bg-gradient-to-r from-sol-purple to-sol-mint rounded-full flex items-center justify-center">
-            <UserIcon className="w-4 h-4 text-white" />
-          </div>
           <div className="flex flex-col min-w-0 flex-1 overflow-hidden text-left">
             <span
-              className="text-sm font-medium truncate"
+              className="text-sm font-medium text-txt-base truncate"
               title={user.profile.username || "Loading..."}
             >
               {user.profile.username || "Loading..."}
             </span>
-            <span className="text-xs opacity-80 truncate">
-              {user.profile.pubkey
-                ? `${user.profile.pubkey.slice(
-                    0,
-                    6
-                  )}...${user.profile.pubkey.slice(-6)}`
-                : "Loading..."}
+            <span className="text-xs text-txt-muted truncate">
+              {balance.toFixed(2)} SOL
             </span>
           </div>
-          <ChevronDownIcon className="w-4 h-4" />
-        </GlowButton>
+          <ChevronDownIcon className="w-4 h-4 text-sol-purple" />
+        </button>
 
         {/* Dropdown Menu */}
         {showDropdown && (

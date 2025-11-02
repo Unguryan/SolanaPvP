@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useArenaStore } from "@/store/arenaStore";
 
 interface TickerItem {
   id: string;
@@ -12,33 +13,6 @@ interface TickerProps {
   pauseOnHover?: boolean;
 }
 
-const defaultTickerItems: TickerItem[] = [
-  { id: "1", text: "🎉 gm001 won 3.6 SOL in Pick3from9", type: "win" },
-  { id: "2", text: "⚡ solplayer joined a 5.2 SOL match", type: "join" },
-  { id: "3", text: "🏆 crypto_king won 2.1 SOL in Pick1from3", type: "win" },
-  {
-    id: "4",
-    text: "🔥 blockchain_boss won 7.8 SOL in Pick3from9",
-    type: "win",
-  },
-  { id: "5", text: "💎 defi_master joined a 4.3 SOL match", type: "join" },
-  { id: "6", text: "🚀 nft_hunter won 1.9 SOL in Pick1from3", type: "win" },
-  { id: "7", text: "⚔️ web3_warrior won 6.7 SOL in Pick3from9", type: "win" },
-  { id: "8", text: "🎯 solana_sniper joined a 3.2 SOL match", type: "join" },
-  {
-    id: "9",
-    text: "💫 metaverse_mogul won 8.1 SOL in Pick1from3",
-    type: "win",
-  },
-  { id: "10", text: "🌟 dao_destroyer won 2.8 SOL in Pick3from9", type: "win" },
-  { id: "11", text: "🌾 yield_farmer joined a 5.5 SOL match", type: "join" },
-  {
-    id: "12",
-    text: "💧 liquidity_lord won 4.7 SOL in Pick5from16",
-    type: "win",
-  },
-];
-
 export const Ticker: React.FC<TickerProps> = ({
   className = "",
   speed = 230,
@@ -46,7 +20,36 @@ export const Ticker: React.FC<TickerProps> = ({
 }) => {
   const [isPaused, setIsPaused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const itemsRef = useRef(defaultTickerItems);
+  const { feed } = useArenaStore();
+
+  // Convert feed items to ticker items and memoize
+  const displayTickerItems = useMemo(() => {
+    const tickerItems: TickerItem[] = feed.map((item) => ({
+      id: item.id,
+      text: `🎉 ${item.username} won ${item.solAmount.toFixed(2)} SOL in ${
+        item.gameMode
+      }`,
+      type: "win" as const,
+    }));
+
+    // If no feed items yet, show a placeholder message
+    return tickerItems.length > 0
+      ? tickerItems
+      : [
+          {
+            id: "placeholder",
+            text: "🎮 Welcome to Solana PvP Arena - Live matches will appear here",
+            type: "info" as const,
+          },
+        ];
+  }, [feed]);
+
+  const itemsRef = useRef(displayTickerItems);
+
+  // Update itemsRef when feed changes
+  useEffect(() => {
+    itemsRef.current = displayTickerItems;
+  }, [displayTickerItems]);
 
   const handleMouseEnter = () => {
     if (pauseOnHover) {

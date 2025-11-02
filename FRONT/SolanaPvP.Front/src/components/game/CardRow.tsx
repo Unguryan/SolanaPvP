@@ -77,7 +77,7 @@ export const CardRow: React.FC<CardRowProps> = ({
   };
 
   return (
-    <div className="flex justify-center gap-4 md:gap-6 p-2 w-full">
+    <div className="flex justify-center gap-4 md:gap-6 p-2">
       {tiles.map((tile, index) => (
         <div key={tile.index} className="relative">
           <motion.div
