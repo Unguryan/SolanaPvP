@@ -152,10 +152,28 @@ export class PvpInstructions {
           "[JoinLobby] Using join_side_final (with OnDemand randomness)"
         );
 
-        // Switchboard OnDemand - only need randomness account (much simpler than V2!)
-        // Randomness account should be created through Switchboard OnDemand dashboard
-        // For devnet testing: use lobby PDA as placeholder (will need proper randomness account later)
-        const randomnessAccount = params.vrfAccount || params.lobbyPda;
+        // Get randomness account from backend pool
+        const { randomnessApi } = await import("../api/randomness");
+        let randomnessAccountStr: string;
+
+        try {
+          const response = await randomnessApi.getAvailableAccount();
+          randomnessAccountStr = response.randomnessAccount;
+          console.log(
+            "[JoinLobby] Allocated randomness account from pool:",
+            randomnessAccountStr
+          );
+        } catch (err) {
+          console.error(
+            "[JoinLobby] Failed to get randomness account from pool:",
+            err
+          );
+          throw new Error(
+            "Failed to allocate randomness account. Please try again later."
+          );
+        }
+
+        const randomnessAccount = new PublicKey(randomnessAccountStr);
 
         // Get Switchboard program ID from config
         const switchboardProgramId = new PublicKey(

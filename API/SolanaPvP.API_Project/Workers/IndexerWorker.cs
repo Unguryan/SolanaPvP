@@ -195,13 +195,15 @@ public class IndexerWorker : BackgroundService
         var match = new Match
         {
             MatchPda = parsedEvent.MatchPda,
+            CreatorPubkey = matchData.Creator,
             GameMode = matchData.GameMode,
             MatchType = matchData.MatchType,
             StakeLamports = matchData.StakeLamports,
             Status = MatchStatus.Waiting,
             DeadlineTs = matchData.DeadlineTs,
             CreateTx = signature,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            RandomnessAccount = null // Will be set when lobby becomes full
         };
 
         await matchRepository.CreateAsync(match);
@@ -270,6 +272,15 @@ public class IndexerWorker : BackgroundService
         match.Status = MatchStatus.AwaitingRandomness;
         match.JoinedAt = DateTime.UtcNow;
         match.JoinTx = signature;
+        
+        // Save randomness account if lobby is full
+        if (joinData.IsFull && !string.IsNullOrWhiteSpace(joinData.RandomnessAccount))
+        {
+            match.RandomnessAccount = joinData.RandomnessAccount;
+            _logger.LogInformation("[ProcessMatchJoined] Saved randomness account {Account} for match {MatchPda}", 
+                joinData.RandomnessAccount, match.MatchPda);
+        }
+        
         await matchRepository.UpdateAsync(match);
 
         // Create joiner participant
@@ -423,6 +434,8 @@ public class MatchCreatedData
 public class MatchJoinedData
 {
     public string Player { get; set; } = string.Empty;
+    public string? RandomnessAccount { get; set; }
+    public bool IsFull { get; set; }
 }
 
 public class MatchResolvedData

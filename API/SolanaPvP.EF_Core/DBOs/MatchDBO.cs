@@ -7,12 +7,14 @@ namespace SolanaPvP.EF_Core.DBOs;
 public class MatchDBO
 {
     public string MatchPda { get; set; } = string.Empty;
+    public string CreatorPubkey { get; set; } = string.Empty;
     public GameModeType GameMode { get; set; }
     public SolanaPvP.Domain.Enums.MatchType MatchType { get; set; }
     public long StakeLamports { get; set; }
     public MatchStatus Status { get; set; }
     public long DeadlineTs { get; set; }
     public int? WinnerSide { get; set; }
+    public string? RandomnessAccount { get; set; }
     public string CreateTx { get; set; } = string.Empty;
     public string? JoinTx { get; set; }
     public string? PayoutTx { get; set; }

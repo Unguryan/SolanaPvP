@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefundTaskRepository, RefundTaskRepository>();
         services.AddScoped<IMatchInvitationRepository, MatchInvitationRepository>();
+        services.AddScoped<IRandomnessPoolRepository, RandomnessPoolRepository>();
 
         return services;
     }

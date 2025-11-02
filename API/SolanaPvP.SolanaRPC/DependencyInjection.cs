@@ -26,6 +26,8 @@ public static class DependencyInjection
         services.AddScoped<IRefundSender, RefundSender>();
         services.AddScoped<IResolveSender, ResolveSender>();
         services.AddScoped<ISwitchboardClient, SwitchboardClient>();
+        services.AddScoped<ISwitchboardApiClient, SwitchboardApiClient>();
+        services.AddScoped<ManualRefundHelper>(); // Helper for manual refunds
         services.AddSingleton<IWsSubscriber, WsSubscriber>();
 
         return services;

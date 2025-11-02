@@ -1,6 +1,9 @@
 using SolanaPvP.Application.Interfaces.Repositories;
+using SolanaPvP.Application.Interfaces.Services;
 using SolanaPvP.Application.Interfaces.SolanaRPC;
 using SolanaPvP.Domain.Enums;
+using Microsoft.Extensions.Options;
+using SolanaPvP.Domain.Settings;
 
 namespace SolanaPvP.API_Project.Workers;
 
@@ -8,14 +11,18 @@ public class ResolveBotWorker : BackgroundService
 {
     private readonly ILogger<ResolveBotWorker> _logger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly SwitchboardSettings _switchboardSettings;
     private const int CHECK_PERIOD_SECONDS = 5; // Check every 5 seconds
+    private readonly HashSet<string> _commitedRandomness = new(); // Track committed randomness accounts
 
     public ResolveBotWorker(
         ILogger<ResolveBotWorker> logger,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        IOptions<SwitchboardSettings> switchboardSettings)
     {
         _logger = logger;
         _serviceProvider = serviceProvider;
+        _switchboardSettings = switchboardSettings.Value;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -50,6 +57,8 @@ public class ResolveBotWorker : BackgroundService
         var matchRepository = scope.ServiceProvider.GetRequiredService<IMatchRepository>();
         var resolveSender = scope.ServiceProvider.GetRequiredService<IResolveSender>();
         var switchboardClient = scope.ServiceProvider.GetRequiredService<ISwitchboardClient>();
+        var switchboardApi = scope.ServiceProvider.GetRequiredService<ISwitchboardApiClient>();
+        var poolService = scope.ServiceProvider.GetRequiredService<IRandomnessPoolService>();
 
         // Get matches with AwaitingRandomness status
         var pendingMatches = await matchRepository.GetMatchesAsync(
@@ -64,9 +73,32 @@ public class ResolveBotWorker : BackgroundService
             {
                 _logger.LogInformation("[ResolveBotWorker] Processing match {MatchPda} for resolution", match.MatchPda);
 
-                // For MVP: Use match PDA as randomness account (as passed in join_side_final)
-                // In production: Store the actual randomness account in match or fetch from blockchain
-                var randomnessAccount = match.MatchPda; // Placeholder - will use lobby PDA
+                // Get randomness account from match (saved during PlayerJoined event)
+                var randomnessAccount = match.RandomnessAccount;
+                
+                if (string.IsNullOrWhiteSpace(randomnessAccount))
+                {
+                    _logger.LogWarning("[ResolveBotWorker] Match {MatchPda} has no randomness account, skipping", match.MatchPda);
+                    continue;
+                }
+
+                // Commit randomness if not already committed
+                if (!_commitedRandomness.Contains(randomnessAccount))
+                {
+                    _logger.LogInformation("[ResolveBotWorker] Committing randomness for account {Account}", randomnessAccount);
+                    var committed = await switchboardApi.CommitRandomnessAsync(randomnessAccount);
+                    
+                    if (committed)
+                    {
+                        _commitedRandomness.Add(randomnessAccount);
+                        _logger.LogInformation("[ResolveBotWorker] Randomness committed for {Account}", randomnessAccount);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[ResolveBotWorker] Failed to commit randomness for {Account}, will retry", randomnessAccount);
+                        continue;
+                    }
+                }
 
                 // Check if randomness is ready from Switchboard
                 var isReady = await switchboardClient.IsRandomnessReadyAsync(randomnessAccount);
@@ -84,6 +116,10 @@ public class ResolveBotWorker : BackgroundService
                 
                 _logger.LogInformation("[ResolveBotWorker] ✅ Resolve transaction sent for match {MatchPda}: {TxSignature}", 
                     match.MatchPda, resolveTx);
+                
+                // Return randomness account to pool with cooldown
+                await poolService.ReturnAccountAsync(randomnessAccount, _switchboardSettings.CooldownMinutes);
+                _logger.LogInformation("[ResolveBotWorker] Randomness account {Account} returned to pool", randomnessAccount);
                 
                 // Note: Match status will be updated by IndexerWorker when it receives the LobbyResolved event
             }

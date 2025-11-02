@@ -15,6 +15,7 @@ public class SolanaPvPDbContext : DbContext
     public DbSet<RefundTaskDBO> RefundTasks { get; set; }
     public DbSet<UserDBO> Users { get; set; }
     public DbSet<MatchInvitationDBO> MatchInvitations { get; set; }
+    public DbSet<RandomnessPoolDBO> RandomnessPool { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -123,6 +124,16 @@ public class SolanaPvPDbContext : DbContext
                 .WithOne(m => m.Invitation)
                 .HasForeignKey<MatchInvitationDBO>(e => e.MatchPda)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // RandomnessPool configuration
+        modelBuilder.Entity<RandomnessPoolDBO>(entity =>
+        {
+            entity.HasKey(e => e.AccountPubkey);
+            entity.Property(e => e.AccountPubkey).HasMaxLength(44);
+            
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CooldownUntil);
         });
     }
 }

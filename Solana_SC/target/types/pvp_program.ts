@@ -105,6 +105,104 @@ export type PvpProgram = {
       ]
     },
     {
+      "name": "forceRefund",
+      "discriminator": [
+        127,
+        173,
+        30,
+        92,
+        164,
+        123,
+        109,
+        177
+      ],
+      "accounts": [
+        {
+          "name": "lobby",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  98,
+                  98,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "lobby"
+              },
+              {
+                "kind": "account",
+                "path": "lobby.lobby_id",
+                "account": "lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true
+        },
+        {
+          "name": "requester",
+          "signer": true
+        },
+        {
+          "name": "active",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initConfig",
       "discriminator": [
         23,
@@ -1006,6 +1104,10 @@ export type PvpProgram = {
           {
             "name": "isFull",
             "type": "bool"
+          },
+          {
+            "name": "randomnessAccount",
+            "type": "pubkey"
           }
         ]
       }

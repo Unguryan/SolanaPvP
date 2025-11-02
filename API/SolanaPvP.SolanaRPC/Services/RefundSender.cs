@@ -110,6 +110,39 @@ public class RefundSender : IRefundSender
         }
     }
 
+    public async Task<string> SendRefundUnsafeAsync(string lobbyPda, string creator, List<string> participants)
+    {
+        try
+        {
+            _logger.LogWarning("[RefundSender] UNSAFE MODE: Sending refund with manual parameters for {LobbyPda}", lobbyPda);
+
+            // Prepare parameters for Node.js script
+            var participantsJson = JsonConvert.SerializeObject(participants);
+            
+            var args = new[]
+            {
+                lobbyPda,                              // lobbyPda
+                creator,                               // creator
+                participantsJson,                      // participants as JSON
+                _solanaSettings.AdminKeypairPath,      // keypairPath
+                _solanaSettings.RpcPrimaryUrl,         // rpcUrl
+                _solanaSettings.ProgramId              // programId
+            };
+
+            // Execute Node.js script
+            var signature = await _nodeExecutor.ExecuteAsync("send-refund.js", args);
+            
+            _logger.LogInformation("[RefundSender] ✅ UNSAFE refund transaction sent: {Signature}", signature);
+            
+            return signature;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[RefundSender] Failed to send unsafe refund for {LobbyPda}", lobbyPda);
+            throw;
+        }
+    }
+
     private class LobbyData
     {
         public string Creator { get; set; } = string.Empty;

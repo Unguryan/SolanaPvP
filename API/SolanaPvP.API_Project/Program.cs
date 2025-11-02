@@ -27,6 +27,7 @@ builder.Services.AddSolanaRPC();
 builder.Services.AddHostedService<IndexerWorker>();
 builder.Services.AddHostedService<RefundBotWorker>();
 builder.Services.AddHostedService<ResolveBotWorker>();
+builder.Services.AddHostedService<RandomnessPoolWorker>();
 
 var app = builder.Build();
 
@@ -82,6 +83,37 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<SolanaPvP.EF_Core.Context.SolanaPvPDbContext>();
     context.Database.EnsureCreated();
-} 
+}
+
+// Manual refund helper (for testing/debugging specific lobbies)
+// Uncomment to manually trigger refund for a specific lobby
+
+//_ = Task.Run(async () =>
+//{
+//    await Task.Delay(5000); // Wait 5 seconds for services to initialize
+    
+//    using var scope = app.Services.CreateScope();
+//    var refundHelper = scope.ServiceProvider.GetRequiredService<SolanaPvP.SolanaRPC.Services.ManualRefundHelper>();
+    
+//    try
+//    {
+//        // Refund for lobby 4fkF3eR4UVunpoGxop2LNcxPjDmfrsEzbp1W8eeGy3x2
+//        var lobbyPda = "4fkF3eR4UVunpoGxop2LNcxPjDmfrsEzbp1W8eeGy3x2";
+//        var creator = "4P3eFwhmBt6H8VbMWsnCHv8MZFmKqmKbtmtfA7eupvE8"; // From CreateLobby tx
+//        var participants = new List<string> 
+//        { 
+//            "4P3eFwhmBt6H8VbMWsnCHv8MZFmKqmKbtmtfA7eupvE8", // Team 1 (creator)
+//            "AdJeQDaZGf2AQB1MT3Fvk1GjpmuPpKXnchrFiWnbcXvn"  // Team 2 (joiner)
+//        };
+        
+//        var signature = await refundHelper.RefundLobbyUnsafeAsync(lobbyPda, creator, participants);
+//        Console.WriteLine($"✅ Manual refund completed: {signature}");
+//    }
+//    catch (Exception ex)
+//    {
+//        Console.WriteLine($"❌ Manual refund failed: {ex.Message}");
+//    }
+//});
+
 
 app.Run();

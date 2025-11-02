@@ -10,12 +10,14 @@ public static class MatchMapper
         return new Match
         {
             MatchPda = dbo.MatchPda,
+            CreatorPubkey = dbo.CreatorPubkey,
             GameMode = dbo.GameMode,
             MatchType = dbo.MatchType,
             StakeLamports = dbo.StakeLamports,
             Status = dbo.Status,
             DeadlineTs = dbo.DeadlineTs,
             WinnerSide = dbo.WinnerSide,
+            RandomnessAccount = dbo.RandomnessAccount,
             CreateTx = dbo.CreateTx,
             JoinTx = dbo.JoinTx,
             PayoutTx = dbo.PayoutTx,
@@ -35,12 +37,14 @@ public static class MatchMapper
         return new MatchDBO
         {
             MatchPda = domain.MatchPda,
+            CreatorPubkey = domain.CreatorPubkey,
             GameMode = domain.GameMode,
             MatchType = domain.MatchType,
             StakeLamports = domain.StakeLamports,
             Status = domain.Status,
             DeadlineTs = domain.DeadlineTs,
             WinnerSide = domain.WinnerSide,
+            RandomnessAccount = domain.RandomnessAccount,
             CreateTx = domain.CreateTx,
             JoinTx = domain.JoinTx,
             PayoutTx = domain.PayoutTx,

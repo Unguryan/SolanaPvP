@@ -43,9 +43,9 @@ export const CreateLobby: React.FC = () => {
   const [userBalance, setUserBalance] = useState<number>(0);
 
   const gameModes: { mode: GameMode; label: string; icon: string }[] = [
-    { mode: "Pick3from9", label: "3x3 Tiles", icon: "🎯" },
-    { mode: "Pick5from16", label: "4x4 Chests", icon: "🏆" },
-    { mode: "Pick1from3", label: "1x3 Cards", icon: "🎴" },
+    { mode: "Pick3from9", label:  "3 from 9", icon: "🎯" },
+    { mode: "Pick5from16", label: "5 from 16", icon: "🏆" },
+    { mode: "Pick1from3", label:  "1 from 3", icon: "🎴" },
   ];
 
   const teamSizes: { size: TeamSize; label: string; description: string }[] = [

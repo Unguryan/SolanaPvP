@@ -16,6 +16,7 @@ import { NotFound } from "@/pages/NotFound";
 import { GameDemo } from "@/pages/GameDemo";
 import { CreateLobby } from "@/pages/CreateLobby";
 import { MatchPreview } from "@/pages/MatchPreview";
+import ForceRefund from "@/pages/ForceRefund";
 
 function App() {
   return (
@@ -29,6 +30,10 @@ function App() {
             <Route path={ROUTES.CREATE_LOBBY} element={<CreateLobby />} />
             <Route path={ROUTES.MATCH_PREVIEW} element={<MatchPreview />} />
             <Route path={ROUTES.GAME} element={<Game />} />
+
+            {/* 🧪 Temporary admin endpoint - will be removed */}
+            <Route path="/forceRefund/:lobbyPda" element={<ForceRefund />} />
+
             <Route path="/demo" element={<GameDemo />} />
             <Route path={ROUTES.LEADERBOARD} element={<Leaderboard />} />
             <Route

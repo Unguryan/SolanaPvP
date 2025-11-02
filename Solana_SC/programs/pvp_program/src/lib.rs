@@ -74,7 +74,7 @@ const ALLOWED_TEAM_SIZES: [u8; 3] = [1, 2, 5]; // allowed sizes
 
 // ------------------------------ Types / Errors ------------------------------
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LobbyStatus {
     Open,     // collecting players
     Pending,  // VRF requested, waiting for callback
@@ -102,6 +102,7 @@ pub struct PlayerJoined {
     pub team1_count: u8,
     pub team2_count: u8,
     pub is_full: bool,
+    pub randomness_account: Pubkey, // Switchboard randomness account (set when full)
 }
 
 #[event]
@@ -467,6 +468,7 @@ pub mod pvp_program {
             team1_count: lobby.team1.len() as u8,
             team2_count: lobby.team2.len() as u8,
             is_full: full_now,
+            randomness_account: lobby.randomness_account, // Not set yet for non-final joins
         });
 
         // If lobby is full, this is an error - should have used join_side_final
@@ -497,16 +499,6 @@ pub mod pvp_program {
             (lobby.team1.len() as u8 == lobby.team_size) &&
             (lobby.team2.len() as u8 == lobby.team_size);
 
-        // Emit player joined event
-        emit!(PlayerJoined {
-            lobby: lobby.key(),
-            player: ctx.accounts.player.key(),
-            side,
-            team1_count: lobby.team1.len() as u8,
-            team2_count: lobby.team2.len() as u8,
-            is_full: full_now,
-        });
-
         // This instruction should only be called when lobby becomes full
         if full_now {
             // Validate Switchboard program
@@ -524,6 +516,17 @@ pub mod pvp_program {
             
             msg!("Lobby full! Moved to Pending. Call resolve_match to determine winner.");
         }
+
+        // Emit player joined event AFTER setting randomness account (so it's included in event)
+        emit!(PlayerJoined {
+            lobby: lobby.key(),
+            player: ctx.accounts.player.key(),
+            side,
+            team1_count: lobby.team1.len() as u8,
+            team2_count: lobby.team2.len() as u8,
+            is_full: full_now,
+            randomness_account: lobby.randomness_account, // Set to pool account when full
+        });
 
         Ok(())
     }
@@ -602,6 +605,77 @@ pub mod pvp_program {
         Ok(())
     }
 
+    // Force refund - allows refund in any status (admin/creator only)
+    // Use this to unstuck broken lobbies (e.g. Pending with wrong randomness account)
+    pub fn force_refund<'info>(ctx: Context<'_, '_, '_, 'info, Refund<'info>>) -> Result<()> {
+        require!(ctx.accounts.creator.key() == ctx.accounts.lobby.creator, PvpError::Unauthorized);
+        
+        // Check authorization - must be creator or admin
+        let req = ctx.accounts.requester.key();
+        require!(req == ctx.accounts.lobby.creator || req == ctx.accounts.config.admin, PvpError::Unauthorized);
+        require!(!ctx.accounts.lobby.finalized, PvpError::AlreadyFinalized);
+        
+        // Save all values before mutable borrow
+        let stake_amount = ctx.accounts.lobby.stake_lamports;
+        let lobby_creator = ctx.accounts.lobby.creator;
+        let lobby_id = ctx.accounts.lobby.lobby_id;
+        let lobby_bump = ctx.accounts.lobby.bump;
+        let team1_players: Vec<Pubkey> = ctx.accounts.lobby.team1.clone();
+        let team2_players: Vec<Pubkey> = ctx.accounts.lobby.team2.clone();
+        let total = team1_players.len() + team2_players.len();
+        require!(ctx.remaining_accounts.len() == total, PvpError::BadRemainingAccounts);
+        
+        // Mark finalized and change status
+        {
+            let lobby = &mut ctx.accounts.lobby;
+            lobby.finalized = true;
+            lobby.status = LobbyStatus::Refunded;
+        }
+
+        let sys_ai  = ctx.accounts.system_program.to_account_info();
+        let from_ai = ctx.accounts.lobby.to_account_info();
+        
+        // Refund team1
+        for (i, p) in team1_players.iter().enumerate() {
+            let to_ai = &ctx.remaining_accounts[i];
+            require!(to_ai.key() == *p, PvpError::Unauthorized);
+            pay_from_lobby_pda(
+                lobby_creator,
+                lobby_id,
+                lobby_bump,
+                sys_ai.clone(),
+                from_ai.clone(),
+                to_ai.clone(),
+                stake_amount
+            )?;
+        }
+        // Refund team2
+        for (j, p) in team2_players.iter().enumerate() {
+            let idx = team1_players.len() + j;
+            let to_ai = &ctx.remaining_accounts[idx];
+            require!(to_ai.key() == *p, PvpError::Unauthorized);
+            pay_from_lobby_pda(
+                lobby_creator,
+                lobby_id,
+                lobby_bump,
+                sys_ai.clone(),
+                from_ai.clone(),
+                to_ai.clone(),
+                stake_amount
+            )?;
+        }
+
+        // Emit refund event
+        emit!(LobbyRefunded {
+            lobby: ctx.accounts.lobby.key(),
+            refunded_count: total as u8,
+            total_refunded: stake_amount * total as u64,
+        });
+
+        msg!("Force refund completed for lobby in status: {:?}", ctx.accounts.lobby.status);
+        Ok(())
+    }
+
     // Resolve match using Switchboard OnDemand randomness
     // This is called after lobby is full (Pending status) to determine winner and pay out
     // OnDemand uses pull model: we read randomness when needed instead of callback
@@ -616,17 +690,21 @@ pub mod pvp_program {
         require!(!ctx.accounts.lobby.finalized, PvpError::AlreadyFinalized);
         
         // READ RANDOMNESS FROM SWITCHBOARD (PROOF OF FAIRNESS!)
-        let randomness_data = ctx.accounts.randomness_account_data.try_borrow_data()?;
+        // Use official Switchboard OnDemand API (from docs)
+        let randomness_data = RandomnessAccountData::parse(
+            ctx.accounts.randomness_account_data.data.borrow()
+        ).map_err(|_| PvpError::InvalidRandomnessData)?;
         
-        // Switchboard OnDemand data layout:
-        // Check minimum size
-        require!(randomness_data.len() >= 16, PvpError::InvalidRandomnessData);
+        let clock = Clock::get()?;
         
-        // Read randomness value (bytes 8-16 typically, but may vary by Switchboard version)
-        // For safety, try multiple offsets or check Switchboard account discriminator
-        let mut randomness_bytes = [0u8; 8];
-        randomness_bytes.copy_from_slice(&randomness_data[8..16]);
-        let randomness_value = u64::from_le_bytes(randomness_bytes);
+        // Get revealed random value using official API (pass current slot)
+        let randomness_value_bytes = randomness_data.get_value(clock.slot)
+            .map_err(|_| PvpError::InvalidRandomnessData)?;
+        
+        // Convert [u8; 32] to u64 for our purposes
+        let mut randomness_u64_bytes = [0u8; 8];
+        randomness_u64_bytes.copy_from_slice(&randomness_value_bytes[0..8]);
+        let randomness_value = u64::from_le_bytes(randomness_u64_bytes);
         
         msg!("Switchboard randomness: {}", randomness_value);
         
