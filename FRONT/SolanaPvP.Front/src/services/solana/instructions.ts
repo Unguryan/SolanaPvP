@@ -2,7 +2,6 @@ import { PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
 import BN from "bn.js";
 import { Program } from "@coral-xyz/anchor";
 import type { PvpProgram } from "@/idl/pvp_program";
-import { getSolanaConfig } from "./config";
 import {
   PdaUtils,
   LobbyAccount,
@@ -124,8 +123,6 @@ export class PvpInstructions {
     params: JoinLobbyParams
   ): Promise<string> {
     try {
-      const config = getSolanaConfig();
-
       // Fetch current lobby state to determine if this is the final join
       const lobby = await PvpAccountFetchers.fetchLobby(
         program,
@@ -150,36 +147,18 @@ export class PvpInstructions {
         player: params.player,
       };
 
-      // If this is the final join, use join_side_final with VRF accounts
+      // If this is the final join, use join_side_final with Switchboard OnDemand
       if (willBeFinalJoin) {
-        console.log("[JoinLobby] Using join_side_final (with VRF accounts)");
+        console.log(
+          "[JoinLobby] Using join_side_final (with OnDemand randomness)"
+        );
 
-        // Ensure VRF accounts are provided for final join
-        if (!params.vrfAccount) {
-          throw new Error("VRF account required for final join");
-        }
+        // Switchboard OnDemand - only need randomness account (much simpler than V2!)
+        // Randomness account should be created through Switchboard OnDemand dashboard
+        // For devnet testing: use lobby PDA as placeholder (will need proper randomness account later)
+        const randomnessAccount = params.vrfAccount || params.lobbyPda;
 
-        // Add all Switchboard VRF accounts
-        accounts.vrf = params.vrfAccount;
-        accounts.oracleQueue =
-          params.oracleQueue || new PublicKey(config.switchboardOracleQueue);
-        accounts.queueAuthority = params.queueAuthority;
-        accounts.permissionAccount =
-          params.permissionAccount ||
-          new PublicKey(config.switchboardPermissionAccount);
-        accounts.escrowWallet = params.escrowWallet;
-        accounts.payerWallet = params.payerWallet;
-        accounts.payerAuthority = params.payerAuthority || params.player;
-        accounts.recentBlockhashes =
-          params.recentBlockhashes ||
-          new PublicKey("SysvarRecentB1ockHashes11111111111111111111");
-        accounts.switchboardState = params.switchboardState;
-        accounts.tokenProgram =
-          params.tokenProgram ||
-          new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
-        accounts.associatedTokenProgram =
-          params.associatedTokenProgram ||
-          new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+        accounts.randomnessAccountData = randomnessAccount;
 
         const tx = await program.methods
           .joinSideFinal(params.side)
@@ -292,35 +271,14 @@ export class PvpInstructions {
     program: Program<PvpProgram>,
     params: JoinLobbyParams
   ): Promise<Transaction> {
-    const config = getSolanaConfig();
-
     const accounts: any = {
       creator: params.creator,
       player: params.player,
     };
 
-    // Add Switchboard accounts if provided (for last join triggering VRF)
+    // Add Switchboard OnDemand randomness account if provided (for final join)
     if (params.vrfAccount) {
-      accounts.vrf = params.vrfAccount;
-      accounts.oracleQueue =
-        params.oracleQueue || new PublicKey(config.switchboardOracleQueue);
-      accounts.queueAuthority = params.queueAuthority;
-      accounts.permissionAccount =
-        params.permissionAccount ||
-        new PublicKey(config.switchboardPermissionAccount);
-      accounts.escrowWallet = params.escrowWallet;
-      accounts.payerWallet = params.payerWallet;
-      accounts.payerAuthority = params.payerAuthority || params.player;
-      accounts.recentBlockhashes =
-        params.recentBlockhashes ||
-        new PublicKey("SysvarRecentB1ockHashes11111111111111111111");
-      accounts.switchboardState = params.switchboardState;
-      accounts.tokenProgram =
-        params.tokenProgram ||
-        new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
-      accounts.associatedTokenProgram =
-        params.associatedTokenProgram ||
-        new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+      accounts.randomnessAccountData = params.vrfAccount;
     }
 
     const instruction = await program.methods

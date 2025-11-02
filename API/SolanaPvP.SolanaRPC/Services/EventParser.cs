@@ -126,21 +126,19 @@ public class EventParser : IEventParser
     private (EventKind?, string) GetEventKindFromDiscriminator(byte[] discriminator)
     {
         // Anchor event discriminators are: first 8 bytes of SHA256("event:<EventName>")
-        // These need to match your actual program's events
-        // You can compute them by running: anchor idl parse --file target/idl/pvp_program.json
+        // These discriminators are extracted from actual on-chain events
         
         var discHex = BitConverter.ToString(discriminator).Replace("-", "").ToLower();
         
-        // Common pattern: check known discriminators
-        // Note: You may need to update these based on your actual program
-        // For now, we'll detect events by looking at the data structure
-        
-        // LobbyCreated, PlayerJoined, LobbyResolved, LobbyRefunded
-        // We'll use a heuristic: if we can't match discriminator, try to infer from context
-        
-        // TODO: Add proper discriminator matching
-        // For now, return as MatchCreated generically
-        return (EventKind.MatchCreated, "LobbyCreated");
+        // Map known discriminators from Solana events
+        return discHex switch
+        {
+            "6da91032a9f2ed41" => (EventKind.MatchCreated, "LobbyCreated"),
+            "2563224caff103ae" => (EventKind.MatchRefunded, "LobbyRefunded"),
+            // Add more discriminators as we discover them from on-chain events:
+            // PlayerJoined and LobbyResolved discriminators will be added when observed
+            _ => (null, $"Unknown (discriminator: {discHex})")
+        };
     }
 
     private string? ExtractLobbyPdaFromData(byte[] data)

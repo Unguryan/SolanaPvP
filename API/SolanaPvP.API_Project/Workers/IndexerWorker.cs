@@ -173,6 +173,14 @@ public class IndexerWorker : BackgroundService
         var refundScheduler = serviceProvider.GetRequiredService<IRefundScheduler>();
         var matchService = serviceProvider.GetRequiredService<IMatchService>();
 
+        // Check if match already exists (deduplication)
+        var existingMatch = await matchRepository.GetByMatchPdaAsync(parsedEvent.MatchPda);
+        if (existingMatch != null)
+        {
+            _logger.LogWarning("[ProcessMatchCreated] Match {MatchPda} already exists, skipping creation", parsedEvent.MatchPda);
+            return;
+        }
+
         // Parse match creation data from payload
         _logger.LogDebug("[ProcessMatchCreated] Parsing payload: {Payload}", parsedEvent.PayloadJson);
         var matchData = ParseMatchCreatedPayload(parsedEvent.PayloadJson);

@@ -2,9 +2,10 @@ import { useEffect, useRef } from "react";
 import { useArenaStore } from "../store/arenaStore";
 import { signalRService } from "../services/websocket/signalr";
 import type { FeedItem, MatchLobby } from "../store/arenaStore";
+import { matchesApi } from "../services/api/matches";
 
 export const useArenaRealtime = () => {
-  const { setFeed, addFeedItem, upsertMatches, updateMatch, setJoinModal } =
+  const { addFeedItemToTop, addMatch, updateMatch, removeMatch, setLoading } =
     useArenaStore();
 
   const isSubscribed = useRef(false);
@@ -12,58 +13,95 @@ export const useArenaRealtime = () => {
   useEffect(() => {
     if (isSubscribed.current) return;
 
-    // Subscribe to feed events
-    signalRService.on("feed:latest", (feed: FeedItem[]) => {
-      console.log("Received latest feed:", feed);
-      setFeed(feed);
+    // Subscribe to match events from backend (IndexerWorker broadcasts)
+    signalRService.on("matchCreated", (match: any) => {
+      console.log("Match created:", match);
+      // Convert backend MatchView to arenaStore MatchLobby format
+      const lobbyMatch: MatchLobby = {
+        id: match.matchPda,
+        matchPda: match.matchPda,
+        stake: match.stakeLamports / 1000000000, // Convert lamports to SOL
+        playersReady: match.participants?.length || 0,
+        playersMax: 2, // For 1v1, TODO: calculate from match type
+        endsAt: match.deadlineTs * 1000, // Convert unix timestamp to ms
+        gameMode: match.gameMode || "Pick3from9",
+        matchType: match.matchType || "Solo",
+      };
+      addMatch(lobbyMatch);
     });
 
-    signalRService.on("feed:append", (item: FeedItem) => {
-      console.log("Received new feed item:", item);
-      addFeedItem(item);
+    signalRService.on("matchJoined", (match: any) => {
+      console.log("Match joined:", match);
+      const lobbyMatch: MatchLobby = {
+        id: match.matchPda,
+        matchPda: match.matchPda,
+        stake: match.stakeLamports / 1000000000,
+        playersReady: match.participants?.length || 0,
+        playersMax: 2,
+        endsAt: match.deadlineTs * 1000,
+        gameMode: match.gameMode || "Pick3from9",
+        matchType: match.matchType || "Solo",
+      };
+      updateMatch(lobbyMatch);
     });
 
-    // Subscribe to matches events
-    signalRService.on("matches:latest", (matches: MatchLobby[]) => {
-      console.log("Received latest matches:", matches);
-      upsertMatches(matches);
-    });
+    signalRService.on("matchResolved", (match: any) => {
+      console.log("Match resolved:", match);
+      // Remove from active matches
+      removeMatch(match.matchPda);
 
-    signalRService.on("matches:update", (match: MatchLobby) => {
-      console.log("Received match update:", match);
-      updateMatch(match);
-    });
-
-    signalRService.on(
-      "match:joined",
-      (data: { matchId: string; player: string }) => {
-        console.log("Player joined match:", data);
-        // Update match players count
-        const { matchId, player } = data;
-        // This would typically update the match in the store
-        // For now, we'll just log it
+      // Add to feed as win notification
+      if (match.participants && match.winnerSide !== null) {
+        const winners = match.participants.filter(
+          (p: any) => p.side === match.winnerSide
+        );
+        winners.forEach((winner: any) => {
+          const feedItem: FeedItem = {
+            id: `${match.matchPda}_${winner.pubkey}`,
+            username: winner.pubkey.substring(0, 8) + "...",
+            solAmount: match.stakeLamports / 1000000000,
+            timestamp: Date.now(),
+            gameMode: match.gameMode || "Pick3from9",
+          };
+          addFeedItemToTop(feedItem);
+        });
       }
-    );
+    });
 
-    signalRService.on(
-      "match:left",
-      (data: { matchId: string; player: string }) => {
-        console.log("Player left match:", data);
-        // Update match players count
-        const { matchId, player } = data;
-        // This would typically update the match in the store
-        // For now, we'll just log it
-      }
-    );
+    signalRService.on("matchRefunded", (match: any) => {
+      console.log("Match refunded:", match);
+      // Remove from active matches
+      removeMatch(match.matchPda);
+    });
 
-    // Join arena and get initial data
+    // Initialize: Load active matches from API
     const initializeArena = async () => {
       try {
-        await signalRService.joinArena();
-        await signalRService.getLatestFeed();
-        await signalRService.getLatestMatches();
+        setLoading(true);
+        await signalRService.connect();
+        await signalRService.joinGroup("lobby");
+
+        // Load initial active matches from API
+        const activeMatchesResult = await matchesApi.getActiveMatches(1, 20);
+        const lobbyMatches: MatchLobby[] = activeMatchesResult.items.map(
+          (match: any) => ({
+            id: match.matchPda,
+            matchPda: match.matchPda,
+            stake: match.stakeLamports / 1000000000,
+            playersReady: match.participants?.length || 0,
+            playersMax: 2,
+            endsAt: match.deadlineTs * 1000,
+            gameMode: match.gameMode || "Pick3from9",
+            matchType: match.matchType || "Solo",
+          })
+        );
+
+        // Set initial matches
+        lobbyMatches.forEach(addMatch);
       } catch (error) {
         console.error("Failed to initialize arena:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -72,10 +110,10 @@ export const useArenaRealtime = () => {
 
     // Cleanup on unmount
     return () => {
-      signalRService.leaveArena();
+      signalRService.leaveGroup("lobby");
       isSubscribed.current = false;
     };
-  }, [setFeed, addFeedItem, upsertMatches, updateMatch, setJoinModal]);
+  }, [addFeedItemToTop, addMatch, updateMatch, removeMatch, setLoading]);
 
   // Helper functions for match actions
   const joinMatch = async (matchId: string) => {

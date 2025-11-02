@@ -4,9 +4,8 @@ export interface SolanaConfig {
   rpcUrl: string;
   wsUrl: string;
   programId: string;
+  // Switchboard OnDemand (V2 reached EOL Nov 2024)
   switchboardProgramId: string;
-  switchboardOracleQueue: string;
-  switchboardPermissionAccount: string;
 }
 
 // Devnet Configuration
@@ -15,9 +14,8 @@ export const DEVNET_CONFIG: SolanaConfig = {
   rpcUrl: "https://api.devnet.solana.com",
   wsUrl: "wss://api.devnet.solana.com",
   programId: "F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ",
-  switchboardProgramId: "SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f",
-  switchboardOracleQueue: "GvDMxPzN1sCj7L26YDK2HnMRXEQmQ2aemov8YBtPS7vR",
-  switchboardPermissionAccount: "HxYjP2fF8QRnD7eAmf9gxCDXmh3aeuC6hpjWnFZxhV1o",
+  // Switchboard OnDemand Program ID (same for devnet & mainnet)
+  switchboardProgramId: "SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv",
 };
 
 // Mainnet Configuration
@@ -26,9 +24,8 @@ export const MAINNET_CONFIG: SolanaConfig = {
   rpcUrl: "https://api.mainnet-beta.solana.com",
   wsUrl: "wss://api.mainnet-beta.solana.com",
   programId: "HL92RAc8cw6T2wjQeKVDjy9GcZVNvzaTe31v3p7kuKkR",
-  switchboardProgramId: "SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f",
-  switchboardOracleQueue: "GvDMxPzN1sCj7L26YDK2HnMRXEQmQ2aemov8YBtPS7vR",
-  switchboardPermissionAccount: "HxYjP2fF8QRnD7eAmf9gxCDXmh3aeuC6hpjWnFZxhV1o",
+  // Switchboard OnDemand Program ID (same for devnet & mainnet)
+  switchboardProgramId: "SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv",
 };
 
 // Get current configuration based on environment

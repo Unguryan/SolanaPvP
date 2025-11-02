@@ -26,25 +26,36 @@
 use anchor_lang::prelude::{*, Context, Program};
 use anchor_lang::system_program::System;
 use anchor_lang::solana_program::system_instruction;
-use anchor_spl::token::{self, Token};
-use anchor_spl::associated_token::{self, AssociatedToken};
-// Switchboard v2 crate:
-// Cargo.toml → switchboard-v2 = { version = "0.2", features = ["no-entrypoint"] }
-use switchboard_solana::{OracleQueueAccountData, PermissionAccountData};
+// Token imports removed - not used in this version
+// Switchboard OnDemand (replaces deprecated V2)
+// Import only what we need to avoid conflicts with anchor_lang::prelude::*
+use switchboard_on_demand::{RandomnessAccountData};
 
-// Attempt to use VRF types - if they don't exist, we'll handle errors at compile time
-// Try using the types directly to see what's available
+// Security contact information
+#[cfg(not(feature = "no-entrypoint"))]
+use solana_security_txt::security_txt;
+
+#[cfg(not(feature = "no-entrypoint"))]
+security_txt! {
+    name: "SolanaPvP",
+    project_url: "https://github.com/Unguryan/SolanaPvP",
+    contacts: "email:security@solanapvp.com",
+    policy: "https://github.com/Unguryan/SolanaPvP/blob/main/SECURITY.md",
+    preferred_languages: "en",
+    source_code: "https://github.com/Unguryan/SolanaPvP",
+    source_release: "v1.0.0",
+    source_revision: "main"
+}
 
 // ------------------------------ Constants ------------------------------
 
 declare_id!("F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ");
 
-// Switchboard v2 program id (same for devnet/mainnet v2)
-// Note: sb::SWITCHBOARD_PROGRAM_ID is a lazy_static, cannot deref in const
-// Using hardcoded bytes: SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f
-pub const SWITCHBOARD_V2_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
-    0x57, 0x49, 0x54, 0x43, 0x48, 0x37, 0x71, 0x45, 0x50, 0x54, 0x64, 0x4C, 0x73, 0x44, 0x48, 0x52,
-    0x67, 0x50, 0x75, 0x4D, 0x51, 0x6A, 0x62, 0x51, 0x78, 0x4B, 0x64, 0x48, 0x32, 0x61, 0x42, 0x53,
+// Switchboard OnDemand program ID (devnet & mainnet)
+// SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv
+pub const SWITCHBOARD_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
+    0x9e, 0x20, 0x44, 0xd0, 0x51, 0x76, 0x96, 0xa8, 0x45, 0x4b, 0xd8, 0xa8, 0x66, 0x8e, 0x6a, 0x4f,
+    0xe3, 0x5f, 0x0c, 0xe6, 0x9c, 0x95, 0x57, 0x6e, 0x48, 0x26, 0x90, 0x9d, 0x47, 0x0e, 0x0e, 0x58,
 ]);
 
 // PDA seeds
@@ -229,7 +240,7 @@ pub struct JoinSideSimple<'info> {
 }
 
 // JoinSideFull - for the final join (when lobby becomes full after this join)
-// Requires all Switchboard VRF accounts to trigger randomness request.
+// Uses Switchboard OnDemand for randomness - much simpler than V2!
 #[derive(Accounts)]
 pub struct JoinSideFull<'info> {
     #[account(
@@ -259,36 +270,15 @@ pub struct JoinSideFull<'info> {
     )]
     pub config: Account<'info, GlobalConfig>,
 
-    /// CHECK: Switchboard program - verified via address check
-    #[account(address = SWITCHBOARD_V2_PROGRAM_ID)]
+    /// Switchboard OnDemand randomness account
+    /// CHECK: Validated by Switchboard OnDemand program
+    #[account(mut)]
+    pub randomness_account_data: AccountInfo<'info>,
+
+    /// CHECK: Switchboard OnDemand program - verified via address check
+    #[account(address = SWITCHBOARD_PROGRAM_ID)]
     pub switchboard_program: UncheckedAccount<'info>,
 
-    /// CHECK: VRF account from Switchboard
-    #[account(mut)]
-    pub vrf: UncheckedAccount<'info>,
-
-    #[account(mut)]
-    pub oracle_queue: AccountLoader<'info, OracleQueueAccountData>,
-    /// CHECK:
-    pub queue_authority: UncheckedAccount<'info>,
-
-    #[account(mut)]
-    pub permission_account: AccountLoader<'info, PermissionAccountData>,
-    /// CHECK:
-    #[account(mut)]
-    pub escrow_wallet: UncheckedAccount<'info>,
-    /// CHECK:
-    #[account(mut)]
-    pub payer_wallet: UncheckedAccount<'info>,
-    pub payer_authority: Signer<'info>,
-
-    /// CHECK:
-    pub recent_blockhashes: UncheckedAccount<'info>,
-    /// CHECK:
-    pub switchboard_state: UncheckedAccount<'info>,
-
-    pub token_program: Program<'info, token::Token>,
-    pub associated_token_program: Program<'info, associated_token::AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
@@ -326,10 +316,11 @@ pub struct Refund<'info> {
     // remaining_accounts: [all participants: team1..., team2...]
 }
 
-// FulfillRandomness is invoked by Switchboard VRF via callback.
-// We verify VRF account & authority, compute winner, pay, and close ActiveLobby.
+// ResolveMatch - Called to resolve a match and pay winners
+// This is separate from join_side_final so we can handle payouts with remaining_accounts
+// remaining_accounts must include: [admin, team1..., team2...]
 #[derive(Accounts)]
-pub struct FulfillRandomness<'info> {
+pub struct ResolveMatch<'info> {
     #[account(
         mut,
         seeds = [SEED_LOBBY, lobby.creator.as_ref(), &lobby.lobby_id.to_le_bytes()],
@@ -354,14 +345,6 @@ pub struct FulfillRandomness<'info> {
         bump
     )]
     pub config: Account<'info, GlobalConfig>,
-
-    /// CHECK: VRF account from Switchboard
-    #[account(mut)]
-    pub vrf: UncheckedAccount<'info>,
-
-    /// CHECK: Switchboard program - verified via address check
-    #[account(address = SWITCHBOARD_V2_PROGRAM_ID)]
-    pub switchboard_program: UncheckedAccount<'info>,
 
     pub system_program: Program<'info, System>,
     // remaining_accounts: [admin, team1..., team2...]
@@ -396,17 +379,18 @@ pub mod pvp_program {
 
         // Initialize lobby state
         let lobby = &mut ctx.accounts.lobby;
-        lobby.bump           = ctx.bumps.lobby;
-        lobby.lobby_id       = lobby_id;
-        lobby.creator        = ctx.accounts.creator.key();
-        lobby.status         = LobbyStatus::Open;
-        lobby.team_size      = team_size;
-        lobby.stake_lamports = stake_lamports;
-        lobby.created_at     = Clock::get()?.unix_timestamp;
-        lobby.finalized      = false;
-        lobby.vrf            = Pubkey::default(); // not set yet
-        lobby.team1          = Vec::with_capacity(team_size as usize);
-        lobby.team2          = Vec::with_capacity(team_size as usize);
+        lobby.bump               = ctx.bumps.lobby;
+        lobby.lobby_id           = lobby_id;
+        lobby.creator            = ctx.accounts.creator.key();
+        lobby.status             = LobbyStatus::Open;
+        lobby.team_size          = team_size;
+        lobby.stake_lamports     = stake_lamports;
+        lobby.created_at         = Clock::get()?.unix_timestamp;
+        lobby.finalized          = false;
+        lobby.randomness_account = Pubkey::default(); // not set yet
+        lobby.winner_side        = 0; // not set yet
+        lobby.team1              = Vec::with_capacity(team_size as usize);
+        lobby.team2              = Vec::with_capacity(team_size as usize);
 
         // Mark an active lobby for this creator (prevents creating another)
         let active = &mut ctx.accounts.active;
@@ -509,20 +493,18 @@ pub mod pvp_program {
         if full_now {
             // Validate Switchboard program
             require!(
-                ctx.accounts.switchboard_program.key() == SWITCHBOARD_V2_PROGRAM_ID,
+                ctx.accounts.switchboard_program.key() == SWITCHBOARD_PROGRAM_ID,
                 PvpError::WrongSwitchboardProgram
             );
 
-            // Store VRF key for validation in fulfill callback
-            let vrf_key = ctx.accounts.vrf.key();
-            lobby.vrf = vrf_key;
+            // Store randomness account for later resolution
+            lobby.randomness_account = ctx.accounts.randomness_account_data.key();
             
-            // Note: Full VRF request via CPI requires Switchboard instruction format
-            // For now, the VRF account must be pre-configured off-chain to call fulfill_randomness
-            // when randomness is available. The account authority should be the lobby PDA.
-            
-            // Move to Pending so users cannot refund or join anymore
+            // Move to Pending - waiting for off-chain call to resolve_match
+            // In OnDemand model, randomness is pulled when needed (in resolve_match instruction)
             lobby.status = LobbyStatus::Pending;
+            
+            msg!("Lobby full! Moved to Pending. Call resolve_match to determine winner.");
         }
 
         Ok(())
@@ -602,26 +584,18 @@ pub mod pvp_program {
         Ok(())
     }
 
-    // Switchboard VRF callback: this instruction is invoked by the Switchboard program
-    // after randomness is available. We verify:
-    // - The caller program is indeed Switchboard
-    // - The provided VRF account matches lobby.vrf
-    // - The VRF authority equals our lobby PDA
-    // Then we compute winner_side from the VRF result, pay winners & platform fee, and close ActiveLobby.
+    // Resolve match using Switchboard OnDemand randomness
+    // This is called after lobby is full (Pending status) to determine winner and pay out
+    // OnDemand uses pull model: we read randomness when needed instead of callback
     //
     // remaining_accounts must include:
     // [admin (config.admin), team1..., team2...]
-    pub fn fulfill_randomness<'info>(ctx: Context<'_, '_, '_, 'info, FulfillRandomness<'info>>) -> Result<()> {
+    pub fn resolve_match<'info>(ctx: Context<'_, '_, '_, 'info, ResolveMatch<'info>>) -> Result<()> {
         require!(ctx.accounts.creator.key() == ctx.accounts.lobby.creator, PvpError::Unauthorized);
-        require!(
-            ctx.accounts.switchboard_program.key() == SWITCHBOARD_V2_PROGRAM_ID,
-            PvpError::WrongSwitchboardProgram
-        );
 
         // Read-only checks first
         require!(matches!(ctx.accounts.lobby.status, LobbyStatus::Pending), PvpError::NotPending);
         require!(!ctx.accounts.lobby.finalized, PvpError::AlreadyFinalized);
-        require!(ctx.accounts.vrf.key() == ctx.accounts.lobby.vrf, PvpError::WrongVrfAccount);
         
         // Save all lobby values before mutable borrow
         let lobby_creator = ctx.accounts.lobby.creator;
@@ -630,19 +604,7 @@ pub mod pvp_program {
         let team1_players: Vec<Pubkey> = ctx.accounts.lobby.team1.clone();
         let team2_players: Vec<Pubkey> = ctx.accounts.lobby.team2.clone();
         let stake_lamports = ctx.accounts.lobby.stake_lamports;
-        
-        // TODO: Parse VRF result from account data using switchboard-solana v0.30.4 API
-        // For now, use a deterministic approach based on account key
-        // This should be replaced with proper VRF result parsing when the API is available
-        // Simple deterministic approach: use account key bytes as random seed
-        // NOTE: This is a temporary workaround - should use proper VRF result parsing
-        let key_bytes = ctx.accounts.vrf.key().to_bytes();
-        let mut buf8 = [0u8; 8];
-        buf8.copy_from_slice(&key_bytes[0..8]);
-        let rand_u64 = u64::from_le_bytes(buf8);
-
-        // Winner side (bit 0): 0 => team1, 1 => team2
-        let winner_side: u8 = (rand_u64 & 1) as u8;
+        let winner_side = ctx.accounts.lobby.winner_side;
         let winners = if winner_side == 0 { &team1_players } else { &team2_players };
         let winners_count = winners.len() as u64;
         require!(winners_count > 0, PvpError::NotEnoughPlayers);
@@ -769,14 +731,15 @@ pub struct Lobby {
     pub stake_lamports: u64,
     pub created_at: i64,
     pub finalized: bool,        // prevents double settlement
-    pub vrf: Pubkey,            // Switchboard VRF account bound to this lobby (set when full)
+    pub randomness_account: Pubkey,  // Switchboard OnDemand randomness account (set when full)
+    pub winner_side: u8,        // 0 or 1, set when resolved
     pub team1: Vec<Pubkey>,
     pub team2: Vec<Pubkey>,
 }
 impl Lobby {
     // Layout size calculation:
-    // discr(8)+bump(1)+lobby_id(8)+creator(32)+status(1)+team_size(1)+stake(8)+created_at(8)+finalized(1)+vrf(32)+vec headers(4+4)
-    pub const FIXED: usize = 8 + 1 + 8 + 32 + 1 + 1 + 8 + 8 + 1 + 32 + 4 + 4;
+    // discr(8)+bump(1)+lobby_id(8)+creator(32)+status(1)+team_size(1)+stake(8)+created_at(8)+finalized(1)+randomness(32)+winner(1)+vec headers(4+4)
+    pub const FIXED: usize = 8 + 1 + 8 + 32 + 1 + 1 + 8 + 8 + 1 + 32 + 1 + 4 + 4;
     pub const PER_PLAYER: usize = 32;
     pub const SIZE: usize = Self::FIXED + (Self::PER_PLAYER * MAX_TEAM_SIZE_ALLOC * 2);
 }
@@ -833,10 +796,10 @@ fn internal_join_side<'info>(
 // NOTE: For accounts with data, we cannot use system_instruction::transfer
 // Instead, we directly modify lamports (proper way for PDA with Account data)
 fn pay_from_lobby_pda<'info>(
-    lobby_creator: Pubkey,
-    lobby_id: u64,
-    lobby_bump: u8,
-    system_program_account: AccountInfo<'info>,
+    _lobby_creator: Pubkey,
+    _lobby_id: u64,
+    _lobby_bump: u8,
+    _system_program_account: AccountInfo<'info>,
     from_account: AccountInfo<'info>,
     to_account: AccountInfo<'info>,
     lamports: u64,

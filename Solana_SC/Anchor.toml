@@ -1,5 +1,5 @@
 [toolchain]
-anchor_version = "0.30.1"
+anchor_version = "0.31.1"
 
 [features]
 resolution = true
@@ -9,13 +9,13 @@ skip-lint = false
 pvp_program = "F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ"
 
 [programs.mainnet]
-pvp_program = "DAcQFzHbDn7rEFW2GC7uEhMiub5GCzGfXUnbL5ETddwd"
+pvp_program = "8sbD4PjAwQdyyH2UkD8yFyupP3oMpfRYAKuKEkMDMswn"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Devnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [workspace]
