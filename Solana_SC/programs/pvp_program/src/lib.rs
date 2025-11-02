@@ -356,6 +356,7 @@ pub struct ResolveMatch<'info> {
     /// Switchboard OnDemand randomness account
     /// CRITICAL: Must be owned by Switchboard and match the saved account
     /// This ensures randomness is provably fair and cannot be manipulated
+    /// CHECK: Verified via owner check (SWITCHBOARD_PROGRAM_ID) and constraint check (matches lobby.randomness_account)
     #[account(
         mut,
         owner = SWITCHBOARD_PROGRAM_ID,

@@ -560,6 +560,15 @@ export type PvpProgram = {
           }
         },
         {
+          "name": "randomnessAccountData",
+          "docs": [
+            "Switchboard OnDemand randomness account",
+            "CRITICAL: Must be owned by Switchboard and match the saved account",
+            "This ensures randomness is provably fair and cannot be manipulated"
+          ],
+          "writable": true
+        },
+        {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
@@ -752,6 +761,16 @@ export type PvpProgram = {
       "code": 6017,
       "name": "mustUseFinalJoin",
       "msg": "Lobby is full - must use join_side_final instruction"
+    },
+    {
+      "code": 6018,
+      "name": "wrongRandomnessAccount",
+      "msg": "Wrong randomness account provided"
+    },
+    {
+      "code": 6019,
+      "name": "invalidRandomnessData",
+      "msg": "Invalid randomness data"
     }
   ],
   "types": [
@@ -919,6 +938,10 @@ export type PvpProgram = {
           {
             "name": "winnerSide",
             "type": "u8"
+          },
+          {
+            "name": "randomnessValue",
+            "type": "u64"
           },
           {
             "name": "totalPot",

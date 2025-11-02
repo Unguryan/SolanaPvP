@@ -554,6 +554,15 @@
           }
         },
         {
+          "name": "randomness_account_data",
+          "docs": [
+            "Switchboard OnDemand randomness account",
+            "CRITICAL: Must be owned by Switchboard and match the saved account",
+            "This ensures randomness is provably fair and cannot be manipulated"
+          ],
+          "writable": true
+        },
+        {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
@@ -746,6 +755,16 @@
       "code": 6017,
       "name": "MustUseFinalJoin",
       "msg": "Lobby is full - must use join_side_final instruction"
+    },
+    {
+      "code": 6018,
+      "name": "WrongRandomnessAccount",
+      "msg": "Wrong randomness account provided"
+    },
+    {
+      "code": 6019,
+      "name": "InvalidRandomnessData",
+      "msg": "Invalid randomness data"
     }
   ],
   "types": [
@@ -913,6 +932,10 @@
           {
             "name": "winner_side",
             "type": "u8"
+          },
+          {
+            "name": "randomness_value",
+            "type": "u64"
           },
           {
             "name": "total_pot",

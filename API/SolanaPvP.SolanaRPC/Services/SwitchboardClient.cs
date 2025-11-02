@@ -32,10 +32,31 @@ public class SwitchboardClient : ISwitchboardClient
                 return false;
             }
 
-            var data = accountInfo.Result.Value.Data;
-            if (data == null || data.Length < 16)
+            // Data is returned as [base64_string, "base64"]
+            var dataArray = accountInfo.Result.Value.Data;
+            if (dataArray == null || dataArray.Count == 0)
             {
-                _logger.LogDebug("[SwitchboardClient] Account {Account} has insufficient data", randomnessAccount);
+                _logger.LogDebug("[SwitchboardClient] Account {Account} has no data", randomnessAccount);
+                return false;
+            }
+
+            // Decode base64 data
+            byte[] decodedData;
+            try
+            {
+                var base64String = dataArray[0];
+                decodedData = Convert.FromBase64String(base64String);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SwitchboardClient] Failed to decode account data for {Account}", randomnessAccount);
+                return false;
+            }
+
+            if (decodedData.Length < 16)
+            {
+                _logger.LogDebug("[SwitchboardClient] Account {Account} has insufficient data (need 16+ bytes, got {Length})", 
+                    randomnessAccount, decodedData.Length);
                 return false;
             }
 
@@ -50,7 +71,8 @@ public class SwitchboardClient : ISwitchboardClient
 
             // For MVP: if account exists and is owned by Switchboard, consider ready
             // In production: check specific flags/discriminator in account data
-            _logger.LogDebug("[SwitchboardClient] Randomness ready for {Account}", randomnessAccount);
+            _logger.LogDebug("[SwitchboardClient] Randomness ready for {Account} ({Length} bytes)", 
+                randomnessAccount, decodedData.Length);
             return true;
         }
         catch (Exception ex)
@@ -75,14 +97,32 @@ public class SwitchboardClient : ISwitchboardClient
                 return null;
             }
 
-            var data = accountInfo.Result.Value.Data;
-            if (data.Length < 16)
+            // Data is returned as [base64_string, "base64"]
+            var dataArray = accountInfo.Result.Value.Data;
+            if (dataArray.Count == 0)
+            {
+                return null;
+            }
+
+            // Decode base64 data
+            byte[] decodedData;
+            try
+            {
+                var base64String = dataArray[0];
+                decodedData = Convert.FromBase64String(base64String);
+            }
+            catch
+            {
+                return null;
+            }
+
+            if (decodedData.Length < 16)
             {
                 return null;
             }
 
             // Read randomness value (bytes 8-16, as done in smart contract)
-            var randomnessBytes = data[8..16];
+            var randomnessBytes = decodedData[8..16];
             var randomnessValue = BitConverter.ToUInt64(randomnessBytes, 0);
             
             _logger.LogInformation("[SwitchboardClient] Read randomness value from {Account}: {Value}", 
