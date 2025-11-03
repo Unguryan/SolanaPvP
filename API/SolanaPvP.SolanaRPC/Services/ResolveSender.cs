@@ -32,31 +32,56 @@ public class ResolveSender : IResolveSender
             _logger.LogInformation("[ResolveSender] Resolving match {MatchPda} with randomness {RandomnessAccount}", 
                 matchPda, randomnessAccount);
 
-            // Fetch lobby data from blockchain to get creator and participants
-            var lobbyData = await FetchLobbyDataAsync(matchPda);
+            // Fetch match data from DB (SIMPLE!)
+            var match = await _matchRepository.GetByMatchPdaAsync(matchPda);
             
-            if (lobbyData == null)
+            if (match == null)
             {
-                throw new Exception($"Failed to fetch lobby data for {matchPda}");
+                throw new Exception($"Match not found in DB: {matchPda}");
             }
 
+            // Get creator directly from match (no need to search!)
+            var creator = match.CreatorPubkey;
+            
+            if (string.IsNullOrEmpty(creator))
+            {
+                throw new Exception($"Match {matchPda} has no creator pubkey");
+            }
+
+            // Get all participants pubkeys
+            var participants = match.Participants
+                .OrderBy(p => p.Side)
+                .ThenBy(p => p.Position)
+                .Select(p => p.Pubkey)
+                .ToList();
+
+            if (participants.Count == 0)
+            {
+                throw new Exception($"Match {matchPda} has no participants");
+            }
+
+            _logger.LogInformation("[ResolveSender] ✅ Match data ready - Creator: {Creator}, Participants: {Count}, Randomness: {Randomness}", 
+                creator, participants.Count, randomnessAccount);
+
             // Prepare parameters for Node.js script
-            var participantsJson = JsonConvert.SerializeObject(lobbyData.Participants);
+            // Base64 encode JSON to avoid command-line escaping issues
+            var participantsJson = JsonConvert.SerializeObject(participants);
+            var participantsBase64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(participantsJson));
             
             var args = new[]
             {
                 matchPda,                              // lobbyPda
-                lobbyData.Creator,                     // creator
+                creator,                               // creator (from match.CreatorPubkey!)
                 randomnessAccount,                     // randomnessAccount
-                participantsJson,                      // participants as JSON (team1 + team2)
+                participantsBase64,                    // participants as Base64-encoded JSON
                 _solanaSettings.TreasuryPubkey,        // admin (fee receiver)
                 _solanaSettings.AdminKeypairPath,      // keypairPath
                 _solanaSettings.RpcPrimaryUrl,         // rpcUrl
                 _solanaSettings.ProgramId              // programId
             };
 
-            // Execute Node.js script
-            var signature = await _nodeExecutor.ExecuteAsync("send-resolve.js", args);
+            // Execute TypeScript script (SAME AS FRONTEND!)
+            var signature = await _nodeExecutor.ExecuteAsync("send-resolve.ts", args);
             
             _logger.LogInformation("[ResolveSender] ✅ Resolve transaction sent: {Signature}", signature);
             
@@ -67,58 +92,6 @@ public class ResolveSender : IResolveSender
             _logger.LogError(ex, "[ResolveSender] Failed to send resolve for {MatchPda}", matchPda);
             throw;
         }
-    }
-
-    private async Task<LobbyData?> FetchLobbyDataAsync(string lobbyPda)
-    {
-        try
-        {
-            _logger.LogDebug("[ResolveSender] Fetching match data from DB for {LobbyPda}", lobbyPda);
-            
-            // Get match data from database (IndexerWorker already tracked all participants)
-            var match = await _matchRepository.GetByMatchPdaAsync(lobbyPda);
-            
-            if (match == null)
-            {
-                _logger.LogWarning("[ResolveSender] Match not found in DB: {LobbyPda}", lobbyPda);
-                return null;
-            }
-
-            // Extract creator - first participant with side 0, position 0
-            var creator = match.Participants.FirstOrDefault(p => p.Side == 0 && p.Position == 0)?.Pubkey;
-            
-            if (string.IsNullOrEmpty(creator))
-            {
-                _logger.LogWarning("[ResolveSender] Creator not found for match {LobbyPda}", lobbyPda);
-                return null;
-            }
-
-            // Get all participants (team1 + team2 in correct order)
-            var participants = match.Participants
-                .OrderBy(p => p.Side) // Team1 (side 0) first, then Team2 (side 1)
-                .ThenBy(p => p.Position)
-                .Select(p => p.Pubkey)
-                .ToList();
-
-            _logger.LogDebug("[ResolveSender] Found {Count} participants for match {LobbyPda}", participants.Count, lobbyPda);
-
-            return new LobbyData
-            {
-                Creator = creator,
-                Participants = participants
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[ResolveSender] Failed to fetch lobby data for {LobbyPda}", lobbyPda);
-            return null;
-        }
-    }
-
-    private class LobbyData
-    {
-        public string Creator { get; set; } = string.Empty;
-        public List<string> Participants { get; set; } = new();
     }
 }
 

@@ -21,6 +21,7 @@ public class MatchRepository : IMatchRepository
     {
         var dbo = await _context.Matches
             .Include(m => m.Participants)
+                .ThenInclude(p => p.User) // ← LOAD USER DATA FOR PARTICIPANTS!
             .Include(m => m.GameData)
             .FirstOrDefaultAsync(m => m.MatchPda == matchPda);
 
@@ -31,6 +32,7 @@ public class MatchRepository : IMatchRepository
     {
         var query = _context.Matches
             .Include(m => m.Participants)
+                .ThenInclude(p => p.User) // ← LOAD USER DATA
             .Include(m => m.GameData)
             .AsQueryable();
 
@@ -59,6 +61,7 @@ public class MatchRepository : IMatchRepository
         
         var dbos = await _context.Matches
             .Include(m => m.Participants)
+                .ThenInclude(p => p.User) // ← LOAD USER DATA
             .Include(m => m.GameData)
             .Where(m => activeStatuses.Contains(m.Status) && !m.IsPrivate)
             .OrderByDescending(m => m.CreatedAt)
@@ -104,6 +107,7 @@ public class MatchRepository : IMatchRepository
     {
         var dbos = await _context.Matches
             .Include(m => m.Participants)
+                .ThenInclude(p => p.User) // ← LOAD USER DATA
             .Include(m => m.GameData)
             .Where(m => m.Participants.Any(p => p.Pubkey == pubkey))
             .OrderByDescending(m => m.CreatedAt)
@@ -119,5 +123,12 @@ public class MatchRepository : IMatchRepository
         return await _context.Matches
             .Where(m => m.Participants.Any(p => p.Pubkey == pubkey))
             .CountAsync();
+    }
+
+    public async Task AddParticipantAsync(MatchParticipant participant)
+    {
+        var dbo = participant.ToDBO();
+        _context.MatchParticipants.Add(dbo);
+        await _context.SaveChangesAsync();
     }
 }

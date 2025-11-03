@@ -40,20 +40,22 @@ public class RefundSender : IRefundSender
             }
 
             // Prepare parameters for Node.js script
+            // Base64 encode JSON to avoid command-line escaping issues
             var participantsJson = JsonConvert.SerializeObject(lobbyData.Participants);
+            var participantsBase64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(participantsJson));
             
             var args = new[]
             {
                 matchPda,                              // lobbyPda
                 lobbyData.Creator,                     // creator
-                participantsJson,                      // participants as JSON
+                participantsBase64,                    // participants as Base64-encoded JSON
                 _solanaSettings.AdminKeypairPath,      // keypairPath
                 _solanaSettings.RpcPrimaryUrl,         // rpcUrl
                 _solanaSettings.ProgramId              // programId
             };
 
-            // Execute Node.js script
-            var signature = await _nodeExecutor.ExecuteAsync("send-refund.js", args);
+            // Execute TypeScript script (SAME AS FRONTEND!)
+            var signature = await _nodeExecutor.ExecuteAsync("send-refund.ts", args);
             
             _logger.LogInformation("[RefundSender] ✅ Refund transaction sent: {Signature}", signature);
             
@@ -117,20 +119,22 @@ public class RefundSender : IRefundSender
             _logger.LogWarning("[RefundSender] UNSAFE MODE: Sending refund with manual parameters for {LobbyPda}", lobbyPda);
 
             // Prepare parameters for Node.js script
+            // Base64 encode JSON to avoid command-line escaping issues
             var participantsJson = JsonConvert.SerializeObject(participants);
+            var participantsBase64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(participantsJson));
             
             var args = new[]
             {
                 lobbyPda,                              // lobbyPda
                 creator,                               // creator
-                participantsJson,                      // participants as JSON
+                participantsBase64,                    // participants as Base64-encoded JSON
                 _solanaSettings.AdminKeypairPath,      // keypairPath
                 _solanaSettings.RpcPrimaryUrl,         // rpcUrl
                 _solanaSettings.ProgramId              // programId
             };
 
-            // Execute Node.js script
-            var signature = await _nodeExecutor.ExecuteAsync("send-refund.js", args);
+            // Execute TypeScript script (SAME AS FRONTEND!)
+            var signature = await _nodeExecutor.ExecuteAsync("send-refund.ts", args);
             
             _logger.LogInformation("[RefundSender] ✅ UNSAFE refund transaction sent: {Signature}", signature);
             

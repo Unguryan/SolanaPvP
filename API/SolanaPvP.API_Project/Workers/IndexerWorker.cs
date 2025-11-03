@@ -217,16 +217,21 @@ public class IndexerWorker : BackgroundService
             Side = 0,
             Position = 0
         };
+        
+        // Add participant to match (explicitly to DbSet to ensure it's saved)
+        await matchRepository.AddParticipantAsync(creatorParticipant);
+        _logger.LogDebug("[ProcessMatchCreated] Creator participant added to match");
 
-        // Create or update user
-        var user = new User
+        // Update LastSeen for creator (or create if first time from blockchain)
+        try
         {
-            Pubkey = matchData.Creator,
-            FirstSeen = DateTime.UtcNow,
-            LastSeen = DateTime.UtcNow
-        };
-        await userRepository.CreateOrUpdateAsync(user);
-        _logger.LogDebug("[ProcessMatchCreated] User created/updated: {Creator}", matchData.Creator);
+            await userRepository.UpdateLastSeenAsync(matchData.Creator);
+            _logger.LogDebug("[ProcessMatchCreated] User LastSeen updated: {Creator}", matchData.Creator);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[ProcessMatchCreated] Failed to update LastSeen for {Creator}, continuing anyway", matchData.Creator);
+        }
 
         // Schedule refund task with deadline based on team size
         // 1v1: 2 minutes, 2v2: 5 minutes, 5v5: 10 minutes
@@ -261,8 +266,12 @@ public class IndexerWorker : BackgroundService
         var matchService = serviceProvider.GetRequiredService<IMatchService>();
 
         // Parse join data
+        _logger.LogDebug("[ProcessMatchJoined] Parsing payload: {Payload}", parsedEvent.PayloadJson);
         var joinData = ParseMatchJoinedPayload(parsedEvent.PayloadJson);
         if (joinData == null) return;
+        
+        _logger.LogDebug("[ProcessMatchJoined] Parsed data - Player: {Player}, RandomnessAccount: {RandomnessAccount}, IsFull: {IsFull}",
+            joinData.Player, joinData.RandomnessAccount, joinData.IsFull);
 
         // Get existing match
         var match = await matchRepository.GetByMatchPdaAsync(parsedEvent.MatchPda);
@@ -273,17 +282,7 @@ public class IndexerWorker : BackgroundService
         match.JoinedAt = DateTime.UtcNow;
         match.JoinTx = signature;
         
-        // Save randomness account if lobby is full
-        if (joinData.IsFull && !string.IsNullOrWhiteSpace(joinData.RandomnessAccount))
-        {
-            match.RandomnessAccount = joinData.RandomnessAccount;
-            _logger.LogInformation("[ProcessMatchJoined] Saved randomness account {Account} for match {MatchPda}", 
-                joinData.RandomnessAccount, match.MatchPda);
-        }
-        
-        await matchRepository.UpdateAsync(match);
-
-        // Create joiner participant
+        // Create joiner participant and add to DbSet explicitly
         var joinerParticipant = new MatchParticipant
         {
             MatchPda = parsedEvent.MatchPda,
@@ -291,15 +290,28 @@ public class IndexerWorker : BackgroundService
             Side = 1,
             Position = 0
         };
-
-        // Create or update user
-        var user = new User
+        
+        await matchRepository.AddParticipantAsync(joinerParticipant);
+        _logger.LogDebug("[ProcessMatchJoined] Joiner participant added to match");
+        
+        // Save randomness account if lobby is full
+        if (joinData.IsFull && !string.IsNullOrWhiteSpace(joinData.RandomnessAccount))
         {
-            Pubkey = joinData.Player,
-            FirstSeen = DateTime.UtcNow,
-            LastSeen = DateTime.UtcNow
-        };
-        await userRepository.CreateOrUpdateAsync(user);
+            match.RandomnessAccount = joinData.RandomnessAccount;
+            await matchRepository.UpdateAsync(match);
+            _logger.LogInformation("[ProcessMatchJoined] Saved randomness account {Account} for match {MatchPda}", 
+                joinData.RandomnessAccount, match.MatchPda);
+        }
+
+        // Update LastSeen for player (or create if first time from blockchain)
+        try
+        {
+            await userRepository.UpdateLastSeenAsync(joinData.Player);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[ProcessMatchJoined] Failed to update LastSeen for {Player}, continuing anyway", joinData.Player);
+        }
 
         // Cancel refund task
         await refundScheduler.CancelAsync(parsedEvent.MatchPda);
@@ -390,8 +402,130 @@ public class IndexerWorker : BackgroundService
     }
 
     // Placeholder methods for parsing payloads - these would need to be implemented based on your actual Anchor event structure
-    private MatchCreatedData? ParseMatchCreatedPayload(string payloadJson) => new MatchCreatedData();
-    private MatchJoinedData? ParseMatchJoinedPayload(string payloadJson) => new MatchJoinedData();
+    private MatchCreatedData? ParseMatchCreatedPayload(string payloadJson)
+    {
+        try
+        {
+            var json = System.Text.Json.JsonDocument.Parse(payloadJson);
+            var rawData = json.RootElement.GetProperty("rawData").GetString();
+            if (string.IsNullOrEmpty(rawData)) return null;
+
+            var bytes = Convert.FromBase64String(rawData);
+            
+            // LobbyCreated struct layout:
+            // discriminator (8) + lobby (32) + lobby_id (8) + creator (32) + stake_lamports (8) + team_size (1) + created_at (8)
+            // Total: 97 bytes
+            
+            if (bytes.Length < 97)
+            {
+                _logger.LogWarning("[ParseMatchCreated] Insufficient data: {Length} bytes", bytes.Length);
+                return null;
+            }
+
+            var offset = 8; // Skip discriminator
+            
+            // Skip lobby (32 bytes)
+            offset += 32;
+            
+            // Skip lobby_id (8 bytes)
+            offset += 8;
+            
+            // Read creator pubkey (32 bytes) ← ВАЖНО!
+            var creatorBytes = bytes.Skip(offset).Take(32).ToArray();
+            var creator = new Solnet.Wallet.PublicKey(creatorBytes).Key;
+            offset += 32;
+            
+            // Read stake_lamports (8 bytes)
+            var stakeLamports = BitConverter.ToInt64(bytes, offset);
+            offset += 8;
+            
+            // Read team_size (1 byte)
+            var teamSize = bytes[offset];
+            offset += 1;
+            
+            // Read created_at (8 bytes)
+            var createdAt = BitConverter.ToInt64(bytes, offset);
+            
+            // Determine GameMode and MatchType based on team_size
+            var gameMode = teamSize == 1 ? GameModeType.PickThreeFromNine : GameModeType.PickThreeFromNine;
+            var matchType = teamSize == 1 ? Domain.Enums.MatchType.Solo : 
+                           teamSize == 2 ? Domain.Enums.MatchType.Duo : 
+                           Domain.Enums.MatchType.Team;
+
+            _logger.LogDebug("[ParseMatchCreated] Parsed - Creator: {Creator}, Stake: {Stake}, TeamSize: {TeamSize}", 
+                creator, stakeLamports, teamSize);
+
+            return new MatchCreatedData
+            {
+                Creator = creator,
+                StakeLamports = stakeLamports,
+                GameMode = gameMode,
+                MatchType = matchType,
+                DeadlineTs = createdAt
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[ParseMatchCreated] Failed to parse payload");
+            return null;
+        }
+    }
+    
+    private MatchJoinedData? ParseMatchJoinedPayload(string payloadJson)
+    {
+        try
+        {
+            var json = System.Text.Json.JsonDocument.Parse(payloadJson);
+            var rawData = json.RootElement.GetProperty("rawData").GetString();
+            if (string.IsNullOrEmpty(rawData)) return null;
+
+            var bytes = Convert.FromBase64String(rawData);
+            
+            // PlayerJoined struct layout:
+            // discriminator (8) + lobby (32) + player (32) + side (1) + team1_count (1) + team2_count (1) + is_full (1) + randomness_account (32)
+            // Total: 108 bytes
+            
+            if (bytes.Length < 108)
+            {
+                _logger.LogWarning("[ParseMatchJoined] Insufficient data: {Length} bytes", bytes.Length);
+                return null;
+            }
+
+            var offset = 8; // Skip discriminator
+            
+            // Skip lobby (32 bytes)
+            offset += 32;
+            
+            // Read player pubkey (32 bytes)
+            var playerBytes = bytes.Skip(offset).Take(32).ToArray();
+            var player = new Solnet.Wallet.PublicKey(playerBytes).Key;
+            offset += 32;
+            
+            // Skip side, team1_count, team2_count (3 bytes)
+            offset += 3;
+            
+            // Read is_full (1 byte)
+            var isFull = bytes[offset] != 0;
+            offset += 1;
+            
+            // Read randomness_account (32 bytes)
+            var randomnessBytes = bytes.Skip(offset).Take(32).ToArray();
+            var randomnessAccount = new Solnet.Wallet.PublicKey(randomnessBytes).Key;
+            
+            return new MatchJoinedData
+            {
+                Player = player,
+                RandomnessAccount = randomnessAccount,
+                IsFull = isFull
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[ParseMatchJoined] Failed to parse PlayerJoined event");
+            return null;
+        }
+    }
+    
     private MatchResolvedData? ParseMatchResolvedPayload(string payloadJson) => new MatchResolvedData();
     private MatchRefundedData? ParseMatchRefundedPayload(string payloadJson) => new MatchRefundedData();
 

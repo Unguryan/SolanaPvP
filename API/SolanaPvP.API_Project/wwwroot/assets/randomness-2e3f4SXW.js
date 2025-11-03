@@ -1,1 +1,0 @@
-import{a as t}from"./index-CjSs7O54.js";import"./motion-C6HCGRFQ.js";import"./router-CiO_RyxF.js";import"./vendor-Dcsd2E38.js";import"./wallet-DxY_gA22.js";const s={async getAvailableAccount(){return t.get("/api/randomness/available")},async getPoolStats(){return t.get("/api/randomness/pool/stats")}};export{s as randomnessApi};

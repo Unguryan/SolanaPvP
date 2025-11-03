@@ -22,9 +22,11 @@ public class UsersController : ControllerBase
     {
         var pubkey = HttpContext.GetRequiredUserPubkey();
         var user = await _matchService.GetUserAsync(pubkey);
+        
+        // If user doesn't exist, create a new one automatically
         if (user == null)
         {
-            return NotFound($"User with pubkey {pubkey} not found");
+            user = await _matchService.CreateUserAsync(pubkey);
         }
 
         return Ok(user);

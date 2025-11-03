@@ -4,8 +4,8 @@ export interface SolanaConfig {
   rpcUrl: string;
   wsUrl: string;
   programId: string;
-  // Switchboard OnDemand (V2 reached EOL Nov 2024)
-  switchboardProgramId: string;
+  // Orao VRF for verifiable randomness (same program ID for devnet and mainnet)
+  oraoProgramId: string;
 }
 
 // Devnet Configuration
@@ -14,8 +14,8 @@ export const DEVNET_CONFIG: SolanaConfig = {
   rpcUrl: "https://api.devnet.solana.com",
   wsUrl: "wss://api.devnet.solana.com",
   programId: "F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ",
-  // Switchboard OnDemand Program ID (matches deployed program)
-  switchboardProgramId: "BeFxPRDreo8uLivyGgqDE87iGaU3o1Tw9hZw46NxYaej",
+  // Orao VRF Program ID (same for devnet and mainnet)
+  oraoProgramId: "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y",
 };
 
 // Mainnet Configuration
@@ -24,8 +24,8 @@ export const MAINNET_CONFIG: SolanaConfig = {
   rpcUrl: "https://api.mainnet-beta.solana.com",
   wsUrl: "wss://api.mainnet-beta.solana.com",
   programId: "HL92RAc8cw6T2wjQeKVDjy9GcZVNvzaTe31v3p7kuKkR",
-  // Switchboard OnDemand Program ID (matches deployed program)
-  switchboardProgramId: "BeFxPRDreo8uLivyGgqDE87iGaU3o1Tw9hZw46NxYaej",
+  // Orao VRF Program ID (same for devnet and mainnet)
+  oraoProgramId: "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y",
 };
 
 // Get current configuration based on environment

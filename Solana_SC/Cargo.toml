@@ -4,9 +4,9 @@ members = [
 ]
 resolver = "2"
 
-# Fix proc-macro2 for anchor-syn 0.3.1 - pin to last version with source_file()
-# [workspace.dependencies]
-# proc-macro2 = "=1.0.94"
+# Fix dependency versions for rustc 1.79 (shipped with Solana 2.1.0)
+[workspace.dependencies]
+indexmap = "=2.6.0"  # Last version supporting rustc 1.79
 
 [profile.release]
 overflow-checks = true

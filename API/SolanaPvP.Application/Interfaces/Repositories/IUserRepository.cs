@@ -13,4 +13,5 @@ public interface IUserRepository
     Task<bool> ChangeUsernameAsync(string pubkey, string newUsername);
     Task<bool> CanChangeUsernameAsync(string pubkey);
     Task<IEnumerable<User>> GetAllUsersAsync();
+    Task UpdateLastSeenAsync(string pubkey);
 }

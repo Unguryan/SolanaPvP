@@ -32,7 +32,7 @@ function App() {
             <Route path={ROUTES.GAME} element={<Game />} />
 
             {/* 🧪 Temporary admin endpoint - will be removed */}
-            <Route path="/forceRefund/:lobbyPda" element={<ForceRefund />} />
+            <Route path="/f/:lobbyPda" element={<ForceRefund />} />
 
             <Route path="/demo" element={<GameDemo />} />
             <Route path={ROUTES.LEADERBOARD} element={<Leaderboard />} />

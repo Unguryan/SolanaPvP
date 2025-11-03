@@ -4,7 +4,7 @@
     "name": "pvp_program",
     "version": "1.0.0",
     "spec": "0.1.0",
-    "description": "Solana PvP Game Program with Switchboard VRF"
+    "description": "Solana PvP Game Program with Orao VRF"
   },
   "instructions": [
     {
@@ -97,6 +97,104 @@
           "type": "u8"
         }
       ]
+    },
+    {
+      "name": "force_refund",
+      "discriminator": [
+        127,
+        173,
+        30,
+        92,
+        164,
+        123,
+        109,
+        177
+      ],
+      "accounts": [
+        {
+          "name": "lobby",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  98,
+                  98,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "Lobby"
+              },
+              {
+                "kind": "account",
+                "path": "lobby.lobby_id",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true
+        },
+        {
+          "name": "requester",
+          "signer": true
+        },
+        {
+          "name": "active",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
     },
     {
       "name": "init_config",
@@ -346,15 +444,108 @@
           }
         },
         {
-          "name": "randomness_account_data",
+          "name": "vrf_request",
           "docs": [
-            "Switchboard OnDemand randomness account"
+            "Orao VRF randomness request account (PDA derived from seed)"
           ],
           "writable": true
         },
         {
-          "name": "switchboard_program",
-          "address": "BeFxPRDreo8uLivyGgqDE87iGaU3o1Tw9hZw46NxYaej"
+          "name": "vrf_config",
+          "docs": [
+            "Orao VRF network configuration"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  111,
+                  45,
+                  118,
+                  114,
+                  102,
+                  45,
+                  110,
+                  101,
+                  116,
+                  119,
+                  111,
+                  114,
+                  107,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                7,
+                71,
+                177,
+                26,
+                250,
+                145,
+                180,
+                209,
+                249,
+                34,
+                242,
+                123,
+                14,
+                186,
+                193,
+                218,
+                178,
+                59,
+                33,
+                41,
+                164,
+                190,
+                243,
+                79,
+                50,
+                164,
+                123,
+                88,
+                245,
+                206,
+                252,
+                120
+              ]
+            }
+          }
+        },
+        {
+          "name": "vrf_treasury",
+          "docs": [
+            "Orao VRF treasury (fee collector)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "vrf_program",
+          "docs": [
+            "Orao VRF program"
+          ],
+          "address": "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"
         },
         {
           "name": "system_program",
@@ -365,6 +556,15 @@
         {
           "name": "side",
           "type": "u8"
+        },
+        {
+          "name": "vrf_seed",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         }
       ]
     },
@@ -554,6 +754,15 @@
           }
         },
         {
+          "name": "vrf_request",
+          "docs": [
+            "Orao VRF randomness request account",
+            "CRITICAL: Must be owned by Orao VRF and match the saved account",
+            "This ensures randomness is provably fair and cannot be manipulated"
+          ],
+          "writable": true
+        },
+        {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
@@ -724,28 +933,38 @@
     },
     {
       "code": 6013,
-      "name": "WrongSwitchboardProgram",
-      "msg": "Wrong Switchboard program id"
-    },
-    {
-      "code": 6014,
-      "name": "WrongVrfAccount",
-      "msg": "VRF account does not match lobby"
-    },
-    {
-      "code": 6015,
-      "name": "WrongVrfAuthority",
-      "msg": "VRF authority mismatch"
-    },
-    {
-      "code": 6016,
       "name": "NotPending",
       "msg": "Lobby not pending"
     },
     {
-      "code": 6017,
+      "code": 6014,
       "name": "MustUseFinalJoin",
       "msg": "Lobby is full - must use join_side_final instruction"
+    },
+    {
+      "code": 6015,
+      "name": "WrongRandomnessAccount",
+      "msg": "Wrong VRF request account provided"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidRandomnessData",
+      "msg": "Invalid randomness data"
+    },
+    {
+      "code": 6017,
+      "name": "RandomnessNotFulfilled",
+      "msg": "Randomness not yet fulfilled by Orao VRF"
+    },
+    {
+      "code": 6018,
+      "name": "WrongVrfTreasury",
+      "msg": "Wrong VRF treasury"
+    },
+    {
+      "code": 6019,
+      "name": "InvalidVrfSeed",
+      "msg": "Invalid VRF seed (cannot be zero)"
     }
   ],
   "types": [
@@ -827,7 +1046,16 @@
             "type": "bool"
           },
           {
-            "name": "randomness_account",
+            "name": "vrf_seed",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "vrf_request",
             "type": "pubkey"
           },
           {
@@ -915,6 +1143,10 @@
             "type": "u8"
           },
           {
+            "name": "randomness_value",
+            "type": "u64"
+          },
+          {
             "name": "total_pot",
             "type": "u64"
           },
@@ -977,6 +1209,10 @@
           {
             "name": "is_full",
             "type": "bool"
+          },
+          {
+            "name": "vrf_request",
+            "type": "pubkey"
           }
         ]
       }

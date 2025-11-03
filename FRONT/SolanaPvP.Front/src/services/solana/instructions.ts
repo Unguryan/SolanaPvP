@@ -146,57 +146,86 @@ export class PvpInstructions {
       const [configPda] = PdaUtils.getConfigPda();
       const [activePda] = PdaUtils.getActiveLobbyPda(params.creator);
 
-      // If this is the final join, use join_side_final with Switchboard OnDemand
+      // If this is the final join, use join_side_final with Orao VRF
       if (willBeFinalJoin) {
         console.log(
-          "[JoinLobby] Using join_side_final (with OnDemand randomness)"
+          "[JoinLobby] Using join_side_final (with Orao VRF)"
         );
 
-        // Get randomness account from backend pool
-        const { randomnessApi } = await import("../api/randomness");
-        let randomnessAccountStr: string;
+        // Generate random VRF seed (32 bytes)
+        const vrfSeed = new Uint8Array(32);
+        crypto.getRandomValues(vrfSeed);
+        const vrfSeedArray = Array.from(vrfSeed);
+        
+        console.log("🎲 [JoinLobby] Generated VRF seed:", Buffer.from(vrfSeed).toString("hex"));
 
-        try {
-          const response = await randomnessApi.getAvailableAccount();
-          randomnessAccountStr = response.randomnessAccount;
-          console.log(
-            "[JoinLobby] Allocated randomness account from pool:",
-            randomnessAccountStr
-          );
-        } catch (err) {
-          console.error(
-            "[JoinLobby] Failed to get randomness account from pool:",
-            err
-          );
-          throw new Error(
-            "Failed to allocate randomness account. Please try again later."
-          );
+        // Get Orao VRF program ID from config
+        const oraoProgramId = new PublicKey(getSolanaConfig().oraoProgramId);
+        
+        // Derive Orao VRF PDAs
+        const VRF_CONFIG_SEED = Buffer.from("orao-vrf-network-configuration");
+        const VRF_REQUEST_SEED = Buffer.from("orao-vrf-randomness-request");
+        
+        const [vrfConfigPda] = PublicKey.findProgramAddressSync(
+          [VRF_CONFIG_SEED],
+          oraoProgramId
+        );
+        
+        const [vrfRequestPda] = PublicKey.findProgramAddressSync(
+          [VRF_REQUEST_SEED, vrfSeed],
+          oraoProgramId
+        );
+        
+        // Fetch VRF config to get treasury
+        const vrfConfigData = await program.provider.connection.getAccountInfo(vrfConfigPda);
+        if (!vrfConfigData) {
+          throw new Error("Orao VRF not initialized on this network");
         }
+        
+        // Parse treasury from config (offset 8 discriminator + 32 authority + 32 treasury)
+        const vrfTreasury = new PublicKey(vrfConfigData.data.slice(40, 72));
 
-        const randomnessAccount = new PublicKey(randomnessAccountStr);
+        console.log("🔧 [JoinLobby] Building join_side_final transaction with Orao VRF accounts:");
+        console.log("  - lobby:", params.lobbyPda.toString());
+        console.log("  - creator:", params.creator.toString());
+        console.log("  - player:", params.player.toString());
+        console.log("  - vrfRequest:", vrfRequestPda.toString(), "← DERIVED FROM SEED");
+        console.log("  - vrfConfig:", vrfConfigPda.toString());
+        console.log("  - vrfTreasury:", vrfTreasury.toString());
+        console.log("  - vrfProgram:", oraoProgramId.toString());
 
-        // Get Switchboard program ID from config
-        const switchboardProgramId = new PublicKey(
-          getSolanaConfig().switchboardProgramId
-        );
-
-        // Use accountsPartial to explicitly provide accounts and avoid circular resolution
+        // Use accountsPartial to explicitly provide accounts
+        console.log("📤 [JoinLobby] Sending join_side_final transaction...");
         const tx = await program.methods
-          .joinSideFinal(params.side)
+          .joinSideFinal(params.side, vrfSeedArray)
           .accountsPartial({
             lobby: params.lobbyPda,
             creator: params.creator,
             player: params.player,
             active: activePda,
             config: configPda,
-            randomnessAccountData: randomnessAccount,
-            switchboardProgram: switchboardProgramId,
+            vrfRequest: vrfRequestPda,
+            vrfConfig: vrfConfigPda,
+            vrfTreasury: vrfTreasury,
+            vrfProgram: oraoProgramId,
             systemProgram: SystemProgram.programId,
           })
           .rpc({
             skipPreflight: false,
             commitment: "confirmed",
           });
+
+        console.log(
+          "✅ [JoinLobby] join_side_final transaction sent! Signature:",
+          tx
+        );
+        console.log(
+          "🎲 [JoinLobby] Orao VRF request created:",
+          vrfRequestPda.toString()
+        );
+        console.log(
+          "⏳ [JoinLobby] Orao oracles will fulfill randomness (sub-second!), then backend resolves match"
+        );
 
         return tx;
       } else {

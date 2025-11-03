@@ -9,7 +9,7 @@ skip-lint = false
 pvp_program = "F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ"
 
 [programs.mainnet]
-pvp_program = "8sbD4PjAwQdyyH2UkD8yFyupP3oMpfRYAKuKEkMDMswn"
+pvp_program = "HWgLWiR6CjdpTstrasbKsfGbrv67sZERai8v5wQaDW39"
 
 [registry]
 url = "https://api.apr.dev"
@@ -28,4 +28,4 @@ test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
 [test]
 startup_wait = 5000
 shutdown_wait = 2000
-upgradeable = false
+upgradeable = true

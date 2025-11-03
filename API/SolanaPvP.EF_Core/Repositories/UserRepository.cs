@@ -131,4 +131,35 @@ public class UserRepository : IUserRepository
         await _context.SaveChangesAsync();
         return dbo.ToDomain();
     }
+
+    public async Task UpdateLastSeenAsync(string pubkey)
+    {
+        var user = await _context.Users.FindAsync(pubkey);
+        
+        if (user == null)
+        {
+            // User doesn't exist - create with minimal data (called from blockchain event)
+            var newUser = new UserDBO
+            {
+                Pubkey = pubkey,
+                FirstSeen = DateTime.UtcNow,
+                LastSeen = DateTime.UtcNow,
+                Username = null, // Will be auto-generated on first frontend login
+                Wins = 0,
+                Losses = 0,
+                MatchesPlayed = 0,
+                TotalEarningsLamports = 0,
+                CanChangeUsername = true
+            };
+            _context.Users.Add(newUser);
+        }
+        else
+        {
+            // User exists - only update LastSeen (don't overwrite username or other data)
+            user.LastSeen = DateTime.UtcNow;
+            _context.Users.Update(user);
+        }
+        
+        await _context.SaveChangesAsync();
+    }
 }

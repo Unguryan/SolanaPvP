@@ -12,4 +12,5 @@ public interface IMatchRepository
     Task<bool> ExistsAsync(string matchPda);
     Task<IEnumerable<Match>> GetUserMatchesAsync(string pubkey, int skip, int take);
     Task<int> GetUserMatchesCountAsync(string pubkey);
+    Task AddParticipantAsync(MatchParticipant participant);
 }

@@ -4,8 +4,11 @@
   "type": "module",
   "dependencies": {
     "@coral-xyz/anchor": "0.31.1",
-    "@solana/web3.js": "^1.98.4",
-    "@switchboard-xyz/on-demand": "^1.0.28"
+    "@solana/web3.js": "^1.98.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }
-

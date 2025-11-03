@@ -4,11 +4,48 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Configurations>Debug;DebugNoFrontend;Release;ReleaseNoFrontend</Configurations>
   </PropertyGroup>
 
-  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="npm run devBuild" WorkingDirectory="../../FRONT/SolanaPvP.Front" Condition="'$(Configuration)' == 'Debug'" />
-    <Exec Command="npm run relBuild" WorkingDirectory="../../FRONT/SolanaPvP.Front" Condition="'$(Configuration)' == 'Release'" />
+  <!-- Debug with frontend build -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <Optimize>false</Optimize>
+    <BuildFrontend>true</BuildFrontend>
+    <FrontendMode>development</FrontendMode>
+  </PropertyGroup>
+
+  <!-- Debug without frontend build (faster iteration) -->
+  <PropertyGroup Condition="'$(Configuration)' == 'DebugNoFrontend'">
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <Optimize>false</Optimize>
+    <BuildFrontend>false</BuildFrontend>
+  </PropertyGroup>
+
+  <!-- Release with frontend build -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <BuildFrontend>true</BuildFrontend>
+    <FrontendMode>production</FrontendMode>
+  </PropertyGroup>
+
+  <!-- Release without frontend build -->
+  <PropertyGroup Condition="'$(Configuration)' == 'ReleaseNoFrontend'">
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <BuildFrontend>false</BuildFrontend>
+  </PropertyGroup>
+
+  <!-- Frontend build target (conditional) -->
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(BuildFrontend)' == 'true'">
+    <Message Text="Building frontend in $(FrontendMode) mode..." Importance="high" />
+    <Exec Command="npm run devBuild" WorkingDirectory="../../FRONT/SolanaPvP.Front" Condition="'$(FrontendMode)' == 'development'" />
+    <Exec Command="npm run relBuild" WorkingDirectory="../../FRONT/SolanaPvP.Front" Condition="'$(FrontendMode)' == 'production'" />
+  </Target>
+
+  <Target Name="SkipFrontendBuild" BeforeTargets="PreBuildEvent" Condition="'$(BuildFrontend)' == 'false'">
+    <Message Text="Skipping frontend build (using existing wwwroot)" Importance="high" />
   </Target>
 
   <ItemGroup>

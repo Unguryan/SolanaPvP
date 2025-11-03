@@ -1,6 +1,6 @@
 // Security: See security.txt in the repository root for security policy and contact information
 // --------------------------------------------------------------------------
-// Final Anchor program with Switchboard VRF v2 integration (English comments)
+// Final Anchor program with Orao VRF integration (English comments)
 // --------------------------------------------------------------------------
 // Key properties:
 // - Allowed team sizes: 1, 2, 5 (validated on create)
@@ -10,26 +10,21 @@
 // - Creator pays and joins immediately on create_lobby
 // - Exactly one active lobby per creator enforced by ActiveLobby PDA
 // - Auto VRF request on the LAST join (no off-chain picker) → status moves to Pending
-// - Switchboard VRF calls fulfill_randomness (callback) to fairly pick winner and pay instantly
+// - Orao VRF oracles fulfill randomness automatically (sub-second)
 // - Refund is only possible from Open state (i.e., before VRF request) and after 2 minutes
 // - Careful use of remaining_accounts for payouts to ensure target AccountInfos are present
 //
 // Notes:
-// - This is a template for Switchboard VRF v2 usage. You must pass the proper VRF accounts
-//   in the last join call (when the lobby becomes full). This includes the queue, permission,
-//   vrf account, escrow wallet, payer wallet, program state, recent blockhashes sysvar, etc.
-// - The VRF authority is set to the lobby PDA so we can verify the callback is legitimate.
-// - In fulfill_randomness we validate that the provided VRF account matches the one stored
-//   in the lobby and that the authority equals the lobby PDA.
+// - Orao VRF uses seed-based requests: request creates PDA, oracles fulfill automatically
+// - Request is made via CPI call in join_side_final
+// - ResolveMatch reads fulfilled randomness from Orao VRF account
 // - ActiveLobby is closed after final resolution or refund (returns rent to creator).
 
 use anchor_lang::prelude::{*, Context, Program};
 use anchor_lang::system_program::System;
-use anchor_lang::solana_program::system_instruction;
-// Token imports removed - not used in this version
-// Switchboard OnDemand (replaces deprecated V2)
-// Import only what we need to avoid conflicts with anchor_lang::prelude::*
-use switchboard_on_demand::{RandomnessAccountData};
+use anchor_lang::solana_program::{system_instruction, program::invoke};
+// Orao VRF constants for PDA derivation
+use orao_solana_vrf::CONFIG_ACCOUNT_SEED;
 
 // Security contact information
 #[cfg(not(feature = "no-entrypoint"))]
@@ -51,12 +46,9 @@ security_txt! {
 
 declare_id!("F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ");
 
-// Switchboard OnDemand program ID (devnet & mainnet)
-// SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv
-pub const SWITCHBOARD_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
-    0x9e, 0x20, 0x44, 0xd0, 0x51, 0x76, 0x96, 0xa8, 0x45, 0x4b, 0xd8, 0xa8, 0x66, 0x8e, 0x6a, 0x4f,
-    0xe3, 0x5f, 0x0c, 0xe6, 0x9c, 0x95, 0x57, 0x6e, 0x48, 0x26, 0x90, 0x9d, 0x47, 0x0e, 0x0e, 0x58,
-]);
+// Orao VRF program ID (same for devnet and mainnet)
+// VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y
+pub use orao_solana_vrf::ID as ORAO_VRF_PROGRAM_ID;
 
 // PDA seeds
 const SEED_LOBBY:  &[u8] = b"lobby";
@@ -102,14 +94,14 @@ pub struct PlayerJoined {
     pub team1_count: u8,
     pub team2_count: u8,
     pub is_full: bool,
-    pub randomness_account: Pubkey, // Switchboard randomness account (set when full)
+    pub vrf_request: Pubkey, // Orao VRF request account (set when full)
 }
 
 #[event]
 pub struct LobbyResolved {
     pub lobby: Pubkey,
     pub winner_side: u8,
-    pub randomness_value: u64, // Switchboard randomness for transparency!
+    pub randomness_value: u64, // Orao VRF randomness for transparency!
     pub total_pot: u64,
     pub platform_fee: u64,
     pub payout_per_winner: u64,
@@ -150,22 +142,25 @@ pub enum PvpError {
     InvalidTeamSize,
     #[msg("Remaining accounts mismatch with team lists")]
     RemainingAccountsMismatch,
-    #[msg("Wrong Switchboard program id")]
-    WrongSwitchboardProgram,
-    #[msg("VRF account does not match lobby")]
-    WrongVrfAccount,
-    #[msg("VRF authority mismatch")]
-    WrongVrfAuthority,
     #[msg("Lobby not pending")]
     NotPending,
     #[msg("Lobby is full - must use join_side_final instruction")]
     MustUseFinalJoin,
 
-    #[msg("Wrong randomness account provided")]
+    #[msg("Wrong VRF request account provided")]
     WrongRandomnessAccount,
     
     #[msg("Invalid randomness data")]
     InvalidRandomnessData,
+    
+    #[msg("Randomness not yet fulfilled by Orao VRF")]
+    RandomnessNotFulfilled,
+    
+    #[msg("Wrong VRF treasury")]
+    WrongVrfTreasury,
+    
+    #[msg("Invalid VRF seed (cannot be zero)")]
+    InvalidVrfSeed,
 }
 
 
@@ -278,14 +273,30 @@ pub struct JoinSideFull<'info> {
     )]
     pub config: Account<'info, GlobalConfig>,
 
-    /// Switchboard OnDemand randomness account
-    /// CHECK: Validated by Switchboard OnDemand program
+    /// Orao VRF randomness request account (PDA derived from seed)
+    /// CHECK: Will be created/validated by Orao VRF program via CPI
     #[account(mut)]
-    pub randomness_account_data: AccountInfo<'info>,
+    pub vrf_request: AccountInfo<'info>,
 
-    /// CHECK: Switchboard OnDemand program - verified via address check
-    #[account(address = SWITCHBOARD_PROGRAM_ID)]
-    pub switchboard_program: UncheckedAccount<'info>,
+    /// Orao VRF network configuration
+    /// CHECK: PDA derived from CONFIG_ACCOUNT_SEED with Orao VRF program
+    #[account(
+        mut,
+        seeds = [CONFIG_ACCOUNT_SEED],
+        bump,
+        seeds::program = ORAO_VRF_PROGRAM_ID
+    )]
+    pub vrf_config: AccountInfo<'info>,
+
+    /// Orao VRF treasury (fee collector)
+    /// CHECK: Validated by reading from vrf_config account data
+    #[account(mut)]
+    pub vrf_treasury: AccountInfo<'info>,
+
+    /// Orao VRF program
+    /// CHECK: Address validated to match ORAO_VRF_PROGRAM_ID
+    #[account(address = ORAO_VRF_PROGRAM_ID)]
+    pub vrf_program: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -354,16 +365,16 @@ pub struct ResolveMatch<'info> {
     )]
     pub config: Account<'info, GlobalConfig>,
 
-    /// Switchboard OnDemand randomness account
-    /// CRITICAL: Must be owned by Switchboard and match the saved account
+    /// Orao VRF randomness request account
+    /// CRITICAL: Must be owned by Orao VRF and match the saved account
     /// This ensures randomness is provably fair and cannot be manipulated
-    /// CHECK: Verified via owner check (SWITCHBOARD_PROGRAM_ID) and constraint check (matches lobby.randomness_account)
+    /// CHECK: Verified via owner check (ORAO_VRF_PROGRAM_ID) and constraint check (matches lobby.vrf_seed)
     #[account(
         mut,
-        owner = SWITCHBOARD_PROGRAM_ID,
-        constraint = randomness_account_data.key() == lobby.randomness_account @ PvpError::WrongRandomnessAccount
+        owner = ORAO_VRF_PROGRAM_ID,
+        constraint = vrf_request.key() == lobby.vrf_request @ PvpError::WrongRandomnessAccount
     )]
-    pub randomness_account_data: AccountInfo<'info>,
+    pub vrf_request: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
     // remaining_accounts: [admin, team1..., team2...]
@@ -406,7 +417,8 @@ pub mod pvp_program {
         lobby.stake_lamports     = stake_lamports;
         lobby.created_at         = Clock::get()?.unix_timestamp;
         lobby.finalized          = false;
-        lobby.randomness_account = Pubkey::default(); // not set yet
+        lobby.vrf_seed           = [0u8; 32]; // will be set in join_side_final
+        lobby.vrf_request        = Pubkey::default(); // will be set in join_side_final
         lobby.winner_side        = 0; // not set yet
         lobby.team1              = Vec::with_capacity(team_size as usize);
         lobby.team2              = Vec::with_capacity(team_size as usize);
@@ -468,7 +480,7 @@ pub mod pvp_program {
             team1_count: lobby.team1.len() as u8,
             team2_count: lobby.team2.len() as u8,
             is_full: full_now,
-            randomness_account: lobby.randomness_account, // Not set yet for non-final joins
+            vrf_request: lobby.vrf_request, // Not set yet for non-final joins
         });
 
         // If lobby is full, this is an error - should have used join_side_final
@@ -479,8 +491,9 @@ pub mod pvp_program {
 
     // Final join - when this join will fill the lobby and trigger VRF request.
     // IMPORTANT: Caller must provide all Switchboard VRF accounts.
-    pub fn join_side_final(ctx: Context<JoinSideFull>, side: u8) -> Result<()> {
+    pub fn join_side_final(ctx: Context<JoinSideFull>, side: u8, vrf_seed: [u8; 32]) -> Result<()> {
         require!(side <= 1, PvpError::InvalidSide);
+        require!(vrf_seed != [0u8; 32], PvpError::InvalidVrfSeed);
 
         // Must be Open to accept more players
         let lobby = &mut ctx.accounts.lobby;
@@ -501,23 +514,48 @@ pub mod pvp_program {
 
         // This instruction should only be called when lobby becomes full
         if full_now {
-            // Validate Switchboard program
-            require!(
-                ctx.accounts.switchboard_program.key() == SWITCHBOARD_PROGRAM_ID,
-                PvpError::WrongSwitchboardProgram
-            );
+            // Store VRF seed and request for later resolution
+            lobby.vrf_seed = vrf_seed;
+            lobby.vrf_request = ctx.accounts.vrf_request.key();
 
-            // Store randomness account for later resolution
-            lobby.randomness_account = ctx.accounts.randomness_account_data.key();
+            // Request randomness from Orao VRF via low-level invoke (to avoid Anchor version conflicts)
+            // Instruction discriminator for request_v2: first 8 bytes of sha256("global:request_v2")
+            let discriminator: [u8; 8] = [0x29, 0x8b, 0x82, 0x5f, 0x7e, 0x88, 0x31, 0x1d];
             
-            // Move to Pending - waiting for off-chain call to resolve_match
-            // In OnDemand model, randomness is pulled when needed (in resolve_match instruction)
+            let mut ix_data = Vec::with_capacity(8 + 32);
+            ix_data.extend_from_slice(&discriminator);
+            ix_data.extend_from_slice(&vrf_seed);
+            
+            let request_ix = anchor_lang::solana_program::instruction::Instruction {
+                program_id: ORAO_VRF_PROGRAM_ID,
+                accounts: vec![
+                    anchor_lang::solana_program::instruction::AccountMeta::new(ctx.accounts.player.key(), true),
+                    anchor_lang::solana_program::instruction::AccountMeta::new(ctx.accounts.vrf_config.key(), false),
+                    anchor_lang::solana_program::instruction::AccountMeta::new(ctx.accounts.vrf_treasury.key(), false),
+                    anchor_lang::solana_program::instruction::AccountMeta::new(ctx.accounts.vrf_request.key(), false),
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
+                ],
+                data: ix_data,
+            };
+            
+            invoke(
+                &request_ix,
+                &[
+                    ctx.accounts.player.to_account_info(),
+                    ctx.accounts.vrf_config.to_account_info(),
+                    ctx.accounts.vrf_treasury.to_account_info(),
+                    ctx.accounts.vrf_request.to_account_info(),
+                    ctx.accounts.system_program.to_account_info(),
+                ],
+            )?;
+            
+            // Move to Pending - waiting for Orao oracles to fulfill (sub-second!)
             lobby.status = LobbyStatus::Pending;
             
-            msg!("Lobby full! Moved to Pending. Call resolve_match to determine winner.");
+            msg!("Lobby full! VRF requested. Waiting for fulfillment, then call resolve_match.");
         }
 
-        // Emit player joined event AFTER setting randomness account (so it's included in event)
+        // Emit player joined event AFTER VRF request (so vrf_request is included)
         emit!(PlayerJoined {
             lobby: lobby.key(),
             player: ctx.accounts.player.key(),
@@ -525,7 +563,7 @@ pub mod pvp_program {
             team1_count: lobby.team1.len() as u8,
             team2_count: lobby.team2.len() as u8,
             is_full: full_now,
-            randomness_account: lobby.randomness_account, // Set to pool account when full
+            vrf_request: lobby.vrf_request,
         });
 
         Ok(())
@@ -689,29 +727,44 @@ pub mod pvp_program {
         require!(matches!(ctx.accounts.lobby.status, LobbyStatus::Pending), PvpError::NotPending);
         require!(!ctx.accounts.lobby.finalized, PvpError::AlreadyFinalized);
         
-        // READ RANDOMNESS FROM SWITCHBOARD (PROOF OF FAIRNESS!)
-        // Use official Switchboard OnDemand API (from docs)
-        let randomness_data = RandomnessAccountData::parse(
-            ctx.accounts.randomness_account_data.data.borrow()
-        ).map_err(|_| PvpError::InvalidRandomnessData)?;
-        
-        let clock = Clock::get()?;
-        
-        // Get revealed random value using official API (pass current slot)
-        let randomness_value_bytes = randomness_data.get_value(clock.slot)
+        // READ RANDOMNESS FROM ORAO VRF (PROOF OF FAIRNESS!)
+        // Manual parsing to avoid Anchor version conflicts
+        let account_data = ctx.accounts.vrf_request.try_borrow_data()
             .map_err(|_| PvpError::InvalidRandomnessData)?;
         
-        // Convert [u8; 32] to u64 for our purposes
+        // Orao VRF RandomnessV2 structure:
+        // [0..8]: Anchor discriminator
+        // [8]: Enum tag (0 = Pending, 1 = Fulfilled)
+        // If Fulfilled (tag=1):
+        //   [9..41]: client pubkey (32 bytes)
+        //   [41..73]: seed (32 bytes)
+        //   [73..137]: randomness (64 bytes)
+        
+        if account_data.len() < 137 {
+            return Err(PvpError::InvalidRandomnessData.into());
+        }
+        
+        // Check if fulfilled (enum tag == 1)
+        let is_fulfilled = account_data[8] == 1;
+        if !is_fulfilled {
+            return Err(PvpError::RandomnessNotFulfilled.into());
+        }
+        
+        // Extract randomness bytes [73..137]
+        let mut randomness_bytes = [0u8; 64];
+        randomness_bytes.copy_from_slice(&account_data[73..137]);
+        
+        // Convert first 8 bytes to u64 for transparency logging
         let mut randomness_u64_bytes = [0u8; 8];
-        randomness_u64_bytes.copy_from_slice(&randomness_value_bytes[0..8]);
+        randomness_u64_bytes.copy_from_slice(&randomness_bytes[0..8]);
         let randomness_value = u64::from_le_bytes(randomness_u64_bytes);
         
-        msg!("Switchboard randomness: {}", randomness_value);
+        msg!("Orao VRF randomness: {}", randomness_value);
         
-        // Determine winner based on Switchboard randomness (provably fair!)
+        // Determine winner based on Orao VRF randomness (provably fair!)
         let winner_side = (randomness_value % 2) as u8;
         
-        msg!("Winner determined by Switchboard OnDemand: Side {}", winner_side);
+        msg!("Winner determined by Orao VRF: Side {}", winner_side);
         
         // Save all lobby values before mutable borrow
         let lobby_creator = ctx.accounts.lobby.creator;
@@ -848,15 +901,16 @@ pub struct Lobby {
     pub stake_lamports: u64,
     pub created_at: i64,
     pub finalized: bool,        // prevents double settlement
-    pub randomness_account: Pubkey,  // Switchboard OnDemand randomness account (set when full)
+    pub vrf_seed: [u8; 32],     // Orao VRF seed for randomness request
+    pub vrf_request: Pubkey,    // Orao VRF request account PDA (set when full)
     pub winner_side: u8,        // 0 or 1, set when resolved
     pub team1: Vec<Pubkey>,
     pub team2: Vec<Pubkey>,
 }
 impl Lobby {
     // Layout size calculation:
-    // discr(8)+bump(1)+lobby_id(8)+creator(32)+status(1)+team_size(1)+stake(8)+created_at(8)+finalized(1)+randomness(32)+winner(1)+vec headers(4+4)
-    pub const FIXED: usize = 8 + 1 + 8 + 32 + 1 + 1 + 8 + 8 + 1 + 32 + 1 + 4 + 4;
+    // discr(8)+bump(1)+lobby_id(8)+creator(32)+status(1)+team_size(1)+stake(8)+created_at(8)+finalized(1)+vrf_seed(32)+vrf_request(32)+winner(1)+vec headers(4+4)
+    pub const FIXED: usize = 8 + 1 + 8 + 32 + 1 + 1 + 8 + 8 + 1 + 32 + 32 + 1 + 4 + 4;
     pub const PER_PLAYER: usize = 32;
     pub const SIZE: usize = Self::FIXED + (Self::PER_PLAYER * MAX_TEAM_SIZE_ALLOC * 2);
 }

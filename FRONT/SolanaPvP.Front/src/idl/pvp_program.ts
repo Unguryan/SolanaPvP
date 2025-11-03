@@ -10,7 +10,7 @@ export type PvpProgram = {
     "name": "pvpProgram",
     "version": "1.0.0",
     "spec": "0.1.0",
-    "description": "Solana PvP Game Program with Switchboard VRF"
+    "description": "Solana PvP Game Program with Orao VRF"
   },
   "instructions": [
     {
@@ -450,15 +450,108 @@ export type PvpProgram = {
           }
         },
         {
-          "name": "randomnessAccountData",
+          "name": "vrfRequest",
           "docs": [
-            "Switchboard OnDemand randomness account"
+            "Orao VRF randomness request account (PDA derived from seed)"
           ],
           "writable": true
         },
         {
-          "name": "switchboardProgram",
-          "address": "BeFxPRDreo8uLivyGgqDE87iGaU3o1Tw9hZw46NxYaej"
+          "name": "vrfConfig",
+          "docs": [
+            "Orao VRF network configuration"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  111,
+                  45,
+                  118,
+                  114,
+                  102,
+                  45,
+                  110,
+                  101,
+                  116,
+                  119,
+                  111,
+                  114,
+                  107,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                7,
+                71,
+                177,
+                26,
+                250,
+                145,
+                180,
+                209,
+                249,
+                34,
+                242,
+                123,
+                14,
+                186,
+                193,
+                218,
+                178,
+                59,
+                33,
+                41,
+                164,
+                190,
+                243,
+                79,
+                50,
+                164,
+                123,
+                88,
+                245,
+                206,
+                252,
+                120
+              ]
+            }
+          }
+        },
+        {
+          "name": "vrfTreasury",
+          "docs": [
+            "Orao VRF treasury (fee collector)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "vrfProgram",
+          "docs": [
+            "Orao VRF program"
+          ],
+          "address": "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"
         },
         {
           "name": "systemProgram",
@@ -469,6 +562,15 @@ export type PvpProgram = {
         {
           "name": "side",
           "type": "u8"
+        },
+        {
+          "name": "vrfSeed",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         }
       ]
     },
@@ -658,10 +760,10 @@ export type PvpProgram = {
           }
         },
         {
-          "name": "randomnessAccountData",
+          "name": "vrfRequest",
           "docs": [
-            "Switchboard OnDemand randomness account",
-            "CRITICAL: Must be owned by Switchboard and match the saved account",
+            "Orao VRF randomness request account",
+            "CRITICAL: Must be owned by Orao VRF and match the saved account",
             "This ensures randomness is provably fair and cannot be manipulated"
           ],
           "writable": true
@@ -837,38 +939,38 @@ export type PvpProgram = {
     },
     {
       "code": 6013,
-      "name": "wrongSwitchboardProgram",
-      "msg": "Wrong Switchboard program id"
-    },
-    {
-      "code": 6014,
-      "name": "wrongVrfAccount",
-      "msg": "VRF account does not match lobby"
-    },
-    {
-      "code": 6015,
-      "name": "wrongVrfAuthority",
-      "msg": "VRF authority mismatch"
-    },
-    {
-      "code": 6016,
       "name": "notPending",
       "msg": "Lobby not pending"
     },
     {
-      "code": 6017,
+      "code": 6014,
       "name": "mustUseFinalJoin",
       "msg": "Lobby is full - must use join_side_final instruction"
     },
     {
-      "code": 6018,
+      "code": 6015,
       "name": "wrongRandomnessAccount",
-      "msg": "Wrong randomness account provided"
+      "msg": "Wrong VRF request account provided"
+    },
+    {
+      "code": 6016,
+      "name": "invalidRandomnessData",
+      "msg": "Invalid randomness data"
+    },
+    {
+      "code": 6017,
+      "name": "randomnessNotFulfilled",
+      "msg": "Randomness not yet fulfilled by Orao VRF"
+    },
+    {
+      "code": 6018,
+      "name": "wrongVrfTreasury",
+      "msg": "Wrong VRF treasury"
     },
     {
       "code": 6019,
-      "name": "invalidRandomnessData",
-      "msg": "Invalid randomness data"
+      "name": "invalidVrfSeed",
+      "msg": "Invalid VRF seed (cannot be zero)"
     }
   ],
   "types": [
@@ -950,7 +1052,16 @@ export type PvpProgram = {
             "type": "bool"
           },
           {
-            "name": "randomnessAccount",
+            "name": "vrfSeed",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "vrfRequest",
             "type": "pubkey"
           },
           {
@@ -1106,7 +1217,7 @@ export type PvpProgram = {
             "type": "bool"
           },
           {
-            "name": "randomnessAccount",
+            "name": "vrfRequest",
             "type": "pubkey"
           }
         ]

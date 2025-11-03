@@ -16,7 +16,8 @@ public class NodeScriptExecutor
     {
         try
         {
-            // Build script path relative to assembly location
+            // Use SOURCE directory instead of bin/ directory (where node_modules are!)
+            // This is critical for npx/ts-node to find dependencies
             var assemblyDir = AppDomain.CurrentDomain.BaseDirectory;
             var scriptPath = Path.Combine(assemblyDir, "scripts", scriptName);
 
@@ -25,20 +26,46 @@ public class NodeScriptExecutor
                 throw new FileNotFoundException($"Script not found: {scriptPath}");
             }
 
-            _logger.LogDebug("[NodeScriptExecutor] Executing {Script} with args: {Args}", 
-                scriptName, string.Join(", ", args));
+            var scriptsDir = Path.GetDirectoryName(scriptPath)!;
+            _logger.LogInformation("[NodeScriptExecutor] Executing {Script} from directory: {Dir}", 
+                scriptName, scriptsDir);
+            _logger.LogInformation("[NodeScriptExecutor] Script path: {Path}", scriptPath);
+            _logger.LogInformation("[NodeScriptExecutor] node_modules exists: {Exists}", 
+                Directory.Exists(Path.Combine(scriptsDir, "node_modules")));
+
+            // Determine if TypeScript or JavaScript
+            var isTypeScript = scriptPath.EndsWith(".ts", StringComparison.OrdinalIgnoreCase);
+            
+            string executor;
+            string executorArgs;
+            
+            if (isTypeScript)
+            {
+                // For TypeScript: use tsx (ESM + TypeScript support with JSON imports)
+                executor = "cmd.exe";
+                executorArgs = $"/c tsx \"{scriptPath}\" {string.Join(" ", args.Select(a => $"\"{a}\""))}";
+                _logger.LogInformation("[NodeScriptExecutor] Using global tsx (ESM + TypeScript support)");
+            }
+            else
+            {
+                // For JavaScript: use node
+                executor = "node";
+                executorArgs = $"\"{scriptPath}\" {string.Join(" ", args.Select(a => $"\"{a}\""))}";
+            }
+
+            _logger.LogDebug("[NodeScriptExecutor] Executor: {Executor}, Args: {Args}", executor, executorArgs);
 
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = "node",
-                    Arguments = $"\"{scriptPath}\" {string.Join(" ", args.Select(a => $"\"{a}\""))}",
+                    FileName = executor,
+                    Arguments = executorArgs,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true,
-                    WorkingDirectory = Path.GetDirectoryName(scriptPath)
+                    WorkingDirectory = scriptsDir // ← RUN FROM SCRIPTS DIR WHERE node_modules EXIST!
                 }
             };
 
