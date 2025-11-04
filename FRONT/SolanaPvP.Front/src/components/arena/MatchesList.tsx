@@ -186,7 +186,8 @@ export const MatchesList: React.FC<MatchesListProps> = ({
             match.playersMax
           );
           const timeRemaining = timeLeft[match.id] || 0;
-          const isEnded = match.status === "Resolved";
+          const isWaiting = match.status === "Waiting";
+          const isInGame = match.status === "AwaitingRandomness" || match.status === "Pending";
 
           return (
             <motion.div
@@ -221,10 +222,18 @@ export const MatchesList: React.FC<MatchesListProps> = ({
                       <span>
                         {match.playersReady}/{match.playersMax} players
                       </span>
-                      <span>•</span>
-                      <span>
-                        {isEnded ? "Ended" : formatTimeLeft(timeRemaining)}
-                      </span>
+                      {isWaiting && (
+                        <>
+                          <span>•</span>
+                          <span>{formatTimeLeft(timeRemaining)}</span>
+                        </>
+                      )}
+                      {isInGame && (
+                        <>
+                          <span>•</span>
+                          <span className="text-blue-400">Playing...</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -233,7 +242,7 @@ export const MatchesList: React.FC<MatchesListProps> = ({
                   <div className={`text-sm font-semibold mb-1 ${getMatchStatusColor(match)}`}>
                     {getMatchStatusText(match)}
                   </div>
-                  {!isEnded && (
+                  {isWaiting && (
                     <>
                       <div className="text-xs text-txt-muted mb-1">
                         {fillPercentage}% full

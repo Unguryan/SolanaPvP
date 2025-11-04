@@ -23,8 +23,9 @@ public class ResolveBotWorker : BackgroundService
     {
         _logger.LogInformation("[ResolveBotWorker] Started - monitoring for fulfilled Orao VRF requests");
 
-        // Wait 10 seconds before starting to allow other services to initialize
-        await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+        // Wait 15 seconds before starting to allow other services to initialize
+        // AND to give blockchain time to update after JoinSideFinal
+        await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {

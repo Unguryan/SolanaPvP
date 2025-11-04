@@ -75,6 +75,16 @@ async function main() {
 
     console.error("[Resolve] Active:", activePda.toString());
 
+    // Fetch lobby from blockchain to get EXACT team order (critical!)
+    console.error("[Resolve] Fetching lobby from blockchain to get team order...");
+    const lobbyAccount = await program.account.lobby.fetch(new PublicKey(lobbyPda));
+    const team1Players = lobbyAccount.team1.map((pk: any) => pk.toString());
+    const team2Players = lobbyAccount.team2.map((pk: any) => pk.toString());
+    
+    console.error("[Resolve] Team1 from chain:", team1Players);
+    console.error("[Resolve] Team2 from chain:", team2Players);
+    console.error("[Resolve] Total participants from chain:", team1Players.length + team2Players.length);
+
     // Build transaction (NO CONFIG - treasury hardcoded in smart contract!)
     const tx = await program.methods
       .resolveMatch()
@@ -92,8 +102,14 @@ async function main() {
           isSigner: false,
           isWritable: true,
         },
-        // Then all participants (team1 + team2)
-        ...participants.map((p: string) => ({
+        // Then team1 (in EXACT chain order!)
+        ...team1Players.map((p: string) => ({
+          pubkey: new PublicKey(p),
+          isSigner: false,
+          isWritable: true,
+        })),
+        // Then team2 (in EXACT chain order!)
+        ...team2Players.map((p: string) => ({
           pubkey: new PublicKey(p),
           isSigner: false,
           isWritable: true,

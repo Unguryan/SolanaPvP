@@ -135,9 +135,8 @@ public class EventParser : IEventParser
         {
             "6da91032a9f2ed41" => (EventKind.MatchCreated, "LobbyCreated"),
             "2790316a6cd2b726" => (EventKind.MatchJoined, "PlayerJoined"),
+            "9bb3dba83ff26889" => (EventKind.MatchResolved, "LobbyResolved"),
             "2563224caff103ae" => (EventKind.MatchRefunded, "LobbyRefunded"),
-            // Add more discriminators as we discover them from on-chain events:
-            // LobbyResolved discriminator will be added when observed
             _ => (null, $"Unknown (discriminator: {discHex})")
         };
     }
