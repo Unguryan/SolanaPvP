@@ -25,7 +25,6 @@ public static class DependencyInjection
         services.AddScoped<IIndexerStateManager, IndexerStateManager>();
         services.AddScoped<IUsernameService, UsernameService>();
         services.AddScoped<IInvitationService, InvitationService>();
-        services.AddScoped<IRandomnessPoolService, RandomnessPoolService>();
 
         return services;
     }

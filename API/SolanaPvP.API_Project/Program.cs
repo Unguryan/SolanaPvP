@@ -27,7 +27,6 @@ builder.Services.AddSolanaRPC();
 builder.Services.AddHostedService<IndexerWorker>();
 builder.Services.AddHostedService<RefundBotWorker>();
 builder.Services.AddHostedService<ResolveBotWorker>();
-builder.Services.AddHostedService<RandomnessPoolWorker>();
 
 var app = builder.Build();
 

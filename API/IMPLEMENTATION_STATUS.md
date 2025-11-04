@@ -144,7 +144,7 @@ Currently uses lobby PDA as placeholder randomness account.
 
 1. Create randomness account via Switchboard dashboard
 2. Fund it for oracle fees
-3. Pass real account in join_side_final (frontend)
+3. Pass real account in JoinSideFinal (frontend)
 4. Update to use proper Switchboard account initialization
 
 ## Architecture Benefits

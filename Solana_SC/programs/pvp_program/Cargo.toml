@@ -21,7 +21,7 @@ anchor-lang = "0.31.1"
 anchor-spl = "0.31.1"
 # Orao VRF - use latest from GitHub (fully compatible with Anchor 0.31.1)
 # no-entrypoint disables global allocator to avoid conflict with Anchor
-orao-solana-vrf = { git = "https://github.com/orao-network/solana-vrf", default-features = false, features = ["no-entrypoint"] }
+orao-solana-vrf = { git = "https://github.com/orao-network/solana-vrf", default-features = false, features = ["no-entrypoint", "cpi"] }
 solana-security-txt = "1.1.1"
 sha2 = "0.10"
 # Fix indexmap for rustc 1.79 compatibility

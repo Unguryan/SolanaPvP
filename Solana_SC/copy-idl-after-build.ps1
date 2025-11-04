@@ -6,12 +6,16 @@ Write-Host "Copying IDL files to frontend and backend..." -ForegroundColor Cyan
 # Copy JSON IDL
 $jsonSource = ".\target\idl\pvp_program.json"
 $jsonDestFrontend = "..\FRONT\SolanaPvP.Front\src\idl\pvp_program.json"
+$jsonDestFrontendPublic = "..\FRONT\SolanaPvP.Front\public\idl\pvp_program.json"
 $jsonDestBackend = "..\API\SolanaPvP.SolanaRPC\idl\pvp_program.json"
 $jsonDestWwwroot = "..\API\SolanaPvP.API_Project\wwwroot\idl\pvp_program.json"
 
 if (Test-Path $jsonSource) {
     Copy-Item $jsonSource $jsonDestFrontend -Force
-    Write-Host "✅ Copied pvp_program.json to FRONTEND" -ForegroundColor Green
+    Write-Host "✅ Copied pvp_program.json to FRONTEND (src/idl)" -ForegroundColor Green
+    
+    Copy-Item $jsonSource $jsonDestFrontendPublic -Force
+    Write-Host "✅ Copied pvp_program.json to FRONTEND (public/idl)" -ForegroundColor Green
     
     Copy-Item $jsonSource $jsonDestBackend -Force
     Write-Host "✅ Copied pvp_program.json to BACKEND (API/SolanaRPC)" -ForegroundColor Green
@@ -58,7 +62,8 @@ export const IDL: PvpProgram = idlJson as unknown as PvpProgram;
 
 Write-Host ""
 Write-Host "🎉 IDL files updated successfully in ALL locations!" -ForegroundColor Green
-Write-Host "   - Frontend: FRONT\SolanaPvP.Front\src\idl\" -ForegroundColor Cyan
+Write-Host "   - Frontend src: FRONT\SolanaPvP.Front\src\idl\" -ForegroundColor Cyan
+Write-Host "   - Frontend public: FRONT\SolanaPvP.Front\public\idl\" -ForegroundColor Cyan
 Write-Host "   - Backend: API\SolanaPvP.SolanaRPC\idl\" -ForegroundColor Cyan
 Write-Host "   - Wwwroot: API\SolanaPvP.API_Project\wwwroot\idl\" -ForegroundColor Cyan
 

@@ -79,11 +79,12 @@ public class ResolveBotWorker : BackgroundService
                 // Send resolve transaction
                 // Orao oracles fulfill automatically (sub-second), so we just try to resolve
                 // If randomness isn't fulfilled yet, transaction will fail with "RandomnessNotFulfilled" and we'll retry
-                var result = await resolveSender.SendResolveMatchAsync(match.MatchPda, vrfRequest);
+                var signature = await resolveSender.SendResolveMatchAsync(match.MatchPda, vrfRequest);
 
-                if (result)
+                if (!string.IsNullOrEmpty(signature))
                 {
-                    _logger.LogInformation("[ResolveBotWorker] ✅ Successfully resolved match {MatchPda}", match.MatchPda);
+                    _logger.LogInformation("[ResolveBotWorker] ✅ Successfully resolved match {MatchPda}, signature: {Signature}", 
+                        match.MatchPda, signature);
                 }
                 else
                 {

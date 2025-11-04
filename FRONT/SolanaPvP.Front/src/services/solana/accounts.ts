@@ -65,7 +65,8 @@ export interface LobbyAccount {
   stakeLamports: BN;
   createdAt: BN;
   finalized: boolean;
-  randomnessAccount: PublicKey;
+  vrfSeed: number[];
+  vrfRequest: PublicKey;
   winnerSide: number;
   team1: PublicKey[];
   team2: PublicKey[];
@@ -124,7 +125,8 @@ export function serializeLobbyAccount(account: LobbyAccount): string {
     stakeLamports: account.stakeLamports.toString(),
     createdAt: account.createdAt.toString(),
     finalized: account.finalized,
-    randomnessAccount: account.randomnessAccount.toString(),
+    vrfSeed: account.vrfSeed,
+    vrfRequest: account.vrfRequest.toString(),
     winnerSide: account.winnerSide,
     team1: account.team1.map((pk) => pk.toString()),
     team2: account.team2.map((pk) => pk.toString()),
@@ -142,7 +144,8 @@ export function deserializeLobbyAccount(data: string): LobbyAccount {
     stakeLamports: new BN(parsed.stakeLamports),
     createdAt: new BN(parsed.createdAt),
     finalized: parsed.finalized,
-    randomnessAccount: new PublicKey(parsed.randomnessAccount),
+    vrfSeed: parsed.vrfSeed || Array(32).fill(0),
+    vrfRequest: new PublicKey(parsed.vrfRequest || "11111111111111111111111111111111"),
     winnerSide: parsed.winnerSide,
     team1: parsed.team1.map((pk: string) => new PublicKey(pk)),
     team2: parsed.team2.map((pk: string) => new PublicKey(pk)),

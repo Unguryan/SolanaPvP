@@ -178,78 +178,11 @@ export type PvpProgram = {
           }
         },
         {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
-    },
-    {
-      "name": "initConfig",
-      "discriminator": [
-        23,
-        235,
-        115,
-        232,
-        168,
-        96,
-        1,
-        231
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "admin",
-          "type": "pubkey"
-        }
-      ]
     },
     {
       "name": "joinSide",
@@ -322,24 +255,6 @@ export type PvpProgram = {
                 "kind": "account",
                 "path": "lobby.creator",
                 "account": "lobby"
-              }
-            ]
-          }
-        },
-        {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
               }
             ]
           }
@@ -432,29 +347,88 @@ export type PvpProgram = {
           }
         },
         {
-          "name": "config",
+          "name": "vrfRequest",
+          "docs": [
+            "Orao VRF randomness request account (PDA derived from seed)"
+          ],
+          "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  99,
                   111,
-                  110,
+                  114,
+                  97,
+                  111,
+                  45,
+                  118,
+                  114,
                   102,
-                  105,
-                  103
+                  45,
+                  114,
+                  97,
+                  110,
+                  100,
+                  111,
+                  109,
+                  110,
+                  101,
+                  115,
+                  115,
+                  45,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
                 ]
+              },
+              {
+                "kind": "arg",
+                "path": "vrfSeed"
               }
-            ]
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                7,
+                71,
+                177,
+                26,
+                250,
+                145,
+                180,
+                209,
+                249,
+                34,
+                242,
+                123,
+                14,
+                186,
+                193,
+                218,
+                178,
+                59,
+                33,
+                41,
+                164,
+                190,
+                243,
+                79,
+                50,
+                164,
+                123,
+                88,
+                245,
+                206,
+                252,
+                120
+              ]
+            }
           }
-        },
-        {
-          "name": "vrfRequest",
-          "docs": [
-            "Orao VRF randomness request account (PDA derived from seed)"
-          ],
-          "writable": true
         },
         {
           "name": "vrfConfig",
@@ -648,24 +622,6 @@ export type PvpProgram = {
           }
         },
         {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
@@ -742,24 +698,6 @@ export type PvpProgram = {
           }
         },
         {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
           "name": "vrfRequest",
           "docs": [
             "Orao VRF randomness request account",
@@ -791,19 +729,6 @@ export type PvpProgram = {
       ]
     },
     {
-      "name": "globalConfig",
-      "discriminator": [
-        149,
-        8,
-        156,
-        202,
-        160,
-        252,
-        176,
-        217
-      ]
-    },
-    {
       "name": "lobby",
       "discriminator": [
         167,
@@ -814,6 +739,19 @@ export type PvpProgram = {
         92,
         103,
         49
+      ]
+    },
+    {
+      "name": "networkState",
+      "discriminator": [
+        212,
+        237,
+        148,
+        56,
+        97,
+        245,
+        51,
+        169
       ]
     }
   ],
@@ -995,22 +933,6 @@ export type PvpProgram = {
       }
     },
     {
-      "name": "globalConfig",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "bump",
-            "type": "u8"
-          },
-          {
-            "name": "admin",
-            "type": "pubkey"
-          }
-        ]
-      }
-    },
-    {
       "name": "lobby",
       "type": {
         "kind": "struct",
@@ -1183,6 +1105,94 @@ export type PvpProgram = {
           },
           {
             "name": "refunded"
+          }
+        ]
+      }
+    },
+    {
+      "name": "networkConfiguration",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "requestFee",
+            "type": "u64"
+          },
+          {
+            "name": "fulfillmentAuthorities",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "tokenFeeConfig",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "oraoTokenFeeConfig"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "networkState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "config",
+            "type": {
+              "defined": {
+                "name": "networkConfiguration"
+              }
+            }
+          },
+          {
+            "name": "numReceived",
+            "docs": [
+              "Total number of received requests."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "oraoTokenFeeConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "docs": [
+              "ORAO token mint address."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "docs": [
+              "ORAO token treasury account."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "fee",
+            "docs": [
+              "Fee in ORAO SPL token smallest units."
+            ],
+            "type": "u64"
           }
         ]
       }

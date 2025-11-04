@@ -6,7 +6,7 @@
 // - Allowed team sizes: 1, 2, 5 (validated on create)
 // - side: u8 as bit → 0 = team1, 1 = team2
 // - Min stake: 0.05 SOL (50_000_000 lamports)
-// - Fixed platform fee: 1% (sent to GlobalConfig.admin)
+// - Fixed platform fee: 1% (sent to hardcoded TREASURY_PUBKEY)
 // - Creator pays and joins immediately on create_lobby
 // - Exactly one active lobby per creator enforced by ActiveLobby PDA
 // - Auto VRF request on the LAST join (no off-chain picker) → status moves to Pending
@@ -22,9 +22,12 @@
 
 use anchor_lang::prelude::{*, Context, Program};
 use anchor_lang::system_program::System;
-use anchor_lang::solana_program::{system_instruction, program::invoke};
-// Orao VRF constants for PDA derivation
+use anchor_lang::solana_program::system_instruction;
+// Orao VRF types and constants
+use orao_solana_vrf::program::OraoVrf;
+use orao_solana_vrf::state::NetworkState;
 use orao_solana_vrf::CONFIG_ACCOUNT_SEED;
+use orao_solana_vrf::RANDOMNESS_ACCOUNT_SEED;
 
 // Security contact information
 #[cfg(not(feature = "no-entrypoint"))]
@@ -38,7 +41,7 @@ security_txt! {
     policy: "https://github.com/Unguryan/SolanaPvP/blob/main/SECURITY.md",
     preferred_languages: "en",
     source_code: "https://github.com/Unguryan/SolanaPvP",
-    source_release: "v1.0.0",
+    source_release: "v1.0.4",
     source_revision: "main"
 }
 
@@ -50,10 +53,15 @@ declare_id!("F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ");
 // VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y
 pub use orao_solana_vrf::ID as ORAO_VRF_PROGRAM_ID;
 
+// Hardcoded admin and treasury addresses (SECURE!)
+// Admin: Can authorize refunds and resolves
+pub const ADMIN_PUBKEY: Pubkey = anchor_lang::solana_program::pubkey!("7tjJ6oCmrGMnin2kMf8msTqqxSYgq3J8wBW4zoheRdPz");
+// Treasury: Receives platform fees (1%)
+pub const TREASURY_PUBKEY: Pubkey = anchor_lang::solana_program::pubkey!("5tFuAw8fBq9mPgj26NbYHwMa9WoJm4cUScbaCd6TQoJ6");
+
 // PDA seeds
 const SEED_LOBBY:  &[u8] = b"lobby";
 const SEED_ACTIVE: &[u8] = b"active";
-const SEED_CONFIG: &[u8] = b"config";
 
 // Economics
 const PLATFORM_FEE_BPS: u64 = 100;            // 1%
@@ -166,20 +174,6 @@ pub enum PvpError {
 
 // ------------------------------ Accounts ------------------------------
 
-#[derive(Accounts)]
-pub struct InitConfig<'info> {
-    #[account(
-        init,
-        payer = payer,
-        space = GlobalConfig::SIZE,
-        seeds = [SEED_CONFIG],
-        bump
-    )]
-    pub config: Account<'info, GlobalConfig>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
 
 // Creates lobby PDA, ActiveLobby PDA, creator joins immediately.
 #[derive(Accounts)]
@@ -233,18 +227,13 @@ pub struct JoinSideSimple<'info> {
     )]
     pub active: Account<'info, ActiveLobby>,
 
-    #[account(
-        seeds = [SEED_CONFIG],
-        bump
-    )]
-    pub config: Account<'info, GlobalConfig>,
-
     pub system_program: Program<'info, System>,
 }
 
 // JoinSideFull - for the final join (when lobby becomes full after this join)
-// Uses Switchboard OnDemand for randomness - much simpler than V2!
+// Uses Orao VRF for verifiable randomness
 #[derive(Accounts)]
+#[instruction(side: u8, vrf_seed: [u8; 32])]
 pub struct JoinSideFull<'info> {
     #[account(
         mut,
@@ -267,36 +256,32 @@ pub struct JoinSideFull<'info> {
     )]
     pub active: Account<'info, ActiveLobby>,
 
-    #[account(
-        seeds = [SEED_CONFIG],
-        bump
-    )]
-    pub config: Account<'info, GlobalConfig>,
-
     /// Orao VRF randomness request account (PDA derived from seed)
     /// CHECK: Will be created/validated by Orao VRF program via CPI
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [RANDOMNESS_ACCOUNT_SEED, vrf_seed.as_ref()],
+        bump,
+        seeds::program = orao_solana_vrf::ID
+    )]
     pub vrf_request: AccountInfo<'info>,
 
     /// Orao VRF network configuration
-    /// CHECK: PDA derived from CONFIG_ACCOUNT_SEED with Orao VRF program
     #[account(
         mut,
         seeds = [CONFIG_ACCOUNT_SEED],
         bump,
-        seeds::program = ORAO_VRF_PROGRAM_ID
+        seeds::program = orao_solana_vrf::ID
     )]
-    pub vrf_config: AccountInfo<'info>,
+    pub vrf_config: Account<'info, NetworkState>,
 
     /// Orao VRF treasury (fee collector)
-    /// CHECK: Validated by reading from vrf_config account data
+    /// CHECK: Validated by Orao VRF program
     #[account(mut)]
     pub vrf_treasury: AccountInfo<'info>,
 
     /// Orao VRF program
-    /// CHECK: Address validated to match ORAO_VRF_PROGRAM_ID
-    #[account(address = ORAO_VRF_PROGRAM_ID)]
-    pub vrf_program: AccountInfo<'info>,
+    pub vrf_program: Program<'info, OraoVrf>,
 
     pub system_program: Program<'info, System>,
 }
@@ -325,19 +310,13 @@ pub struct Refund<'info> {
     )]
     pub active: Account<'info, ActiveLobby>,
 
-    #[account(
-        seeds = [SEED_CONFIG],
-        bump
-    )]
-    pub config: Account<'info, GlobalConfig>,
-
     pub system_program: Program<'info, System>,
     // remaining_accounts: [all participants: team1..., team2...]
 }
 
 // ResolveMatch - Called to resolve a match and pay winners
 // This is separate from join_side_final so we can handle payouts with remaining_accounts
-// remaining_accounts must include: [admin, team1..., team2...]
+// remaining_accounts must include: [treasury, team1..., team2...]
 #[derive(Accounts)]
 pub struct ResolveMatch<'info> {
     #[account(
@@ -358,12 +337,6 @@ pub struct ResolveMatch<'info> {
         close = creator
     )]
     pub active: Account<'info, ActiveLobby>,
-
-    #[account(
-        seeds = [SEED_CONFIG],
-        bump
-    )]
-    pub config: Account<'info, GlobalConfig>,
 
     /// Orao VRF randomness request account
     /// CRITICAL: Must be owned by Orao VRF and match the saved account
@@ -386,13 +359,6 @@ pub struct ResolveMatch<'info> {
 pub mod pvp_program {
     use super::*;
 
-    // Initializes global config with admin pubkey (fee collector).
-    pub fn init_config(ctx: Context<InitConfig>, admin: Pubkey) -> Result<()> {
-        let cfg = &mut ctx.accounts.config;
-        cfg.bump = ctx.bumps.config;
-        cfg.admin = admin;
-        Ok(())
-    }
 
     // Creates a lobby, enforces one active lobby per creator, and makes the creator join immediately.
     // side: 0 (team1) / 1 (team2)
@@ -492,6 +458,7 @@ pub mod pvp_program {
     // Final join - when this join will fill the lobby and trigger VRF request.
     // IMPORTANT: Caller must provide all Switchboard VRF accounts.
     pub fn join_side_final(ctx: Context<JoinSideFull>, side: u8, vrf_seed: [u8; 32]) -> Result<()> {
+        msg!("🎯 join_side_final CALLED - side: {}, vrf_seed: {:?}", side, &vrf_seed[..8]);
         require!(side <= 1, PvpError::InvalidSide);
         require!(vrf_seed != [0u8; 32], PvpError::InvalidVrfSeed);
 
@@ -514,40 +481,24 @@ pub mod pvp_program {
 
         // This instruction should only be called when lobby becomes full
         if full_now {
+            msg!("🎲 Lobby FULL! Requesting VRF...");
             // Store VRF seed and request for later resolution
             lobby.vrf_seed = vrf_seed;
             lobby.vrf_request = ctx.accounts.vrf_request.key();
 
-            // Request randomness from Orao VRF via low-level invoke (to avoid Anchor version conflicts)
-            // Instruction discriminator for request_v2: first 8 bytes of sha256("global:request_v2")
-            let discriminator: [u8; 8] = [0x29, 0x8b, 0x82, 0x5f, 0x7e, 0x88, 0x31, 0x1d];
-            
-            let mut ix_data = Vec::with_capacity(8 + 32);
-            ix_data.extend_from_slice(&discriminator);
-            ix_data.extend_from_slice(&vrf_seed);
-            
-            let request_ix = anchor_lang::solana_program::instruction::Instruction {
-                program_id: ORAO_VRF_PROGRAM_ID,
-                accounts: vec![
-                    anchor_lang::solana_program::instruction::AccountMeta::new(ctx.accounts.player.key(), true),
-                    anchor_lang::solana_program::instruction::AccountMeta::new(ctx.accounts.vrf_config.key(), false),
-                    anchor_lang::solana_program::instruction::AccountMeta::new(ctx.accounts.vrf_treasury.key(), false),
-                    anchor_lang::solana_program::instruction::AccountMeta::new(ctx.accounts.vrf_request.key(), false),
-                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
-                ],
-                data: ix_data,
+            // Request randomness from Orao VRF using proper CPI (like in russian-roulette example)
+            let cpi_program = ctx.accounts.vrf_program.to_account_info();
+            let cpi_accounts = orao_solana_vrf::cpi::accounts::RequestV2 {
+                payer: ctx.accounts.player.to_account_info(),
+                network_state: ctx.accounts.vrf_config.to_account_info(),
+                treasury: ctx.accounts.vrf_treasury.to_account_info(),
+                request: ctx.accounts.vrf_request.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
             };
+            let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+            orao_solana_vrf::cpi::request_v2(cpi_ctx, vrf_seed)?;
             
-            invoke(
-                &request_ix,
-                &[
-                    ctx.accounts.player.to_account_info(),
-                    ctx.accounts.vrf_config.to_account_info(),
-                    ctx.accounts.vrf_treasury.to_account_info(),
-                    ctx.accounts.vrf_request.to_account_info(),
-                    ctx.accounts.system_program.to_account_info(),
-                ],
-            )?;
+            msg!("VRF request sent to Orao network!");
             
             // Move to Pending - waiting for Orao oracles to fulfill (sub-second!)
             lobby.status = LobbyStatus::Pending;
@@ -580,7 +531,7 @@ pub mod pvp_program {
         let now = Clock::get()?.unix_timestamp;
         require!(now >= ctx.accounts.lobby.created_at + REFUND_LOCK_SECS, PvpError::TooSoonToRefund);
         let req = ctx.accounts.requester.key();
-        require!(req == ctx.accounts.lobby.creator || req == ctx.accounts.config.admin, PvpError::Unauthorized);
+        require!(req == ctx.accounts.lobby.creator || req == ADMIN_PUBKEY, PvpError::Unauthorized);
         require!(!ctx.accounts.lobby.finalized, PvpError::AlreadyFinalized);
         
         // Save all values before mutable borrow
@@ -650,7 +601,7 @@ pub mod pvp_program {
         
         // Check authorization - must be creator or admin
         let req = ctx.accounts.requester.key();
-        require!(req == ctx.accounts.lobby.creator || req == ctx.accounts.config.admin, PvpError::Unauthorized);
+        require!(req == ctx.accounts.lobby.creator || req == ADMIN_PUBKEY, PvpError::Unauthorized);
         require!(!ctx.accounts.lobby.finalized, PvpError::AlreadyFinalized);
         
         // Save all values before mutable borrow
@@ -787,13 +738,13 @@ pub mod pvp_program {
         let payout_each = distributable / winners_count;
         let fee_final = fee + (distributable - payout_each * winners_count);
 
-        // remaining_accounts layout: [admin, team1..., team2...]
+        // remaining_accounts layout: [treasury (fees receiver), team1..., team2...]
         let needed = 1 + team1_players.len() + team2_players.len();
         require!(ctx.remaining_accounts.len() == needed, PvpError::BadRemainingAccounts);
 
-        // Validate admin matches config.admin
-        let admin_ai = &ctx.remaining_accounts[0];
-        require!(admin_ai.key() == ctx.accounts.config.admin, PvpError::Unauthorized);
+        // Validate first account is treasury (receives platform fees)
+        let treasury_ai = &ctx.remaining_accounts[0];
+        require!(treasury_ai.key() == TREASURY_PUBKEY, PvpError::Unauthorized);
 
         // Validate ordering & keys for team lists
         for (i, p) in team1_players.iter().enumerate() {
@@ -815,14 +766,14 @@ pub mod pvp_program {
         let sys_ai  = ctx.accounts.system_program.to_account_info();
         let from_ai = ctx.accounts.lobby.to_account_info();
 
-        // Pay fee to admin
+        // Pay fee to treasury
         pay_from_lobby_pda(
             lobby_creator,
             lobby_id,
             lobby_bump,
             sys_ai.clone(),
             from_ai.clone(),
-            admin_ai.clone(),
+            treasury_ai.clone(),
             fee_final
         )?;
 
@@ -872,14 +823,6 @@ pub mod pvp_program {
 
 // ------------------------------ State ------------------------------
 
-#[account]
-pub struct GlobalConfig {
-    pub bump: u8,
-    pub admin: Pubkey, // fee collector
-}
-impl GlobalConfig {
-    pub const SIZE: usize = 8 + 1 + 32;
-}
 
 #[account]
 pub struct ActiveLobby {

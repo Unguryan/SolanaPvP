@@ -67,35 +67,28 @@ async function main() {
     const participants = JSON.parse(participantsJsonDecoded);
     console.error("[Resolve] Participants:", participants.length);
 
-    // Derive PDAs (SAME AS FRONTEND!)
-    const [configPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("config")],
-      program.programId
-    );
-
+    // Derive PDAs (NO CONFIG - removed!)
     const [activePda] = PublicKey.findProgramAddressSync(
       [Buffer.from("active"), new PublicKey(creator).toBuffer()],
       program.programId
     );
 
-    console.error("[Resolve] PDAs derived - Config:", configPda.toString());
     console.error("[Resolve] Active:", activePda.toString());
 
-    // Build transaction (SAME PATTERN AS FRONTEND REFUND!)
+    // Build transaction (NO CONFIG - treasury hardcoded in smart contract!)
     const tx = await program.methods
       .resolveMatch()
       .accountsStrict({
         lobby: new PublicKey(lobbyPda),
         creator: new PublicKey(creator),
         active: activePda,
-        config: configPda,
-        randomnessAccountData: new PublicKey(randomnessAccount),
+        vrfRequest: new PublicKey(randomnessAccount),
         systemProgram: SystemProgram.programId,
       } as any)
       .remainingAccounts([
-        // Admin first (receives platform fee)
+        // Treasury first (hardcoded in smart contract: 5tFuAw8fBq9mPgj26NbYHwMa9WoJm4cUScbaCd6TQoJ6)
         {
-          pubkey: new PublicKey(admin),
+          pubkey: new PublicKey(admin), // admin parameter is actually treasury address
           isSigner: false,
           isWritable: true,
         },

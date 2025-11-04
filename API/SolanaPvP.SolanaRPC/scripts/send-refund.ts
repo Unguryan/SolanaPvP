@@ -56,22 +56,16 @@ async function main() {
     const participants = JSON.parse(participantsJsonDecoded);
     console.error("[Refund] Participants:", participants.length);
 
-    // Derive PDAs (SAME AS FRONTEND!)
-    const [configPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("config")],
-      program.programId
-    );
-
+    // Derive PDAs (NO CONFIG - removed!)
     const [activePda] = PublicKey.findProgramAddressSync(
       [Buffer.from("active"), new PublicKey(creator).toBuffer()],
       program.programId
     );
 
-    console.error("[Refund] PDAs derived - Config:", configPda.toString());
     console.error("[Refund] Active:", activePda.toString());
     console.error("[Refund] Requester:", adminKeypair.publicKey.toString());
 
-    // Build transaction (SAME PATTERN AS FRONTEND REFUND!)
+    // Build transaction (NO CONFIG - removed!)
     const tx = await program.methods
       .refund()
       .accountsStrict({
@@ -79,7 +73,6 @@ async function main() {
         creator: new PublicKey(creator),
         requester: adminKeypair.publicKey,
         active: activePda,
-        config: configPda,
         systemProgram: SystemProgram.programId,
       } as any)
       .remainingAccounts(

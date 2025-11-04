@@ -28,7 +28,6 @@ export default function ForceRefund() {
       setStatus("Sending force_refund transaction...");
 
       // Get PDAs
-      const [configPda] = PdaUtils.getConfigPda();
       const [activePda] = PdaUtils.getActiveLobbyPda(lobby.creator);
 
       // Get all participants (team1 + team2)
@@ -50,7 +49,6 @@ export default function ForceRefund() {
           creator: lobby.creator,
           requester: publicKey,
           active: activePda,
-          config: configPda,
           systemProgram: SystemProgram.programId,
         })
         .remainingAccounts(

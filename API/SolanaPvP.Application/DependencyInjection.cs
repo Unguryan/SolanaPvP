@@ -22,7 +22,6 @@ public static class DependencyInjection
         services.Configure<IndexerSettings>(configuration.GetSection("Indexer"));
         services.Configure<RefundSettings>(configuration.GetSection("Refund"));
         services.Configure<CommissionSettings>(configuration.GetSection("Commission"));
-        services.Configure<SwitchboardSettings>(configuration.GetSection("Switchboard"));
 
         // Register settings as singletons for easy access
         services.AddSingleton<SolanaSettings>(provider =>
@@ -31,8 +30,6 @@ public static class DependencyInjection
             configuration.GetSection("Indexer").Get<IndexerSettings>() ?? new IndexerSettings());
         services.AddSingleton<RefundSettings>(provider =>
             configuration.GetSection("Refund").Get<RefundSettings>() ?? new RefundSettings());
-        services.AddSingleton<SwitchboardSettings>(provider =>
-            configuration.GetSection("Switchboard").Get<SwitchboardSettings>() ?? new SwitchboardSettings());
 
         return services;
     }

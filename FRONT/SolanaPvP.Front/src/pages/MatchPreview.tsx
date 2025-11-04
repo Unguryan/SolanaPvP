@@ -252,7 +252,8 @@ export const MatchPreview: React.FC = () => {
       status: LobbyStatus.Open,
       createdAt: new anchor.BN(Math.floor(Date.now() / 1000)),
       finalized: false,
-      randomnessAccount: new PublicKey("11111111111111111111111111111115"),
+      vrfSeed: Array(32).fill(0),
+      vrfRequest: new PublicKey("11111111111111111111111111111115"),
       winnerSide: 0,
     };
 

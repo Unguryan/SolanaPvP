@@ -5,7 +5,6 @@ import type { PvpProgram } from "@/idl/pvp_program";
 import {
   PdaUtils,
   LobbyAccount,
-  GlobalConfigAccount,
   normalizeLobbyStatus,
 } from "./accounts";
 import { parseAnchorError } from "./program";
@@ -25,18 +24,6 @@ export interface JoinLobbyParams {
   creator: PublicKey;
   player: PublicKey;
   side: 0 | 1;
-  // Switchboard VRF accounts (required for last join)
-  vrfAccount?: PublicKey;
-  oracleQueue?: PublicKey;
-  queueAuthority?: PublicKey;
-  permissionAccount?: PublicKey;
-  escrowWallet?: PublicKey;
-  payerWallet?: PublicKey;
-  payerAuthority?: PublicKey;
-  recentBlockhashes?: PublicKey;
-  switchboardState?: PublicKey;
-  tokenProgram?: PublicKey;
-  associatedTokenProgram?: PublicKey;
 }
 
 export interface RefundLobbyParams {
@@ -49,37 +36,6 @@ export interface RefundLobbyParams {
 
 // Type-safe instruction builders
 export class PvpInstructions {
-  // Initialize global config
-  static async initConfig(
-    program: Program<PvpProgram>,
-    admin: PublicKey
-  ): Promise<string> {
-    try {
-      const tx = await program.methods
-        .initConfig(admin)
-        .accounts({
-          payer: admin,
-        })
-        .rpc({
-          skipPreflight: false,
-          commitment: "confirmed",
-        });
-
-      return tx;
-    } catch (error: any) {
-      console.error("Init config error details:", error);
-
-      const errorMsg = parseAnchorError(error);
-      if (error.message?.includes("Blockhash not found")) {
-        throw new Error(
-          `Transaction failed: Network issue (blockhash expired). Please try again.`
-        );
-      }
-
-      throw new Error(`Failed to initialize config: ${errorMsg}`);
-    }
-  }
-
   // Create lobby
   static async createLobby(
     program: Program<PvpProgram>,
@@ -143,13 +99,12 @@ export class PvpInstructions {
       );
 
       // Derive required PDAs
-      const [configPda] = PdaUtils.getConfigPda();
       const [activePda] = PdaUtils.getActiveLobbyPda(params.creator);
 
-      // If this is the final join, use join_side_final with Orao VRF
+      // If this is the final join, use joinSideFinal with Orao VRF
       if (willBeFinalJoin) {
         console.log(
-          "[JoinLobby] Using join_side_final (with Orao VRF)"
+          "[JoinLobby] Using joinSideFinal (with Orao VRF)"
         );
 
         // Generate random VRF seed (32 bytes)
@@ -185,7 +140,7 @@ export class PvpInstructions {
         // Parse treasury from config (offset 8 discriminator + 32 authority + 32 treasury)
         const vrfTreasury = new PublicKey(vrfConfigData.data.slice(40, 72));
 
-        console.log("🔧 [JoinLobby] Building join_side_final transaction with Orao VRF accounts:");
+        console.log("🔧 [JoinLobby] Building joinSideFinal transaction with Orao VRF accounts:");
         console.log("  - lobby:", params.lobbyPda.toString());
         console.log("  - creator:", params.creator.toString());
         console.log("  - player:", params.player.toString());
@@ -195,7 +150,9 @@ export class PvpInstructions {
         console.log("  - vrfProgram:", oraoProgramId.toString());
 
         // Use accountsPartial to explicitly provide accounts
-        console.log("📤 [JoinLobby] Sending join_side_final transaction...");
+        console.log("📤 [JoinLobby] Sending joinSideFinal transaction...");
+        console.log("🔍 [DEBUG] Method exists?", typeof program.methods.joinSideFinal);
+        console.log("🔍 [DEBUG] Available methods:", Object.keys(program.methods));
         const tx = await program.methods
           .joinSideFinal(params.side, vrfSeedArray)
           .accountsPartial({
@@ -203,7 +160,6 @@ export class PvpInstructions {
             creator: params.creator,
             player: params.player,
             active: activePda,
-            config: configPda,
             vrfRequest: vrfRequestPda,
             vrfConfig: vrfConfigPda,
             vrfTreasury: vrfTreasury,
@@ -216,7 +172,7 @@ export class PvpInstructions {
           });
 
         console.log(
-          "✅ [JoinLobby] join_side_final transaction sent! Signature:",
+          "✅ [JoinLobby] joinSideFinal transaction sent! Signature:",
           tx
         );
         console.log(
@@ -239,7 +195,6 @@ export class PvpInstructions {
             creator: params.creator,
             player: params.player,
             active: activePda,
-            config: configPda,
             systemProgram: SystemProgram.programId,
           })
           .rpc({
@@ -270,7 +225,6 @@ export class PvpInstructions {
   ): Promise<string> {
     try {
       // Derive PDAs
-      const [configPda] = PdaUtils.getConfigPda();
       const [activePda] = PdaUtils.getActiveLobbyPda(params.creator);
 
       const remainingAccounts = params.participants.map((pubkey) => ({
@@ -288,7 +242,6 @@ export class PvpInstructions {
           creator: params.creator,
           requester: params.requester,
           active: activePda,
-          config: configPda,
           systemProgram: SystemProgram.programId,
         } as any) // Bypass TypeScript for circular PDA seeds
         .remainingAccounts(remainingAccounts)
@@ -342,11 +295,6 @@ export class PvpInstructions {
       player: params.player,
     };
 
-    // Add Switchboard OnDemand randomness account if provided (for final join)
-    if (params.vrfAccount) {
-      accounts.randomnessAccountData = params.vrfAccount;
-    }
-
     const instruction = await program.methods
       .joinSide(params.side)
       .accounts(accounts)
@@ -361,7 +309,6 @@ export class PvpInstructions {
     params: RefundLobbyParams
   ): Promise<Transaction> {
     // Derive PDAs
-    const [configPda] = PdaUtils.getConfigPda();
     const [activePda] = PdaUtils.getActiveLobbyPda(params.creator);
 
     const remainingAccounts = params.participants.map((pubkey) => ({
@@ -377,7 +324,6 @@ export class PvpInstructions {
         creator: params.creator,
         requester: params.requester,
         active: activePda,
-        config: configPda,
       } as any)
       .remainingAccounts(remainingAccounts)
       .instruction();
@@ -389,24 +335,6 @@ export class PvpInstructions {
 
 // Type-safe account fetchers
 export class PvpAccountFetchers {
-  // Fetch global config
-  static async fetchGlobalConfig(
-    program: Program<PvpProgram>
-  ): Promise<GlobalConfigAccount | null> {
-    try {
-      const [configPda] = PdaUtils.getConfigPda();
-
-      // Type-safe account fetch - no more 'as any'!
-      const account = await program.account.globalConfig.fetchNullable(
-        configPda
-      );
-      return account as GlobalConfigAccount | null;
-    } catch (error) {
-      console.error("Failed to fetch global config:", error);
-      return null;
-    }
-  }
-
   // Fetch lobby
   static async fetchLobby(
     program: Program<PvpProgram>,
