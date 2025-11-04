@@ -17,7 +17,9 @@ export class SignalRService {
 
   private initializeConnection() {
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${API_CONFIG.WS_URL}/ws`)
+      .withUrl(`${API_CONFIG.WS_URL}/ws`, {
+        withCredentials: true, // Required for CORS with credentials
+      })
       .withAutomaticReconnect([0, 2000, 10000, 30000])
       .build();
 
@@ -30,18 +32,22 @@ export class SignalRService {
 
     // Match events
     this.connection.on("matchCreated", (match) => {
+      console.log("📢 [SignalR] matchCreated event:", match);
       this.emit("matchCreated", match);
     });
 
     this.connection.on("matchJoined", (match) => {
+      console.log("📢 [SignalR] matchJoined event:", match);
       this.emit("matchJoined", match);
     });
 
     this.connection.on("matchResolved", (match) => {
+      console.log("📢 [SignalR] matchResolved event:", match);
       this.emit("matchResolved", match);
     });
 
     this.connection.on("matchRefunded", (match) => {
+      console.log("📢 [SignalR] matchRefunded event:", match);
       this.emit("matchRefunded", match);
     });
 
@@ -93,18 +99,18 @@ export class SignalRService {
     if (!this.connection) return;
 
     this.connection.onclose((error) => {
-      console.log("SignalR connection closed:", error);
+      console.log("🔴 [SignalR] Connection closed:", error);
       this.emit("connectionClosed", error);
       this.scheduleReconnect();
     });
 
     this.connection.onreconnecting((error) => {
-      console.log("SignalR reconnecting:", error);
+      console.log("🔄 [SignalR] Reconnecting...", error);
       this.emit("reconnecting", error);
     });
 
     this.connection.onreconnected((connectionId) => {
-      console.log("SignalR reconnected:", connectionId);
+      console.log("✅ [SignalR] Reconnected! Connection ID:", connectionId);
       this.reconnectAttempts = 0;
       this.emit("reconnected", connectionId);
     });
@@ -112,19 +118,24 @@ export class SignalRService {
 
   async connect(): Promise<void> {
     if (!this.connection) {
+      console.log("🔧 [SignalR] Initializing connection...");
       this.initializeConnection();
     }
 
     if (this.connection?.state === signalR.HubConnectionState.Connected) {
+      console.log("✅ [SignalR] Already connected");
       return;
     }
 
     try {
+      console.log("🔌 [SignalR] Connecting to:", `${API_CONFIG.WS_URL}/ws`);
+      console.log("🔌 [SignalR] State before connect:", this.connection?.state);
       await this.connection?.start();
-      console.log("SignalR connected");
+      console.log("✅ [SignalR] Connected successfully! Connection ID:", this.connection?.connectionId);
+      console.log("✅ [SignalR] State after connect:", this.connection?.state);
       this.emit("connected");
     } catch (error) {
-      console.error("SignalR connection failed:", error);
+      console.error("❌ [SignalR] Connection failed:", error);
       this.emit("connectionFailed", error);
       this.scheduleReconnect();
     }

@@ -22,6 +22,7 @@ import { Player, GameResult } from "@/types/game";
 import { usersApi } from "@/services/api/users";
 import { matchesApi } from "@/services/api/matches";
 import * as anchor from "@coral-xyz/anchor";
+import { useWebSocketStore } from "@/store/websocketStore";
 
 type PageMode = "preview" | "preparing" | "game";
 
@@ -46,6 +47,9 @@ export const MatchPreview: React.FC = () => {
 
   // For mock lobbies only
   const [mockLobby, setMockLobby] = useState<LobbyAccount | null>(null);
+  
+  // Backend match data (has real-time status updates via SignalR!)
+  const [matchFromBackend, setMatchFromBackend] = useState<any>(null);
 
   // Use lobby from hook or mock
   const lobby = matchPda?.startsWith("mock-") ? mockLobby : lobbyFromChain;
@@ -67,6 +71,56 @@ export const MatchPreview: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [joinMessage, setJoinMessage] = useState<string | null>(null);
   const [usernames, setUsernames] = useState<Record<string, string>>({});
+  
+  // SignalR event handlers
+  const { onMatchResolved, onMatchJoined } = useWebSocketStore();
+
+  // Load match from backend for real-time status
+  useEffect(() => {
+    const loadMatchFromBackend = async () => {
+      if (!matchPda || matchPda.startsWith("mock-")) return;
+      
+      try {
+        console.log("📡 [MatchPreview] Loading match from backend:", matchPda);
+        const match = await matchesApi.getMatch(matchPda);
+        console.log("📡 [MatchPreview] Backend match status:", match.status);
+        setMatchFromBackend(match);
+      } catch (err) {
+        console.log("📡 [MatchPreview] Match not in backend yet (normal for new lobbies)");
+        console.error("📡 [MatchPreview] Error loading match from backend:", err);
+      }
+    };
+    
+    loadMatchFromBackend();
+  }, [matchPda]);
+
+  // Listen for match resolved event
+  useEffect(() => {
+    const handleMatchResolved = (match: any) => {
+      console.log("🎉 [MatchPreview] Match resolved event received:", match);
+      if (match.matchPda === matchPda) {
+        console.log("🎉 [MatchPreview] This is OUR match! Updating backend data...");
+        // Update backend match data immediately
+        setMatchFromBackend(match);
+        // Also refetch blockchain data
+        refetchLobby();
+      }
+    };
+
+    const handleMatchJoined = (match: any) => {
+      console.log("👥 [MatchPreview] Match joined event received:", match);
+      if (match.matchPda === matchPda) {
+        console.log("👥 [MatchPreview] This is OUR match! Updating backend data...");
+        // Update backend match data immediately
+        setMatchFromBackend(match);
+        // Also refetch blockchain data
+        refetchLobby();
+      }
+    };
+
+    onMatchResolved(handleMatchResolved);
+    onMatchJoined(handleMatchJoined);
+  }, [matchPda, refetchLobby, onMatchResolved, onMatchJoined]);
 
   // Fetch usernames for all players in the lobby
   useEffect(() => {
@@ -153,21 +207,27 @@ export const MatchPreview: React.FC = () => {
     return () => clearInterval(interval);
   }, [lobby]);
 
-  // Page mode management based on lobby status
+  // Page mode management based on lobby status (HYBRID: blockchain + backend)
   useEffect(() => {
     if (!lobby) return;
 
-    if (lobby.status === LobbyStatus.Open && !isLobbyFull(lobby)) {
+    // Use backend status if available (more up-to-date via SignalR!)
+    const effectiveStatus = matchFromBackend?.status || lobby.status;
+    console.log("🎮 [MatchPreview] Effective status:", effectiveStatus, "(backend:", matchFromBackend?.status, ", chain:", lobby.status, ")");
+
+    if (effectiveStatus === "Resolved") {
+      // Match is resolved - show game board if data available
+      if (gameData) {
+        setPageMode("game");
+      } else {
+        setPageMode("preparing"); // Still loading game data
+      }
+    } else if (effectiveStatus === LobbyStatus.Open && !isLobbyFull(lobby)) {
       setPageMode("preview");
     } else if (
-      lobby.status === LobbyStatus.Open &&
-      isLobbyFull(lobby) &&
-      !gameData
-    ) {
-      setPageMode("preparing");
-    } else if (
-      lobby.status === LobbyStatus.Pending ||
-      lobby.status === LobbyStatus.Resolved
+      (effectiveStatus === LobbyStatus.Open && isLobbyFull(lobby)) ||
+      effectiveStatus === "AwaitingRandomness" ||
+      effectiveStatus === LobbyStatus.Pending
     ) {
       if (gameData) {
         setPageMode("game");
@@ -177,7 +237,7 @@ export const MatchPreview: React.FC = () => {
     } else {
       setPageMode("preview");
     }
-  }, [lobby, gameData]);
+  }, [lobby, gameData, matchFromBackend]);
 
   // Poll backend for game data when preparing
   useEffect(() => {

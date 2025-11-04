@@ -93,14 +93,17 @@ export const Profile: React.FC = () => {
         setIsLoading(true);
         setError(null);
 
+        console.log("👤 [Profile] Loading profile for:", publicKey.toString());
         // Fetch user profile (includes recentMatches)
         const userProfile = await usersApi.getUser(publicKey.toString());
+        console.log("👤 [Profile] Loaded profile:", userProfile);
+        console.log("👤 [Profile] Recent matches:", userProfile.recentMatches?.length || 0);
         setProfile(userProfile);
 
         // Fetch wallet balance
         refetch();
       } catch (err: any) {
-        console.error("Failed to load profile:", err);
+        console.error("❌ [Profile] Failed to load:", err);
         setError(err.message || "Failed to load profile");
       } finally {
         setIsLoading(false);

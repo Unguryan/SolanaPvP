@@ -98,13 +98,50 @@ export const MatchesList: React.FC<MatchesListProps> = ({
       return "bg-orange-500/10 border-orange-500/30";
     }
 
-    // AwaitingRandomness or Pending (started) - blue
+    // AwaitingRandomness or Pending (in game) - blue
     if (match.status === "AwaitingRandomness" || match.status === "Pending") {
       return "bg-blue-500/10 border-blue-500/30";
     }
 
+    // Refunded - red
+    if (match.status === "Refunded") {
+      return "bg-red-500/10 border-red-500/30";
+    }
+
     // Waiting (open for players) - green
     return "bg-green-500/10 border-green-500/30";
+  };
+
+  const getMatchStatusText = (match: MatchLobby) => {
+    switch (match.status) {
+      case "Waiting":
+        return "Open";
+      case "AwaitingRandomness":
+      case "Pending":
+        return "In Game";
+      case "Resolved":
+        return "Ended";
+      case "Refunded":
+        return "Refunded";
+      default:
+        return "Open";
+    }
+  };
+
+  const getMatchStatusColor = (match: MatchLobby) => {
+    switch (match.status) {
+      case "Waiting":
+        return "text-green-400";
+      case "AwaitingRandomness":
+      case "Pending":
+        return "text-blue-400";
+      case "Resolved":
+        return "text-orange-400";
+      case "Refunded":
+        return "text-red-400";
+      default:
+        return "text-txt-muted";
+    }
   };
 
   const handleMatchClick = (match: MatchLobby) => {
@@ -140,7 +177,10 @@ export const MatchesList: React.FC<MatchesListProps> = ({
       </GlassCardHeader>
 
       <div className="space-y-3 max-h-96 overflow-y-auto">
-        {matches.slice(0, maxItems).map((match, index) => {
+        {matches
+          .filter((m) => m.status !== "Resolved" && m.status !== "Refunded") // Filter out ended matches
+          .slice(0, maxItems)
+          .map((match, index) => {
           const fillPercentage = getFillPercentage(
             match.playersReady,
             match.playersMax
@@ -190,11 +230,10 @@ export const MatchesList: React.FC<MatchesListProps> = ({
                 </div>
 
                 <div className="text-right">
-                  {isEnded ? (
-                    <div className="text-sm font-semibold text-orange-400">
-                      Ended
-                    </div>
-                  ) : (
+                  <div className={`text-sm font-semibold mb-1 ${getMatchStatusColor(match)}`}>
+                    {getMatchStatusText(match)}
+                  </div>
+                  {!isEnded && (
                     <>
                       <div className="text-xs text-txt-muted mb-1">
                         {fillPercentage}% full

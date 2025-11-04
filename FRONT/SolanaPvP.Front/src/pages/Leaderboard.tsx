@@ -65,6 +65,7 @@ export const Leaderboard: React.FC = () => {
     const loadLeaderboard = async () => {
       try {
         setIsLoading(true);
+        console.log("📊 [Leaderboard] Loading leaderboard for period:", timeFilter);
         const period =
           timeFilter === "month"
             ? LeaderboardPeriod.Monthly
@@ -75,9 +76,11 @@ export const Leaderboard: React.FC = () => {
           1,
           50
         );
+        console.log("📊 [Leaderboard] Loaded entries:", result.entries.length);
+        console.log("📊 [Leaderboard] Data:", result);
         setLeaderboard(result.entries);
       } catch (err: any) {
-        console.error("Failed to load leaderboard:", err);
+        console.error("❌ [Leaderboard] Failed to load:", err);
       } finally {
         setIsLoading(false);
       }

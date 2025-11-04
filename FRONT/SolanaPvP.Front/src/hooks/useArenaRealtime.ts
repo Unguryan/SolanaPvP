@@ -15,7 +15,13 @@ export const useArenaRealtime = () => {
 
     // Subscribe to match events from backend (IndexerWorker broadcasts)
     signalRService.on("matchCreated", (match: any) => {
-      console.log("Match created:", match);
+      console.log("📢 [Arena] Match created:", match);
+
+      // Skip if already resolved/refunded
+      if (match.status === "Resolved" || match.status === "Refunded") {
+        console.log("📢 [Arena] Match already ended, skipping");
+        return;
+      }
 
       // Calculate playersMax from matchType
       const playersMax =
@@ -58,26 +64,7 @@ export const useArenaRealtime = () => {
     });
 
     signalRService.on("matchResolved", (match: any) => {
-      console.log("Match resolved:", match);
-
-      // Calculate playersMax from matchType
-      const playersMax =
-        match.matchType === "Team" ? 10 : match.matchType === "Duo" ? 4 : 2;
-
-      // Update match to show as ended (orange) for 5 seconds before removing
-      const lobbyMatch: MatchLobby = {
-        id: match.matchPda,
-        matchPda: match.matchPda,
-        stake: match.stakeLamports / 1000000000,
-        playersReady: match.participants?.length || 0,
-        playersMax,
-        endsAt: match.deadlineTs * 1000,
-        gameMode: match.gameMode || "Pick3from9",
-        matchType: match.matchType || "Solo",
-        status: "Resolved",
-        resolvedAt: Date.now(),
-      };
-      updateMatch(lobbyMatch);
+      console.log("📢 [Arena] Match resolved:", match);
 
       // Add to feed as win notification
       if (match.participants && match.winnerSide !== null) {
@@ -96,10 +83,9 @@ export const useArenaRealtime = () => {
         });
       }
 
-      // Remove from active matches after 5 seconds
-      setTimeout(() => {
-        removeMatch(match.matchPda);
-      }, 5000);
+      // Remove from active matches IMMEDIATELY (no 5 second delay)
+      removeMatch(match.matchPda);
+      console.log("📢 [Arena] Removed resolved match from active list");
     });
 
     signalRService.on("matchRefunded", (match: any) => {

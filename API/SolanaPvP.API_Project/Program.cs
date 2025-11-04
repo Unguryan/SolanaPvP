@@ -38,12 +38,17 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Add CORS for SignalR
+// Add CORS for SignalR (must be before routing/middleware)
 app.UseCors(policy =>
 {
-    policy.AllowAnyOrigin()
+    policy.WithOrigins(
+              "http://localhost:5173",
+              "http://localhost:5000", 
+              "http://127.0.0.1:5000"
+          )
           .AllowAnyMethod()
-          .AllowAnyHeader();
+          .AllowAnyHeader()
+          .AllowCredentials(); // Required for SignalR
 });
 
 // Add custom middleware

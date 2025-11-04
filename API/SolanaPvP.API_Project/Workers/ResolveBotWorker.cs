@@ -85,6 +85,11 @@ public class ResolveBotWorker : BackgroundService
                 {
                     _logger.LogInformation("[ResolveBotWorker] ✅ Successfully resolved match {MatchPda}, signature: {Signature}", 
                         match.MatchPda, signature);
+                    
+                    // Update match status to Resolved in DB
+                    match.Status = MatchStatus.Resolved;
+                    await matchRepository.UpdateAsync(match);
+                    _logger.LogInformation("[ResolveBotWorker] 💾 Updated match {MatchPda} status to Resolved in DB", match.MatchPda);
                 }
                 else
                 {

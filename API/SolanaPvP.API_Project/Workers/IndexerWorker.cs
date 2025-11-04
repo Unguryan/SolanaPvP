@@ -282,17 +282,26 @@ public class IndexerWorker : BackgroundService
         match.JoinedAt = DateTime.UtcNow;
         match.JoinTx = signature;
         
-        // Create joiner participant and add to DbSet explicitly
-        var joinerParticipant = new MatchParticipant
+        // Check if participant already exists (prevent duplicates from repeated transactions)
+        var existingParticipant = match.Participants.FirstOrDefault(p => p.Pubkey == joinData.Player);
+        if (existingParticipant == null)
         {
-            MatchPda = parsedEvent.MatchPda,
-            Pubkey = joinData.Player,
-            Side = 1,
-            Position = 0
-        };
-        
-        await matchRepository.AddParticipantAsync(joinerParticipant);
-        _logger.LogDebug("[ProcessMatchJoined] Joiner participant added to match");
+            // Create joiner participant and add to DbSet explicitly
+            var joinerParticipant = new MatchParticipant
+            {
+                MatchPda = parsedEvent.MatchPda,
+                Pubkey = joinData.Player,
+                Side = 1,
+                Position = 0
+            };
+            
+            await matchRepository.AddParticipantAsync(joinerParticipant);
+            _logger.LogDebug("[ProcessMatchJoined] Joiner participant added to match");
+        }
+        else
+        {
+            _logger.LogWarning("[ProcessMatchJoined] Player {Player} already in match, skipping duplicate", joinData.Player);
+        }
         
         // Save randomness account if lobby is full
         if (joinData.IsFull && !string.IsNullOrWhiteSpace(joinData.RandomnessAccount))

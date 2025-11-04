@@ -37,24 +37,25 @@ public static class MatchHubExtensions
 {
     public static async Task NotifyMatchCreated(this IHubContext<MatchHub> hubContext, MatchView match)
     {
-        await hubContext.Clients.Group("lobby").SendAsync("matchCreated", match);
+        // Send to ALL connected clients (no groups!)
+        await hubContext.Clients.All.SendAsync("matchCreated", match);
     }
 
     public static async Task NotifyMatchJoined(this IHubContext<MatchHub> hubContext, string matchPda, MatchView match)
     {
-        await hubContext.Clients.Group($"match_{matchPda}").SendAsync("matchJoined", match);
-        await hubContext.Clients.Group("lobby").SendAsync("matchJoined", match);
+        // Send to ALL connected clients (no groups!)
+        await hubContext.Clients.All.SendAsync("matchJoined", match);
     }
 
     public static async Task NotifyMatchResolved(this IHubContext<MatchHub> hubContext, string matchPda, MatchDetails match)
     {
-        await hubContext.Clients.Group($"match_{matchPda}").SendAsync("matchResolved", match);
-        await hubContext.Clients.Group("lobby").SendAsync("matchResolved", match);
+        // Send to ALL connected clients (no groups!)
+        await hubContext.Clients.All.SendAsync("matchResolved", match);
     }
 
     public static async Task NotifyMatchRefunded(this IHubContext<MatchHub> hubContext, string matchPda, MatchView match)
     {
-        await hubContext.Clients.Group($"match_{matchPda}").SendAsync("matchRefunded", match);
-        await hubContext.Clients.Group("lobby").SendAsync("matchRefunded", match);
+        // Send to ALL connected clients (no groups!)
+        await hubContext.Clients.All.SendAsync("matchRefunded", match);
     }
 }
