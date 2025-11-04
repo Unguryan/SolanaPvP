@@ -24,13 +24,13 @@ export const MatchesList: React.FC<MatchesListProps> = ({
   const { matches: storeMatches, isLoading } = useArenaStore();
   const allMatches = propMatches || storeMatches;
 
-  // Filter to show only active matches (Waiting or AwaitingRandomness)
+  // Filter to show only active matches (Open, Pending, InProgress)
   // and resolved matches that are less than 5 seconds old
   const matches = allMatches.filter((match) => {
     const now = Date.now();
 
-    // Show Waiting and AwaitingRandomness matches
-    if (match.status === "Waiting" || match.status === "AwaitingRandomness") {
+    // Show Open, Pending, and InProgress matches
+    if (match.status === "Open" || match.status === "Pending" || match.status === "InProgress") {
       return true;
     }
 
@@ -98,8 +98,8 @@ export const MatchesList: React.FC<MatchesListProps> = ({
       return "bg-orange-500/10 border-orange-500/30";
     }
 
-    // AwaitingRandomness or Pending (in game) - blue
-    if (match.status === "AwaitingRandomness" || match.status === "Pending") {
+    // Pending or InProgress (in game) - blue
+    if (match.status === "Pending" || match.status === "InProgress") {
       return "bg-blue-500/10 border-blue-500/30";
     }
 
@@ -108,7 +108,7 @@ export const MatchesList: React.FC<MatchesListProps> = ({
       return "bg-red-500/10 border-red-500/30";
     }
 
-    // Waiting (open for players) - green
+    // Open (open for players) - green
     return "bg-green-500/10 border-green-500/30";
   };
 

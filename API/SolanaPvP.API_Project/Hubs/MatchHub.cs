@@ -47,10 +47,16 @@ public static class MatchHubExtensions
         await hubContext.Clients.All.SendAsync("matchJoined", match);
     }
 
-    public static async Task NotifyMatchResolved(this IHubContext<MatchHub> hubContext, string matchPda, MatchDetails match)
+    public static async Task NotifyMatchInProgress(this IHubContext<MatchHub> hubContext, string matchPda, MatchDetails match)
     {
         // Send to ALL connected clients (no groups!)
-        await hubContext.Clients.All.SendAsync("matchResolved", match);
+        await hubContext.Clients.All.SendAsync("matchInProgress", match);
+    }
+
+    public static async Task NotifyMatchFinalized(this IHubContext<MatchHub> hubContext, string matchPda, MatchDetails match)
+    {
+        // Send to ALL connected clients (no groups!)
+        await hubContext.Clients.All.SendAsync("matchFinalized", match);
     }
 
     public static async Task NotifyMatchRefunded(this IHubContext<MatchHub> hubContext, string matchPda, MatchView match)

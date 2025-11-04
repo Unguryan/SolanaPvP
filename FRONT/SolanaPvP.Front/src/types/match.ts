@@ -12,8 +12,9 @@ export enum MatchType {
 }
 
 export enum MatchStatus {
-  Waiting = "Waiting",
-  AwaitingRandomness = "AwaitingRandomness",
+  Open = "Open",
+  Pending = "Pending",
+  InProgress = "InProgress",
   Resolved = "Resolved",
   Refunded = "Refunded",
 }
@@ -46,6 +47,8 @@ export interface Match {
   isPrivate: boolean;
   invitationId?: number;
   createdAt: string;
+  pendingAt?: string;
+  gameStartTime?: string;
   participants: MatchParticipant[];
   gameData?: GameData;
 }

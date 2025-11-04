@@ -18,6 +18,8 @@ public class Match
     public string? PayoutTx { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? JoinedAt { get; set; }
+    public DateTime? PendingAt { get; set; } // When lobby filled and moved to Pending status
+    public DateTime? GameStartTime { get; set; } // When InProgress starts (+3 sec from resolve)
     public DateTime? ResolvedAt { get; set; }
     public bool IsPrivate { get; set; } = false; // True for invitation-based matches
     public int? InvitationId { get; set; } // Reference to the invitation that created this match

@@ -199,7 +199,7 @@ public class IndexerWorker : BackgroundService
             GameMode = matchData.GameMode,
             MatchType = matchData.MatchType,
             StakeLamports = matchData.StakeLamports,
-            Status = MatchStatus.Waiting,
+            Status = MatchStatus.Open,
             DeadlineTs = matchData.DeadlineTs,
             CreateTx = signature,
             CreatedAt = DateTime.UtcNow,
@@ -277,8 +277,9 @@ public class IndexerWorker : BackgroundService
         var match = await matchRepository.GetByMatchPdaAsync(parsedEvent.MatchPda);
         if (match == null) return;
 
-        // Update match status
-        match.Status = MatchStatus.AwaitingRandomness;
+        // Update match status to Pending
+        match.Status = MatchStatus.Pending;
+        match.PendingAt = DateTime.UtcNow;
         match.JoinedAt = DateTime.UtcNow;
         match.JoinTx = signature;
         
@@ -310,6 +311,47 @@ public class IndexerWorker : BackgroundService
             await matchRepository.UpdateAsync(match);
             _logger.LogInformation("[ProcessMatchJoined] Saved randomness account {Account} for match {MatchPda}", 
                 joinData.RandomnessAccount, match.MatchPda);
+            
+            // Immediately try to resolve (with retry logic)
+            var matchPda = match.MatchPda;
+            var randomnessAccount = joinData.RandomnessAccount;
+            
+            _ = Task.Run(async () =>
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var resolveSender = scope.ServiceProvider.GetRequiredService<IResolveSender>();
+                var logger = scope.ServiceProvider.GetRequiredService<ILogger<IndexerWorker>>();
+                
+                // Retry up to 10 times (2 sec delay between attempts)
+                for (int attempt = 1; attempt <= 10; attempt++)
+                {
+                    try
+                    {
+                        await Task.Delay(2000); // Wait 2 seconds for VRF fulfill
+                        
+                        logger.LogInformation("[IndexerWorker] Attempt {Attempt}/10 to resolve match {MatchPda}", 
+                            attempt, matchPda);
+                        
+                        var resolveSignature = await resolveSender.SendResolveMatchAsync(matchPda, randomnessAccount);
+                        
+                        if (!string.IsNullOrEmpty(resolveSignature))
+                        {
+                            logger.LogInformation("[IndexerWorker] ✅ Successfully resolved match {MatchPda} on attempt {Attempt}", 
+                                matchPda, attempt);
+                            return; // Success - exit retry loop
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "[IndexerWorker] Attempt {Attempt}/10 failed for {MatchPda}", 
+                            attempt, matchPda);
+                    }
+                }
+                
+                // All 10 attempts failed - log for admin intervention
+                logger.LogError("[IndexerWorker] ❌ Failed to resolve match {MatchPda} after 10 attempts. Manual force-refund needed.", 
+                    matchPda);
+            });
         }
 
         // Update LastSeen for player (or create if first time from blockchain)
@@ -339,7 +381,6 @@ public class IndexerWorker : BackgroundService
     private async Task ProcessMatchResolvedAsync(ParsedEvent parsedEvent, string signature, IServiceProvider serviceProvider)
     {
         var matchRepository = serviceProvider.GetRequiredService<IMatchRepository>();
-        var userRepository = serviceProvider.GetRequiredService<IUserRepository>();
         var gameDataGenerator = serviceProvider.GetRequiredService<IGameDataGenerator>();
         var matchService = serviceProvider.GetRequiredService<IMatchService>();
 
@@ -351,33 +392,26 @@ public class IndexerWorker : BackgroundService
         var match = await matchRepository.GetByMatchPdaAsync(parsedEvent.MatchPda);
         if (match == null) return;
 
-        // Generate game data
-        var gameData = await gameDataGenerator.GenerateGameDataAsync(match, resolutionData.Winner);
+        // Generate game data based on winner_side
+        var gameData = await gameDataGenerator.GenerateGameDataAsync(match, resolutionData.WinnerSide);
         
-        // Update match
-        match.Status = MatchStatus.Resolved;
-        match.WinnerSide = DetermineWinnerSide(match, resolutionData.Winner);
-        match.ResolvedAt = DateTime.UtcNow;
+        // Update match to InProgress
+        match.Status = MatchStatus.InProgress;
+        match.WinnerSide = resolutionData.WinnerSide;
+        match.GameStartTime = DateTime.UtcNow.AddSeconds(3); // +3 sec for frontend to load
         match.PayoutTx = signature;
         match.GameData = gameData;
         await matchRepository.UpdateAsync(match);
 
-        // Update user stats
-        foreach (var participant in match.Participants)
-        {
-            var isWinner = participant.Pubkey == resolutionData.Winner;
-            var earnings = isWinner ? match.StakeLamports * 2 : 0; // Winner gets 2x stake
-            await userRepository.UpdateStatsAsync(participant.Pubkey, isWinner, earnings);
-        }
-
-        _logger.LogInformation("Match resolved: {MatchPda}, Winner: {Winner}", parsedEvent.MatchPda, resolutionData.Winner);
+        _logger.LogInformation("[ProcessMatchResolved] Match {MatchPda} moved to InProgress, game will end at {EndTime}", 
+            parsedEvent.MatchPda, match.GameStartTime.Value.AddSeconds(20));
 
         // Broadcast to all clients via SignalR
         var matchDetails = await matchService.GetMatchAsync(parsedEvent.MatchPda);
         if (matchDetails != null)
         {
-            await _hubContext.NotifyMatchResolved(parsedEvent.MatchPda, matchDetails);
-            _logger.LogDebug("[ProcessMatchResolved] Broadcasted match resolved to clients");
+            await _hubContext.NotifyMatchInProgress(parsedEvent.MatchPda, matchDetails);
+            _logger.LogDebug("[ProcessMatchResolved] Broadcasted match InProgress to clients");
         }
     }
 
@@ -404,13 +438,7 @@ public class IndexerWorker : BackgroundService
         }
     }
 
-    private int DetermineWinnerSide(Match match, string winnerPubkey)
-    {
-        var winnerParticipant = match.Participants.FirstOrDefault(p => p.Pubkey == winnerPubkey);
-        return winnerParticipant?.Side ?? 0;
-    }
-
-    // Placeholder methods for parsing payloads - these would need to be implemented based on your actual Anchor event structure
+    // Parsing methods for blockchain events
     private MatchCreatedData? ParseMatchCreatedPayload(string payloadJson)
     {
         try
@@ -535,7 +563,48 @@ public class IndexerWorker : BackgroundService
         }
     }
     
-    private MatchResolvedData? ParseMatchResolvedPayload(string payloadJson) => new MatchResolvedData();
+    private MatchResolvedData? ParseMatchResolvedPayload(string payloadJson)
+    {
+        try
+        {
+            var json = System.Text.Json.JsonDocument.Parse(payloadJson);
+            var rawData = json.RootElement.GetProperty("rawData").GetString();
+            if (string.IsNullOrEmpty(rawData)) return null;
+
+            var bytes = Convert.FromBase64String(rawData);
+            
+            // LobbyResolved struct layout:
+            // discriminator (8) + lobby (32) + winner_side (1) + randomness_value (8) + total_pot (8) + platform_fee (8) + payout_per_winner (8)
+            // Total: 73 bytes minimum
+            
+            if (bytes.Length < 73)
+            {
+                _logger.LogWarning("[ParseMatchResolved] Insufficient data: {Length} bytes", bytes.Length);
+                return null;
+            }
+
+            var offset = 8; // Skip discriminator
+            offset += 32;   // Skip lobby pubkey
+            
+            // Read winner_side (1 byte)
+            var winnerSide = bytes[offset];
+            offset += 1;
+            
+            // Read randomness_value (8 bytes)
+            var randomnessValue = BitConverter.ToUInt64(bytes, offset);
+            
+            return new MatchResolvedData
+            {
+                WinnerSide = winnerSide,
+                RandomnessValue = randomnessValue
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[ParseMatchResolved] Failed to parse payload");
+            return null;
+        }
+    }
     private MatchRefundedData? ParseMatchRefundedPayload(string payloadJson) => new MatchRefundedData();
 
     private MatchView ConvertToMatchView(MatchDetails matchDetails)
@@ -583,7 +652,8 @@ public class MatchJoinedData
 
 public class MatchResolvedData
 {
-    public string Winner { get; set; } = string.Empty;
+    public int WinnerSide { get; set; }      // 0 or 1
+    public ulong RandomnessValue { get; set; }
 }
 
 public class MatchRefundedData

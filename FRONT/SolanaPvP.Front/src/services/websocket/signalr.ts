@@ -41,9 +41,14 @@ export class SignalRService {
       this.emit("matchJoined", match);
     });
 
-    this.connection.on("matchResolved", (match) => {
-      console.log("📢 [SignalR] matchResolved event:", match);
-      this.emit("matchResolved", match);
+    this.connection.on("matchInProgress", (match) => {
+      console.log("📢 [SignalR] matchInProgress event:", match);
+      this.emit("matchInProgress", match);
+    });
+
+    this.connection.on("matchFinalized", (match) => {
+      console.log("📢 [SignalR] matchFinalized event:", match);
+      this.emit("matchFinalized", match);
     });
 
     this.connection.on("matchRefunded", (match) => {

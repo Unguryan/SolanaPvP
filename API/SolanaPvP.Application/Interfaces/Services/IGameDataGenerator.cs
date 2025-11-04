@@ -4,7 +4,7 @@ namespace SolanaPvP.Application.Interfaces.Services;
 
 public interface IGameDataGenerator
 {
-    Task<GameData> GenerateGameDataAsync(Match match, string winnerPubkey);
+    Task<GameData> GenerateGameDataAsync(Match match, int winnerSide);
 }
 
 public class GameDataGenerationResult

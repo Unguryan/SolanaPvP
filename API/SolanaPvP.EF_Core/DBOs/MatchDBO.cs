@@ -20,6 +20,8 @@ public class MatchDBO
     public string? PayoutTx { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? JoinedAt { get; set; }
+    public DateTime? PendingAt { get; set; }
+    public DateTime? GameStartTime { get; set; }
     public DateTime? ResolvedAt { get; set; }
     public bool IsPrivate { get; set; } = false;
     public int? InvitationId { get; set; }

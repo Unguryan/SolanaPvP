@@ -8,11 +8,8 @@ public class GameDataGenerator : IGameDataGenerator
 {
     private readonly Random _random = new();
 
-    public async Task<GameData> GenerateGameDataAsync(Match match, string winnerPubkey)
+    public async Task<GameData> GenerateGameDataAsync(Match match, int winnerSide)
     {
-        // Determine winner side based on pubkey
-        var winnerSide = DetermineWinnerSide(match, winnerPubkey);
-        
         // Generate base scores (1000-2000 range)
         var baseScore = _random.Next(1000, 2001);
         
@@ -43,12 +40,5 @@ public class GameDataGenerator : IGameDataGenerator
         };
 
         return await Task.FromResult(gameData);
-    }
-
-    private int DetermineWinnerSide(Match match, string winnerPubkey)
-    {
-        // Find which side the winner belongs to
-        var winnerParticipant = match.Participants.FirstOrDefault(p => p.Pubkey == winnerPubkey);
-        return winnerParticipant?.Side ?? 0;
     }
 }

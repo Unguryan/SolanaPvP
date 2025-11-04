@@ -28,7 +28,8 @@ interface WebSocketState {
   // Event handlers
   onMatchCreated: (callback: (match: MatchView) => void) => void;
   onMatchJoined: (callback: (match: MatchView) => void) => void;
-  onMatchResolved: (callback: (match: MatchView) => void) => void;
+  onMatchInProgress: (callback: (match: any) => void) => void;
+  onMatchFinalized: (callback: (match: any) => void) => void;
   onMatchRefunded: (callback: (match: MatchView) => void) => void;
   onInvitationReceived: (
     callback: (invitation: MatchInvitation) => void
@@ -153,8 +154,12 @@ export const useWebSocketStore = create<WebSocketState>((set) => ({
     signalRService.on("matchJoined", callback);
   },
 
-  onMatchResolved: (callback) => {
-    signalRService.on("matchResolved", callback);
+  onMatchInProgress: (callback) => {
+    signalRService.on("matchInProgress", callback);
+  },
+
+  onMatchFinalized: (callback) => {
+    signalRService.on("matchFinalized", callback);
   },
 
   onMatchRefunded: (callback) => {

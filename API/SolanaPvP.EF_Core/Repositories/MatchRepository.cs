@@ -57,9 +57,9 @@ public class MatchRepository : IMatchRepository
 
     public async Task<IEnumerable<Match>> GetActiveMatchesAsync(int skip = 0, int take = 50)
     {
-        var activeStatuses = new[] { SolanaPvP.Domain.Enums.MatchStatus.Waiting, SolanaPvP.Domain.Enums.MatchStatus.AwaitingRandomness };
+        var activeStatuses = new[] { SolanaPvP.Domain.Enums.MatchStatus.Open, SolanaPvP.Domain.Enums.MatchStatus.Pending, SolanaPvP.Domain.Enums.MatchStatus.InProgress };
         
-        var dbos = await _context.Matches
+       var dbos = await _context.Matches
             .Include(m => m.Participants)
                 .ThenInclude(p => p.User) // ← LOAD USER DATA
             .Include(m => m.GameData)

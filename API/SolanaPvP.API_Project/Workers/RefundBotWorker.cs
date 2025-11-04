@@ -76,8 +76,8 @@ public class RefundBotWorker : BackgroundService
                     continue;
                 }
                 
-                // If match is still waiting or awaiting randomness, proceed with refund check
-                if (match.Status != MatchStatus.Waiting)
+                // If match is still open (waiting for players), proceed with refund check
+                if (match.Status != MatchStatus.Open)
                 {
                     // Match has players but not yet resolved - skip refund for now
                     continue;

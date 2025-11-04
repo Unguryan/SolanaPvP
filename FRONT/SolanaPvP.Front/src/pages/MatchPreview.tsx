@@ -73,7 +73,7 @@ export const MatchPreview: React.FC = () => {
   const [usernames, setUsernames] = useState<Record<string, string>>({});
   
   // SignalR event handlers
-  const { onMatchResolved, onMatchJoined } = useWebSocketStore();
+  const { onMatchInProgress, onMatchFinalized, onMatchJoined } = useWebSocketStore();
 
   // Load match from backend for real-time status
   useEffect(() => {
@@ -94,12 +94,23 @@ export const MatchPreview: React.FC = () => {
     loadMatchFromBackend();
   }, [matchPda]);
 
-  // Listen for match resolved event
+  // Listen for match events
   useEffect(() => {
-    const handleMatchResolved = (match: any) => {
-      console.log("🎉 [MatchPreview] Match resolved event received:", match);
+    const handleMatchInProgress = (match: any) => {
+      console.log("🎮 [MatchPreview] Match InProgress event received:", match);
       if (match.matchPda === matchPda) {
-        console.log("🎉 [MatchPreview] This is OUR match! Updating backend data...");
+        console.log("🎮 [MatchPreview] This is OUR match! Updating backend data...");
+        // Update backend match data immediately
+        setMatchFromBackend(match);
+        // Also refetch blockchain data
+        refetchLobby();
+      }
+    };
+
+    const handleMatchFinalized = (match: any) => {
+      console.log("🏁 [MatchPreview] Match finalized event received:", match);
+      if (match.matchPda === matchPda) {
+        console.log("🏁 [MatchPreview] This is OUR match! Match complete!");
         // Update backend match data immediately
         setMatchFromBackend(match);
         // Also refetch blockchain data
@@ -118,9 +129,10 @@ export const MatchPreview: React.FC = () => {
       }
     };
 
-    onMatchResolved(handleMatchResolved);
+    onMatchInProgress(handleMatchInProgress);
+    onMatchFinalized(handleMatchFinalized);
     onMatchJoined(handleMatchJoined);
-  }, [matchPda, refetchLobby, onMatchResolved, onMatchJoined]);
+  }, [matchPda, refetchLobby, onMatchInProgress, onMatchFinalized, onMatchJoined]);
 
   // Fetch usernames for all players in the lobby
   useEffect(() => {
@@ -215,26 +227,28 @@ export const MatchPreview: React.FC = () => {
     const effectiveStatus = matchFromBackend?.status || lobby.status;
     console.log("🎮 [MatchPreview] Effective status:", effectiveStatus, "(backend:", matchFromBackend?.status, ", chain:", lobby.status, ")");
 
-    if (effectiveStatus === "Resolved") {
-      // Match is resolved - show game board if data available
+    if (effectiveStatus === "Open" && !isLobbyFull(lobby)) {
+      setPageMode("preview");
+    } 
+    else if (effectiveStatus === "Pending") {
+      setPageMode("preparing");
+    }
+    else if (effectiveStatus === "InProgress") {
       if (gameData) {
         setPageMode("game");
       } else {
         setPageMode("preparing"); // Still loading game data
       }
-    } else if (effectiveStatus === LobbyStatus.Open && !isLobbyFull(lobby)) {
-      setPageMode("preview");
-    } else if (
-      (effectiveStatus === LobbyStatus.Open && isLobbyFull(lobby)) ||
-      effectiveStatus === "AwaitingRandomness" ||
-      effectiveStatus === LobbyStatus.Pending
-    ) {
+    }
+    else if (effectiveStatus === "Resolved") {
+      // Match is resolved - could navigate to results page
       if (gameData) {
-        setPageMode("game");
+        setPageMode("game"); // Still showing game for now
       } else {
         setPageMode("preparing");
       }
-    } else {
+    }
+    else {
       setPageMode("preview");
     }
   }, [lobby, gameData, matchFromBackend]);
@@ -605,6 +619,17 @@ export const MatchPreview: React.FC = () => {
     }
 
     // Participants see the full game
+    // Calculate remaining time from GameStartTime
+    const calculateTimeRemaining = () => {
+      if (!matchFromBackend?.gameStartTime) return 20;
+      
+      const startTime = new Date(matchFromBackend.gameStartTime).getTime();
+      const endTime = startTime + 20000; // +20 seconds
+      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+      
+      return remaining;
+    };
+
     return (
       <div className="min-h-screen bg-bg py-8">
         <div className="max-w-7xl mx-auto px-6">
@@ -624,7 +649,7 @@ export const MatchPreview: React.FC = () => {
             stakeSol={stakeSOL}
             players={gameData.players}
             currentPlayer="You"
-            timeLimit={20}
+            timeLimit={calculateTimeRemaining()}
             onGameComplete={handleGameComplete}
             isDemoMode={false}
           />
@@ -687,7 +712,15 @@ export const MatchPreview: React.FC = () => {
               <h2 className="text-4xl font-display font-bold text-sol-purple mb-3">
                 Preparing Match
               </h2>
-              <p className="text-xl text-txt-muted">Waiting for results...</p>
+              {matchFromBackend?.status === "Pending" && matchFromBackend?.pendingAt ? (
+                <p className="text-xl text-txt-muted">
+                  {Date.now() - new Date(matchFromBackend.pendingAt).getTime() < 5000
+                    ? "Creating new Arena...."
+                    : "Waiting for VRF..."}
+                </p>
+              ) : (
+                <p className="text-xl text-txt-muted">Preparing arena...</p>
+              )}
             </motion.div>
           </motion.div>
         )}
