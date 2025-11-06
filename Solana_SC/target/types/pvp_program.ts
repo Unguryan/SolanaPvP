@@ -101,6 +101,22 @@ export type PvpProgram = {
         {
           "name": "side",
           "type": "u8"
+        },
+        {
+          "name": "game",
+          "type": "string"
+        },
+        {
+          "name": "gameMode",
+          "type": "string"
+        },
+        {
+          "name": "arenaType",
+          "type": "string"
+        },
+        {
+          "name": "teamSizeStr",
+          "type": "string"
         }
       ]
     },
@@ -1001,6 +1017,22 @@ export type PvpProgram = {
             "type": {
               "vec": "pubkey"
             }
+          },
+          {
+            "name": "game",
+            "type": "string"
+          },
+          {
+            "name": "gameMode",
+            "type": "string"
+          },
+          {
+            "name": "arenaType",
+            "type": "string"
+          },
+          {
+            "name": "teamSizeStr",
+            "type": "string"
           }
         ]
       }
@@ -1033,6 +1065,26 @@ export type PvpProgram = {
           {
             "name": "createdAt",
             "type": "i64"
+          },
+          {
+            "name": "game",
+            "type": "string"
+          },
+          {
+            "name": "gameMode",
+            "type": "string"
+          },
+          {
+            "name": "arenaType",
+            "type": "string"
+          },
+          {
+            "name": "teamSizeStr",
+            "type": "string"
+          },
+          {
+            "name": "creatorSide",
+            "type": "u8"
           }
         ]
       }

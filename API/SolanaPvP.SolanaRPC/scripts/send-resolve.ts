@@ -75,6 +75,10 @@ async function main() {
 
     console.error("[Resolve] Active:", activePda.toString());
 
+    // Wait a moment for blockchain state to propagate (commitment: confirmed can still be slightly behind)
+    console.error("[Resolve] Waiting 2 seconds for blockchain state to propagate...");
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     // Fetch lobby from blockchain to get EXACT team order (critical!)
     console.error("[Resolve] Fetching lobby from blockchain to get team order...");
     const lobbyAccount = await program.account.lobby.fetch(new PublicKey(lobbyPda));

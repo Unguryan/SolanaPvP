@@ -44,8 +44,10 @@ public class InvitationService : IInvitationService
         {
             InviterPubkey = request.InviterPubkey,
             InviteePubkey = request.InviteePubkey,
+            GameType = request.GameType,
             GameMode = request.GameMode,
-            MatchType = request.MatchType,
+            MatchMode = request.MatchMode,
+            TeamSize = request.TeamSize,
             StakeLamports = request.StakeLamports,
             Status = InvitationStatus.Pending,
             CreatedAt = DateTime.UtcNow,

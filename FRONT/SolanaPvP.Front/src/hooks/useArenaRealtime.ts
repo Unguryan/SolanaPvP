@@ -3,9 +3,10 @@ import { useArenaStore } from "../store/arenaStore";
 import { signalRService } from "../services/websocket/signalr";
 import type { FeedItem, MatchLobby } from "../store/arenaStore";
 import { matchesApi } from "../services/api/matches";
+import { getPlayersMaxFromTeamSize } from "../utils/gameModeMapper";
 
 export const useArenaRealtime = () => {
-  const { addFeedItemToTop, addMatch, updateMatch, removeMatch, setLoading } =
+  const { addFeedItemToTop, addMatch, updateMatch, removeMatch, setLoading, setFeed } =
     useArenaStore();
 
   const isSubscribed = useRef(false);
@@ -23,20 +24,22 @@ export const useArenaRealtime = () => {
         return;
       }
 
-      // Calculate playersMax from matchType
-      const playersMax =
-        match.matchType === "Team" ? 10 : match.matchType === "Duo" ? 4 : 2;
+      // Calculate playersMax from teamSize
+      const playersMax = getPlayersMaxFromTeamSize(match.teamSize || "OneVOne");
 
       // Convert backend MatchView to arenaStore MatchLobby format
       const lobbyMatch: MatchLobby = {
         id: match.matchPda,
         matchPda: match.matchPda,
+        creator: match.creatorPubkey || match.creator || "",
         stake: match.stakeLamports / 1000000000, // Convert lamports to SOL
         playersReady: match.participants?.length || 0,
         playersMax,
         endsAt: match.deadlineTs * 1000, // Convert unix timestamp to ms
-        gameMode: match.gameMode || "Pick3from9",
-        matchType: match.matchType || "Solo",
+        gameType: match.gameType,
+        gameMode: match.gameMode,
+        matchMode: match.matchMode,
+        teamSize: match.teamSize,
         status: match.status,
       };
       addMatch(lobbyMatch);
@@ -45,19 +48,21 @@ export const useArenaRealtime = () => {
     signalRService.on("matchJoined", (match: any) => {
       console.log("Match joined:", match);
 
-      // Calculate playersMax from matchType
-      const playersMax =
-        match.matchType === "Team" ? 10 : match.matchType === "Duo" ? 4 : 2;
+      // Calculate playersMax from teamSize
+      const playersMax = getPlayersMaxFromTeamSize(match.teamSize || "OneVOne");
 
       const lobbyMatch: MatchLobby = {
         id: match.matchPda,
         matchPda: match.matchPda,
+        creator: match.creatorPubkey || match.creator || "",
         stake: match.stakeLamports / 1000000000,
         playersReady: match.participants?.length || 0,
         playersMax,
         endsAt: match.deadlineTs * 1000,
-        gameMode: match.gameMode || "Pick3from9",
-        matchType: match.matchType || "Solo",
+        gameType: match.gameType,
+        gameMode: match.gameMode,
+        matchMode: match.matchMode,
+        teamSize: match.teamSize,
         status: match.status,
       };
       updateMatch(lobbyMatch);
@@ -66,24 +71,8 @@ export const useArenaRealtime = () => {
     signalRService.on("matchResolved", (match: any) => {
       console.log("📢 [Arena] Match resolved:", match);
 
-      // Add to feed as win notification
-      if (match.participants && match.winnerSide !== null) {
-        const winners = match.participants.filter(
-          (p: any) => p.side === match.winnerSide
-        );
-        winners.forEach((winner: any) => {
-          const feedItem: FeedItem = {
-            id: `${match.matchPda}_${winner.pubkey}`,
-            username: winner.pubkey.substring(0, 8) + "...",
-            solAmount: match.stakeLamports / 1000000000,
-            timestamp: Date.now(),
-            gameMode: match.gameMode || "Pick3from9",
-          };
-          addFeedItemToTop(feedItem);
-        });
-      }
-
       // Remove from active matches IMMEDIATELY (no 5 second delay)
+      // Feed updates are now handled by feed:append event from GameTimeoutWorker
       removeMatch(match.matchPda);
       console.log("📢 [Arena] Removed resolved match from active list");
     });
@@ -94,7 +83,35 @@ export const useArenaRealtime = () => {
       removeMatch(match.matchPda);
     });
 
-    // Initialize: Load active matches from API
+    // Subscribe to feed:append event for real-time feed updates
+    signalRService.on("feed:append", (feedData: any) => {
+      console.log("📢 [Arena] Feed item received:", feedData);
+      
+      // Extract winner participant
+      const winner = feedData.participants?.find((p: any) => p.isWinner);
+      if (!winner) {
+        console.warn("No winner found in feed data");
+        return;
+      }
+      
+      const feedItem: FeedItem = {
+        id: feedData.matchPda,
+        matchPda: feedData.matchPda,
+        username: winner.username && winner.username.trim() !== "" 
+          ? winner.username 
+          : winner.pubkey.substring(0, 8) + "...",
+        solAmount: feedData.stakeLamports / 1e9, // Convert lamports to SOL
+        gameType: feedData.gameType,
+        gameMode: feedData.gameMode,
+        matchType: feedData.teamSize || "OneVOne", // Use teamSize
+        winnerSide: feedData.winnerSide,
+        timestamp: new Date(feedData.resolvedAt).getTime(),
+      };
+      
+      addFeedItemToTop(feedItem);
+    });
+
+    // Initialize: Load active matches and recent feed from API
     const initializeArena = async () => {
       try {
         setLoading(true);
@@ -104,23 +121,21 @@ export const useArenaRealtime = () => {
         const activeMatchesResult = await matchesApi.getActiveMatches(1, 20);
         const lobbyMatches: MatchLobby[] = activeMatchesResult.items.map(
           (match: any) => {
-            // Calculate playersMax from matchType
-            const playersMax =
-              match.matchType === "Team"
-                ? 10
-                : match.matchType === "Duo"
-                ? 4
-                : 2;
+            // Calculate playersMax from teamSize
+            const playersMax = getPlayersMaxFromTeamSize(match.teamSize || "OneVOne");
 
             return {
               id: match.matchPda,
               matchPda: match.matchPda,
+              creator: match.creatorPubkey || match.creator || "",
               stake: match.stakeLamports / 1000000000,
               playersReady: match.participants?.length || 0,
               playersMax,
               endsAt: match.deadlineTs * 1000,
-              gameMode: match.gameMode || "Pick3from9",
-              matchType: match.matchType || "Solo",
+              gameType: match.gameType,
+              gameMode: match.gameMode,
+              matchMode: match.matchMode,
+              teamSize: match.teamSize,
               status: match.status,
             };
           }
@@ -128,6 +143,38 @@ export const useArenaRealtime = () => {
 
         // Set initial matches
         lobbyMatches.forEach(addMatch);
+
+        // Load initial feed data
+        try {
+          const recentMatches = await matchesApi.getRecentMatches(10);
+          
+          const feedItems: FeedItem[] = recentMatches
+            .filter((m: any) => m.participants && m.participants.length > 0)
+            .map((match: any) => {
+              const winner = match.participants.find((p: any) => p.isWinner);
+              if (!winner) return null;
+              
+              return {
+                id: match.matchPda,
+                matchPda: match.matchPda,
+                username: winner.username && winner.username.trim() !== "" 
+                  ? winner.username 
+                  : winner.pubkey.substring(0, 8) + "...",
+                solAmount: match.stakeLamports / 1e9,
+                gameType: match.gameType,
+                gameMode: match.gameMode,
+                matchType: match.teamSize || "OneVOne", // Use teamSize
+                winnerSide: match.winnerSide ?? 0,
+                timestamp: new Date(match.resolvedAt).getTime(),
+              } as FeedItem;
+            })
+            .filter((item: FeedItem | null): item is FeedItem => item !== null);
+          
+          setFeed(feedItems);
+          console.log("📢 [Arena] Loaded initial feed:", feedItems.length, "items");
+        } catch (error) {
+          console.error("Failed to load initial feed:", error);
+        }
       } catch (error) {
         console.error("Failed to initialize arena:", error);
       } finally {
@@ -144,7 +191,7 @@ export const useArenaRealtime = () => {
       // SignalR will automatically disconnect when component unmounts
       isSubscribed.current = false;
     };
-  }, [addFeedItemToTop, addMatch, updateMatch, removeMatch, setLoading]);
+  }, [addFeedItemToTop, addMatch, updateMatch, removeMatch, setLoading, setFeed]);
 
   return {};
 };

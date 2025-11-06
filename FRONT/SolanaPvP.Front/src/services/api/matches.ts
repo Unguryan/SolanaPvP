@@ -8,8 +8,10 @@ export const matchesApi = {
     const params = new URLSearchParams();
 
     if (filter.status) params.append("status", filter.status);
+    if (filter.gameType) params.append("gameType", filter.gameType);
     if (filter.gameMode) params.append("gameMode", filter.gameMode);
-    if (filter.matchType) params.append("matchType", filter.matchType);
+    if (filter.matchMode) params.append("matchMode", filter.matchMode);
+    if (filter.teamSize) params.append("teamSize", filter.teamSize);
     if (filter.isPrivate !== undefined)
       params.append("isPrivate", filter.isPrivate.toString());
     if (filter.page) params.append("page", filter.page.toString());
@@ -28,6 +30,11 @@ export const matchesApi = {
     return apiClient.get<PagedResult<MatchView>>(
       `/api/matches/active?page=${page}&pageSize=${pageSize}`
     );
+  },
+
+  // Get recent resolved matches for feed
+  async getRecentMatches(count: number = 10): Promise<MatchView[]> {
+    return apiClient.get<MatchView[]>(`/api/matches/recent?count=${count}`);
   },
 
   // Get match details by PDA

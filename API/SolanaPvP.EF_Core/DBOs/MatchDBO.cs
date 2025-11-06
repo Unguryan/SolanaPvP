@@ -8,8 +8,10 @@ public class MatchDBO
 {
     public string MatchPda { get; set; } = string.Empty;
     public string CreatorPubkey { get; set; } = string.Empty;
-    public GameModeType GameMode { get; set; }
-    public SolanaPvP.Domain.Enums.MatchType MatchType { get; set; }
+    public string GameType { get; set; } = string.Empty; // CHANGED: "PickHigher", "Plinko", "Dice", etc.
+    public string GameMode { get; set; } = string.Empty; // "1x3", "3x9", "5x16", etc.
+    public string MatchMode { get; set; } = string.Empty; // CHANGED: "SingleBattle", "DeathMatch"
+    public string TeamSize { get; set; } = string.Empty; // CHANGED: "1v1", "2v2", "5v5", "1v10", etc.
     public long StakeLamports { get; set; }
     public MatchStatus Status { get; set; }
     public long DeadlineTs { get; set; }

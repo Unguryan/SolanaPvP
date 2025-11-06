@@ -18,13 +18,15 @@ import {
 } from "@/services/solana/accounts";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { UniversalGameBoard } from "@/components/game/UniversalGameBoard";
-import { Player, GameResult } from "@/types/game";
+import { GameResultModal } from "@/components/game/GameResultModal";
+import { Player, GameType, MatchMode } from "@/types/game";
 import { usersApi } from "@/services/api/users";
 import { matchesApi } from "@/services/api/matches";
+import { mapTeamSizeToMatchType, mapGameModeToFrontend } from "@/utils/gameModeMapper";
 import * as anchor from "@coral-xyz/anchor";
 import { useWebSocketStore } from "@/store/websocketStore";
 
-type PageMode = "preview" | "preparing" | "game";
+type PageMode = "preview" | "preparing" | "game" | "results";
 
 export const MatchPreview: React.FC = () => {
   const { matchPda } = useParams<{ matchPda: string }>();
@@ -71,6 +73,10 @@ export const MatchPreview: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [joinMessage, setJoinMessage] = useState<string | null>(null);
   const [usernames, setUsernames] = useState<Record<string, string>>({});
+  const [gameTimeRemaining, setGameTimeRemaining] = useState<number>(20);
+  const resultsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [gameResult, setGameResult] = useState<any>(null);
   
   // SignalR event handlers
   const { onMatchInProgress, onMatchFinalized, onMatchJoined } = useWebSocketStore();
@@ -92,18 +98,33 @@ export const MatchPreview: React.FC = () => {
     };
     
     loadMatchFromBackend();
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (resultsTimeoutRef.current) {
+        clearTimeout(resultsTimeoutRef.current);
+        resultsTimeoutRef.current = null;
+      }
+    };
   }, [matchPda]);
 
   // Listen for match events
   useEffect(() => {
-    const handleMatchInProgress = (match: any) => {
+    const handleMatchInProgress = async (match: any) => {
       console.log("🎮 [MatchPreview] Match InProgress event received:", match);
-      if (match.matchPda === matchPda) {
+      if (match.matchPda === matchPda && matchPda) {
         console.log("🎮 [MatchPreview] This is OUR match! Updating backend data...");
         // Update backend match data immediately
         setMatchFromBackend(match);
-        // Also refetch blockchain data
-        refetchLobby();
+        
+        // Immediately fetch full match data including gameData
+        try {
+          const fullMatchData = await matchesApi.getMatch(matchPda);
+          setMatchFromBackend(fullMatchData);
+          console.log("🎮 [MatchPreview] Full match data fetched:", fullMatchData);
+        } catch (error) {
+          console.error("🎮 [MatchPreview] Failed to fetch full match data:", error);
+        }
       }
     };
 
@@ -113,26 +134,63 @@ export const MatchPreview: React.FC = () => {
         console.log("🏁 [MatchPreview] This is OUR match! Match complete!");
         // Update backend match data immediately
         setMatchFromBackend(match);
-        // Also refetch blockchain data
-        refetchLobby();
       }
     };
 
-    const handleMatchJoined = (match: any) => {
+    const handleMatchJoined = async (match: any) => {
       console.log("👥 [MatchPreview] Match joined event received:", match);
       if (match.matchPda === matchPda) {
         console.log("👥 [MatchPreview] This is OUR match! Updating backend data...");
         // Update backend match data immediately
         setMatchFromBackend(match);
-        // Also refetch blockchain data
-        refetchLobby();
+        
+        // Start polling for InProgress status (in case matchInProgress event is missed)
+        console.log("👥 [MatchPreview] Starting polling for InProgress status...");
+        let pollCount = 0;
+        const pollForInProgress = setInterval(async () => {
+          pollCount++;
+          try {
+            const latestMatch = await matchesApi.getMatch(matchPda!);
+            console.log(`[MatchPreview] Poll ${pollCount}/30 - Status: ${latestMatch.status}`);
+            
+            if (latestMatch.status === "InProgress" || latestMatch.status === "Resolved") {
+              console.log("✅ [MatchPreview] Match became InProgress! Updating...");
+              clearInterval(pollForInProgress);
+              setMatchFromBackend(latestMatch);
+            } else if (pollCount >= 30) {
+              console.log("⏱️ [MatchPreview] Polling timeout (30 attempts)");
+              clearInterval(pollForInProgress);
+            }
+          } catch (error) {
+            console.error("[MatchPreview] Polling error:", error);
+          }
+        }, 1000); // Poll every 1 second
       }
     };
 
     onMatchInProgress(handleMatchInProgress);
     onMatchFinalized(handleMatchFinalized);
     onMatchJoined(handleMatchJoined);
-  }, [matchPda, refetchLobby, onMatchInProgress, onMatchFinalized, onMatchJoined]);
+  }, [matchPda, onMatchInProgress, onMatchFinalized, onMatchJoined]);
+
+  // Update game time remaining every second
+  useEffect(() => {
+    if (pageMode === "game" && matchFromBackend?.gameStartTime) {
+      const updateTimer = () => {
+        const startTime = new Date(matchFromBackend.gameStartTime).getTime();
+        const endTime = startTime + 25000; // +25 seconds
+        const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+        setGameTimeRemaining(remaining);
+      };
+
+      // Initial update
+      updateTimer();
+
+      // Update every second
+      const interval = setInterval(updateTimer, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [pageMode, matchFromBackend?.gameStartTime]);
 
   // Fetch usernames for all players in the lobby
   useEffect(() => {
@@ -164,18 +222,38 @@ export const MatchPreview: React.FC = () => {
 
   // Determine if user is a viewer (not participant and not connected)
   useEffect(() => {
-    if (lobby && publicKey) {
+    if (!publicKey || !connected) {
+      setIsViewer(true);
+      return;
+    }
+
+    // Check blockchain data
+    let isParticipantChain = false;
+    if (lobby) {
       const allPlayers = [...lobby.team1, ...lobby.team2];
-      const isParticipant = allPlayers.some(
+      isParticipantChain = allPlayers.some(
         (p) => p.toString() === publicKey.toString()
       );
-      setIsViewer(!isParticipant);
-    } else if (!connected) {
-      setIsViewer(true);
-    } else {
-      setIsViewer(false);
     }
-  }, [lobby, publicKey, connected]);
+
+    // Also check backend data (more up-to-date)
+    let isParticipantBackend = false;
+    if (matchFromBackend?.participants) {
+      isParticipantBackend = matchFromBackend.participants.some(
+        (p: any) => p.pubkey === publicKey.toString()
+      );
+    }
+
+    // If participant in either blockchain OR backend, they can play
+    const isParticipant = isParticipantChain || isParticipantBackend;
+    setIsViewer(!isParticipant);
+    
+    if (isParticipant) {
+      console.log("✅ [MatchPreview] User IS participant, can play game");
+    } else {
+      console.log("👀 [MatchPreview] User is viewer, cannot play");
+    }
+  }, [lobby, publicKey, connected, matchFromBackend]);
 
   // Fetch user balance
   useEffect(() => {
@@ -201,8 +279,19 @@ export const MatchPreview: React.FC = () => {
     if (!lobby) return;
 
     const calculateTimeLeft = () => {
-      const createdAtSeconds = lobby.createdAt.toNumber();
       const nowSeconds = Date.now() / 1000;
+      
+      // If match is resolved, show time until resolveAt + 20 seconds
+      if (matchFromBackend?.status === "Resolved" && matchFromBackend?.resolvedAt) {
+        const resolvedAtSeconds = new Date(matchFromBackend.resolvedAt).getTime() / 1000;
+        const endTimeSeconds = resolvedAtSeconds + 20; // +20 seconds after resolve
+        const remaining = Math.max(0, endTimeSeconds - nowSeconds);
+        setTimeLeft(Math.floor(remaining));
+        return;
+      }
+      
+      // Otherwise show time until deadline (createdAt + timeout)
+      const createdAtSeconds = lobby.createdAt.toNumber();
       const elapsed = nowSeconds - createdAtSeconds;
 
       // Determine timeout based on team size
@@ -217,7 +306,7 @@ export const MatchPreview: React.FC = () => {
     const interval = setInterval(calculateTimeLeft, 1000);
 
     return () => clearInterval(interval);
-  }, [lobby]);
+  }, [lobby, matchFromBackend]);
 
   // Page mode management based on lobby status (HYBRID: blockchain + backend)
   useEffect(() => {
@@ -241,17 +330,23 @@ export const MatchPreview: React.FC = () => {
       }
     }
     else if (effectiveStatus === "Resolved") {
-      // Match is resolved - could navigate to results page
-      if (gameData) {
-        setPageMode("game"); // Still showing game for now
-      } else {
-        setPageMode("preparing");
+      // Match is resolved - keep showing game for 20 seconds (to show result modal)
+      // Sequence: Game → 1s → Modal appears → user can view/close → after 20s total → results page
+      if (pageMode === "game" && !resultsTimeoutRef.current) {
+        // Wait 20 seconds before showing results page (plenty of time for modal)
+        resultsTimeoutRef.current = setTimeout(() => {
+          setPageMode("results");
+          resultsTimeoutRef.current = null;
+        }, 20000);
+      } else if (pageMode !== "game") {
+        // Already on results page or other page, switch to results
+        setPageMode("results");
       }
     }
     else {
       setPageMode("preview");
     }
-  }, [lobby, gameData, matchFromBackend]);
+  }, [lobby, gameData, matchFromBackend, pageMode]);
 
   // Poll backend for game data when preparing
   useEffect(() => {
@@ -268,24 +363,39 @@ export const MatchPreview: React.FC = () => {
             console.log("[MatchPreview] Game data received from backend");
 
             // Convert participants to Player format for game board
-            const players = matchData.participants.map((p: any) => ({
-              username: p.username || p.pubkey.substring(0, 8) + "...",
-              targetScore: p.targetScore || 0,
-              currentScore: p.targetScore || 0,
-              selections: [], // Will be filled by game board
-              isReady: true,
-            }));
+            console.log("[MatchPreview] Usernames mapping:", usernames);
+            console.log("[MatchPreview] Participants:", matchData.participants);
+            
+            // Sort participants by side and position before mapping
+            const sortedParticipants = [...matchData.participants].sort((a: any, b: any) => {
+              if (a.side !== b.side) return a.side - b.side; // Sort by side first (0, 1, 2, ...)
+              return a.position - b.position; // Then by position within side
+            });
+            
+            const players = sortedParticipants.map((p: any) => {
+              // Use username from participant (from backend) as priority
+              const finalUsername = p.username || usernames[p.pubkey] || p.pubkey.substring(0, 8) + "...";
+              console.log(`[MatchPreview] Player ${p.pubkey.substring(0, 8)}: side=${p.side}, position=${p.position}, username from backend = ${p.username}, from mapping = ${usernames[p.pubkey]}, final = ${finalUsername}`);
+              
+              return {
+                username: finalUsername,
+                pubkey: p.pubkey, // Add pubkey for AI identification
+                targetScore: p.targetScore || 0, // Backend's target for winning
+                currentScore: 0, // Start from 0, accumulates from tile selections
+                selections: [], // Will be filled by game board
+                isReady: true,
+              };
+            });
 
-            // Map game mode to frontend format
-            const gameModeMap: Record<string, any> = {
-              Pick3from9: "PickThreeFromNine",
-              Pick5from16: "PickFiveFromSixteen",
-              Pick1from3: "PickOneFromThree",
-            };
-
+            // Map backend gameMode string to frontend format
+            console.log("[MatchPreview] Backend gameData:", matchData.gameData);
+            const frontendGameMode = mapGameModeToFrontend(matchData.gameData.gameMode);
+            console.log("[MatchPreview] Mapped gameMode:", frontendGameMode);
+            console.log("[MatchPreview] Players:", players);
+            
             setGameData({
               players,
-              gameMode: gameModeMap[matchData.gameMode] || "PickThreeFromNine",
+              gameMode: frontendGameMode,
             });
           }
         } catch (err) {
@@ -305,7 +415,7 @@ export const MatchPreview: React.FC = () => {
         }
       };
     }
-  }, [pageMode, lobby, matchPda]);
+  }, [pageMode, lobby, matchPda, usernames]);
 
   // Load mock lobby data only for mock matches
   useEffect(() => {
@@ -329,6 +439,10 @@ export const MatchPreview: React.FC = () => {
       vrfSeed: Array(32).fill(0),
       vrfRequest: new PublicKey("11111111111111111111111111111115"),
       winnerSide: 0,
+      game: "PickHigher",
+      gameMode: "3x9",
+      arenaType: "SingleBattle",
+      teamSizeStr: "5v5",
     };
 
     setTimeout(() => {
@@ -362,17 +476,82 @@ export const MatchPreview: React.FC = () => {
       // Reload lobby data from blockchain
       await refetchLobby();
 
-      // Also reload the page state
-      window.location.reload();
+      // Fetch backend data with polling - match will transition to Pending -> InProgress
+      console.log("[MatchPreview] Starting to poll for match status updates...");
+      
+      // Poll backend every second for up to 30 seconds to catch status change
+      let pollAttempts = 0;
+      const maxPollAttempts = 30;
+      
+      const pollInterval = setInterval(async () => {
+        pollAttempts++;
+        console.log(`[MatchPreview] Polling attempt ${pollAttempts}/${maxPollAttempts}`);
+        
+        try {
+          const response = await matchesApi.getMatch(matchPda!);
+          console.log("[MatchPreview] Polled match status:", response.status);
+          
+          if (response.status === "InProgress" || response.status === "Resolved") {
+            console.log("[MatchPreview] ✅ Match started! Status:", response.status);
+            clearInterval(pollInterval);
+            setMatchFromBackend(response);
+            // Refetch lobby from blockchain as well
+            await refetchLobby();
+          } else if (pollAttempts >= maxPollAttempts) {
+            console.log("[MatchPreview] ⏱️ Polling timeout reached, reloading page...");
+            clearInterval(pollInterval);
+            window.location.reload();
+          }
+        } catch (err) {
+          console.error("[MatchPreview] Polling error:", err);
+          if (pollAttempts >= maxPollAttempts) {
+            clearInterval(pollInterval);
+            window.location.reload();
+          }
+        }
+      }, 1000); // Poll every 1 second
     } catch (err: any) {
       console.error("[MatchPreview] Failed to join lobby:", err);
       setError(err.message || "Failed to join match");
     }
   };
 
-  const handleGameComplete = (result: GameResult) => {
+  const handleGameComplete = (result: any) => {
     console.log("Game completed:", result);
-    // TODO: Handle game completion (update backend, show results, etc.)
+    // Show result modal
+    setGameResult(result);
+    setShowResultModal(true);
+  };
+
+  const handlePlayAgain = () => {
+    // Cancel auto-transition timer
+    if (resultsTimeoutRef.current) {
+      clearTimeout(resultsTimeoutRef.current);
+      resultsTimeoutRef.current = null;
+    }
+    
+    navigate("/matches");
+  };
+
+  const handleViewLeaderboard = () => {
+    // Cancel auto-transition timer
+    if (resultsTimeoutRef.current) {
+      clearTimeout(resultsTimeoutRef.current);
+      resultsTimeoutRef.current = null;
+    }
+    
+    navigate("/leaderboard");
+  };
+
+  const handleBackToLobby = () => {
+    // Cancel auto-transition timer
+    if (resultsTimeoutRef.current) {
+      clearTimeout(resultsTimeoutRef.current);
+      resultsTimeoutRef.current = null;
+    }
+    
+    // Immediately go to results page
+    setPageMode("results");
   };
 
   const canJoinTeam = (side: 0 | 1): boolean => {
@@ -508,6 +687,11 @@ export const MatchPreview: React.FC = () => {
     }
   };
 
+  const getArenaTypeDisplay = () => {
+    const arenaType = (lobby as any)?.arenaType || matchFromBackend?.matchMode || "SingleBattle";
+    return arenaType === "DeathMatch" ? "Death Match" : "Single Battle";
+  };
+
   const formatTimeLeft = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -522,7 +706,40 @@ export const MatchPreview: React.FC = () => {
   };
 
   const getPlayerDisplay = (playerPubkey: string): string => {
+    // Try to get username from backend participants first
+    const participant = matchFromBackend?.participants?.find(
+      (p: any) => p.pubkey === playerPubkey
+    );
+    if (participant?.username) {
+      return participant.username;
+    }
+    // Fallback to usernames state or formatted address
     return usernames[playerPubkey] || formatAddress(playerPubkey);
+  };
+
+  // Get team players from backend ONLY (more up-to-date via SignalR)
+  const getTeam1Players = (): string[] => {
+    if (matchFromBackend?.participants) {
+      return matchFromBackend.participants
+        .filter((p: any) => p.side === 0)
+        .sort((a: any, b: any) => a.position - b.position)
+        .map((p: any) => p.pubkey);
+    }
+    // Don't fallback to blockchain data - return empty if no backend data
+    // Backend is source of truth via SignalR
+    return [];
+  };
+
+  const getTeam2Players = (): string[] => {
+    if (matchFromBackend?.participants) {
+      return matchFromBackend.participants
+        .filter((p: any) => p.side === 1)
+        .sort((a: any, b: any) => a.position - b.position)
+        .map((p: any) => p.pubkey);
+    }
+    // Don't fallback to blockchain data - return empty if no backend data
+    // Backend is source of truth via SignalR
+    return [];
   };
 
   // No longer blocking viewers - removed the wallet check
@@ -563,8 +780,8 @@ export const MatchPreview: React.FC = () => {
   }
 
   const stakeSOL = lobby.stakeLamports.toNumber() / LAMPORTS_PER_SOL;
-  const team1Progress = (lobby.team1.length / lobby.teamSize) * 100;
-  const team2Progress = (lobby.team2.length / lobby.teamSize) * 100;
+  const team1Progress = (getTeam1Players().length / lobby.teamSize) * 100;
+  const team2Progress = (getTeam2Players().length / lobby.teamSize) * 100;
 
   // Render game mode
   if (pageMode === "game" && gameData) {
@@ -579,7 +796,7 @@ export const MatchPreview: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
             >
               <h1 className="text-4xl font-display font-bold text-txt-base mb-2">
-                Match #{lobby.lobbyId.toString()}
+                {getArenaTypeDisplay()} #{lobby.lobbyId.toString()}
               </h1>
               <div className="flex items-center justify-center gap-2">
                 <span className="text-lg text-blue-400">{lobby.status}</span>
@@ -619,37 +836,30 @@ export const MatchPreview: React.FC = () => {
     }
 
     // Participants see the full game
-    // Calculate remaining time from GameStartTime
-    const calculateTimeRemaining = () => {
-      if (!matchFromBackend?.gameStartTime) return 20;
-      
-      const startTime = new Date(matchFromBackend.gameStartTime).getTime();
-      const endTime = startTime + 20000; // +20 seconds
-      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
-      
-      return remaining;
-    };
-
     return (
       <div className="min-h-screen bg-bg py-8">
         <div className="max-w-7xl mx-auto px-6">
           <motion.div
-            className="text-center mb-8"
+            className="text-center mb-6 lg:mb-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <h1 className="text-4xl font-display font-bold text-txt-base mb-2">
-              Match #{lobby.lobbyId.toString()}
+            <h1 className="text-2xl lg:text-4xl font-display font-bold text-txt-base mb-2">
+              {getArenaTypeDisplay()} #{lobby.lobbyId.toString()}
             </h1>
           </motion.div>
 
           <UniversalGameBoard
+            gameType={GameType.PickHigher}
             gameMode={gameData.gameMode}
-            matchType="Solo"
+            matchMode={MatchMode.Team}
+            teamSize={mapTeamSizeToMatchType(matchFromBackend?.teamSize || "OneVOne") as "Solo" | "Duo" | "Team"}
             stakeSol={stakeSOL}
             players={gameData.players}
             currentPlayer="You"
-            timeLimit={calculateTimeRemaining()}
+            currentPlayerPubkey={publicKey?.toBase58()}
+            matchFromBackend={matchFromBackend}
+            timeLimit={gameTimeRemaining}
             onGameComplete={handleGameComplete}
             isDemoMode={false}
           />
@@ -660,6 +870,17 @@ export const MatchPreview: React.FC = () => {
             </GlowButton>
           </div>
         </div>
+        
+        {/* Result Modal - rendered here so it persists across pageMode changes */}
+        <GameResultModal
+          isOpen={showResultModal}
+          result={gameResult}
+          onClose={() => setShowResultModal(false)}
+          onPlayAgain={handlePlayAgain}
+          onViewLeaderboard={handleViewLeaderboard}
+          onBackToLobby={handleBackToLobby}
+          isDemoMode={false}
+        />
       </div>
     );
   }
@@ -734,7 +955,7 @@ export const MatchPreview: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
         >
           <h1 className="text-2xl lg:text-4xl font-display font-bold text-txt-base mb-2">
-            Match #{lobby.lobbyId.toString()}
+            {getArenaTypeDisplay()} #{lobby.lobbyId.toString()}
           </h1>
         </motion.div>
 
@@ -764,21 +985,21 @@ export const MatchPreview: React.FC = () => {
               </p>
             </div>
             <div>
-              <p className="text-xs lg:text-sm text-txt-muted mb-1">Pot</p>
-              <p className="text-sm lg:text-lg font-semibold text-txt-base">
-                {(stakeSOL * lobby.teamSize * 2 * 0.99).toFixed(2)} SOL
-              </p>
-            </div>
-            <div>
               <p className="text-xs lg:text-sm text-txt-muted mb-1">Game</p>
               <p className="text-sm lg:text-lg font-semibold text-txt-base">
-                3x3
+                {(lobby as any)?.game === "PickHigher" ? "Pick Higher" : (lobby as any)?.game || matchFromBackend?.gameType || "Pick Higher"}
               </p>
             </div>
             <div>
-              <p className="text-xs lg:text-sm text-txt-muted mb-1">Mode</p>
+              <p className="text-xs lg:text-sm text-txt-muted mb-1">Game Mode</p>
               <p className="text-sm lg:text-lg font-semibold text-txt-base">
-                {lobby.teamSize}v{lobby.teamSize}
+                {(lobby as any)?.gameMode || matchFromBackend?.gameMode || "3x9"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs lg:text-sm text-txt-muted mb-1">Team Size</p>
+              <p className="text-sm lg:text-lg font-semibold text-txt-base">
+                {(lobby as any)?.teamSizeStr || matchFromBackend?.teamSize || `${lobby.teamSize}v${lobby.teamSize}`}
               </p>
             </div>
           </div>
@@ -787,27 +1008,35 @@ export const MatchPreview: React.FC = () => {
         {/* Teams - Side by side */}
         <div className="grid grid-cols-2 gap-4 lg:gap-6 mb-6">
           {/* Team 1 */}
-          <GlassCard className="p-6">
+          <GlassCard className={`p-4 ${
+            matchFromBackend?.status === "Resolved" && matchFromBackend?.winnerSide === 0
+              ? "border-2 border-sol-mint shadow-glow-mint"
+              : ""
+          }`}>
             <GlassCardHeader>
-              <GlassCardTitle className="text-base lg:text-xl font-display text-sol-purple">
-                Team 1 ({lobby.team1.length}/{lobby.teamSize})
+              <GlassCardTitle className="text-base lg:text-xl font-display text-sol-purple flex items-center justify-between">
+                <span>Team 1 ({getTeam1Players().length}/{lobby.teamSize})</span>
+                {matchFromBackend?.status === "Resolved" && matchFromBackend?.winnerSide === 0 && (
+                  <span className="text-green-400 font-bold text-xs">WIN</span>
+                )}
               </GlassCardTitle>
             </GlassCardHeader>
             <div className="mt-2 lg:mt-4 space-y-1 lg:space-y-2">
               {Array.from({ length: lobby.teamSize }).map((_, i) => {
-                const player = lobby.team1[i];
+                const team1Players = getTeam1Players();
+                const playerPubkey = team1Players[i];
                 return (
                   <div
                     key={i}
                     className="p-2 lg:p-3 bg-bg-dark rounded-lg flex items-center gap-2"
                   >
-                    {player ? (
+                    {playerPubkey ? (
                       <>
                         <div className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-green-400 rounded-full flex-shrink-0"></div>
                         <span className="text-txt-base text-xs lg:text-sm flex-1 truncate">
-                          {getPlayerDisplay(player.toString())}
+                          {getPlayerDisplay(playerPubkey)}
                         </span>
-                        {publicKey?.toString() === player.toString() && (
+                        {publicKey?.toString() === playerPubkey && (
                           <span className="text-xs text-sol-purple flex-shrink-0">
                             You
                           </span>
@@ -850,27 +1079,35 @@ export const MatchPreview: React.FC = () => {
           </GlassCard>
 
           {/* Team 2 */}
-          <GlassCard className="p-6">
+          <GlassCard className={`p-4 ${
+            matchFromBackend?.status === "Resolved" && matchFromBackend?.winnerSide === 1
+              ? "border-2 border-sol-mint shadow-glow-mint"
+              : ""
+          }`}>
             <GlassCardHeader>
-              <GlassCardTitle className="text-base lg:text-xl font-display text-sol-purple">
-                Team 2 ({lobby.team2.length}/{lobby.teamSize})
+              <GlassCardTitle className="text-base lg:text-xl font-display text-sol-purple flex items-center justify-between">
+                <span>Team 2 ({getTeam2Players().length}/{lobby.teamSize})</span>
+                {matchFromBackend?.status === "Resolved" && matchFromBackend?.winnerSide === 1 && (
+                  <span className="text-green-400 font-bold text-xs">WIN</span>
+                )}
               </GlassCardTitle>
             </GlassCardHeader>
             <div className="mt-2 lg:mt-4 space-y-1 lg:space-y-2">
               {Array.from({ length: lobby.teamSize }).map((_, i) => {
-                const player = lobby.team2[i];
+                const team2Players = getTeam2Players();
+                const playerPubkey = team2Players[i];
                 return (
                   <div
                     key={i}
                     className="p-2 lg:p-3 bg-bg-dark rounded-lg flex items-center gap-2"
                   >
-                    {player ? (
+                    {playerPubkey ? (
                       <>
                         <div className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-green-400 rounded-full flex-shrink-0"></div>
                         <span className="text-txt-base text-xs lg:text-sm flex-1 truncate">
-                          {getPlayerDisplay(player.toString())}
+                          {getPlayerDisplay(playerPubkey)}
                         </span>
-                        {publicKey?.toString() === player.toString() && (
+                        {publicKey?.toString() === playerPubkey && (
                           <span className="text-xs text-sol-purple flex-shrink-0">
                             You
                           </span>
@@ -916,7 +1153,8 @@ export const MatchPreview: React.FC = () => {
         {/* Participant already in match message */}
         {!isViewer &&
           isPlayerInLobby() &&
-          lobby.status === LobbyStatus.Open && (
+          lobby.status === LobbyStatus.Open &&
+          matchFromBackend?.status === "Open" && (
             <GlassCard className="p-6 mb-6 text-center">
               <p className="text-sol-mint font-semibold">
                 ✓ You are already in this match
@@ -930,7 +1168,8 @@ export const MatchPreview: React.FC = () => {
         {/* Refund - Only for creator after timeout */}
         {lobby.creator.toString() === publicKey?.toString() &&
           !isViewer &&
-          lobby.status === LobbyStatus.Open && (
+          lobby.status === LobbyStatus.Open &&
+          matchFromBackend?.status === "Open" && (
             <GlassCard className="p-6 mb-6 border-red-500/30">
               <GlassCardHeader>
                 <GlassCardTitle className="text-xl font-display text-red-400">
@@ -967,6 +1206,31 @@ export const MatchPreview: React.FC = () => {
           <GlassCard className="p-4 mb-6 border-red-500/50">
             <p className="text-red-400 text-sm">{error}</p>
           </GlassCard>
+        )}
+
+        {/* Transaction Link - only shown when match is Resolved */}
+        {pageMode === "results" && matchFromBackend?.payoutTx && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <GlassCard>
+              <div>
+                <h3 className="text-sm font-semibold text-txt-muted mb-2">
+                  Blockchain Transaction
+                </h3>
+                <a
+                  href={`https://solscan.io/tx/${matchFromBackend.payoutTx}?cluster=devnet`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sol-purple hover:text-sol-mint transition-colors break-all text-sm inline-flex items-center gap-1"
+                >
+                  <span>{matchFromBackend.payoutTx}</span>
+                </a>
+              </div>
+            </GlassCard>
+          </motion.div>
         )}
 
         {/* Back button */}

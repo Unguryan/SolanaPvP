@@ -2,6 +2,7 @@
 import { GamePlayer, GameTile } from "@/types/game";
 import {
   distributeScore,
+  distributeScoreArray,
   generateRandomValues,
 } from "@/utils/gameScoreDistribution";
 
@@ -155,7 +156,7 @@ export const simulateAISelection = async (
 };
 
 export const generateWinnableTiles = (
-  gameMode: "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree",
+  gameMode: string,
   neededScore: number
 ): GameTile[] => {
   let totalTiles: number;
@@ -198,6 +199,77 @@ export const generateWinnableTiles = (
     } else {
       // Remaining tiles can be lower value
       value = Math.floor(Math.random() * 400) + 100; // 100-500
+    }
+
+    tiles.push({
+      index: i,
+      value,
+      selected: false,
+      revealed: false,
+      isBonus: value > 500 && Math.random() < 0.1, // 10% chance for bonus
+    });
+  }
+
+  return tiles;
+};
+
+/**
+ * Generate tiles where specific tiles sum to targetScore (predefined game result)
+ * This is for real games where the outcome is already determined by blockchain VRF
+ */
+export const generateTargetedTiles = (
+  gameMode: string,
+  targetScore: number,
+  maxSelections: number
+): GameTile[] => {
+  let totalTiles: number;
+
+  switch (gameMode) {
+    case "PickThreeFromNine":
+      totalTiles = 9;
+      break;
+    case "PickFiveFromSixteen":
+      totalTiles = 16;
+      break;
+    case "PickOneFromThree":
+      totalTiles = 3;
+      break;
+    default:
+      totalTiles = 9;
+  }
+
+  // Distribute targetScore across maxSelections cards
+  const targetValues = distributeScoreArray(targetScore, maxSelections);
+
+  // Shuffle which tiles get the target values (randomize tile positions)
+  const targetIndices = Array.from({ length: totalTiles }, (_, i) => i)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, maxSelections);
+
+  // Generate tiles
+  const tiles: GameTile[] = [];
+  let targetValueIndex = 0;
+
+  for (let i = 0; i < totalTiles; i++) {
+    let value: number;
+
+    if (targetIndices.includes(i)) {
+      // This tile is one of the "correct" tiles that sum to targetScore
+      value = targetValues[targetValueIndex++];
+    } else {
+      // Decoy tile with random value (not part of winning combination)
+      // Make sure decoy values are different from target values
+      const avgTargetValue = targetScore / maxSelections;
+      const decoyMin = Math.max(50, Math.floor(avgTargetValue * 0.3)); // 30% of average
+      const decoyMax = Math.min(800, Math.floor(avgTargetValue * 1.3)); // 130% of average
+      value = Math.floor(Math.random() * (decoyMax - decoyMin)) + decoyMin;
+      
+      // Try to ensure decoy doesn't match any target value (max 10 attempts)
+      let attempts = 0;
+      while (attempts < 10 && targetValues.some(tv => Math.abs(value - tv) / tv < 0.05)) {
+        value = Math.floor(Math.random() * (decoyMax - decoyMin)) + decoyMin;
+        attempts++;
+      }
     }
 
     tiles.push({

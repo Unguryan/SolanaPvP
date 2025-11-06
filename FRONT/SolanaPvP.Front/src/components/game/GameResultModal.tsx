@@ -30,14 +30,22 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
 
   useEffect(() => {
     if (isOpen && result) {
-      const isPlayerWinner = result.isTeamBattle
-        ? result.winner === "Team A" // Player is always in Team A in demo mode
-        : result.winner === "You";
+      console.log("[GameResultModal] Result:", result);
+      console.log("[GameResultModal] isCurrentPlayerWinner:", result.isCurrentPlayerWinner);
+      console.log("[GameResultModal] result.winner:", result.winner);
+      
+      // Use explicit flag from backend if available
+      const isPlayerWinner = result.isCurrentPlayerWinner !== undefined
+        ? result.isCurrentPlayerWinner
+        : result.isTeamBattle
+          ? result.winner === "Team A" // Player is always in Team A in demo mode
+          : result.winner === "You";
 
+      console.log("[GameResultModal] Final isWinner:", isPlayerWinner);
       setIsWinner(isPlayerWinner);
       // Confetti is now handled in UniversalGameBoard
     }
-  }, [isOpen, result, isWinner]);
+  }, [isOpen, result]);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -261,7 +269,7 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
                         onClick={onPlayAgain}
                         className="w-full"
                       >
-                        Rematch
+                        Back to Arena
                       </GlowButton>
                       <div className="grid grid-cols-2 gap-3">
                         <GlowButton
@@ -276,7 +284,7 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
                           onClick={onBackToLobby}
                           className="w-full"
                         >
-                          Back to Lobby
+                          Stats
                         </GlowButton>
                       </div>
                     </>

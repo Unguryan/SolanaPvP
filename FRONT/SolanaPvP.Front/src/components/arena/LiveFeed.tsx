@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useArenaStore } from "@/store/arenaStore";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
@@ -8,7 +9,8 @@ import {
   GlassCardTitle,
 } from "@/components/ui/GlassCard";
 import { GlowButton } from "@/components/ui/GlowButton";
-import { formatDistanceToNow } from "date-fns";
+import { formatGameDisplay } from "@/utils/gameModeMapper";
+import { formatTimeAgo } from "@/utils/dateFormat";
 
 interface LiveFeedProps {
   className?: string;
@@ -23,12 +25,15 @@ export const LiveFeed: React.FC<LiveFeedProps> = ({
 }) => {
   const { feed, isLoading } = useArenaStore();
   const [showAll, setShowAll] = useState(false);
+  const navigate = useNavigate();
 
   const displayItems = showAll ? feed : feed.slice(0, maxItems);
   const hasMore = feed.length > maxItems;
 
   const formatTime = (timestamp: number) => {
-    return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
+    // Timestamp is in milliseconds, convert to UTC ISO string
+    const date = new Date(timestamp);
+    return formatTimeAgo(date.toISOString());
   };
 
   const getGameModeIcon = (gameMode: string) => {
@@ -79,7 +84,8 @@ export const LiveFeed: React.FC<LiveFeedProps> = ({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
-              className="feed-item"
+              onClick={() => navigate(`/match/${item.matchPda}`)}
+              className="feed-item cursor-pointer hover:bg-white/5 p-3 rounded-lg transition-colors"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -91,16 +97,21 @@ export const LiveFeed: React.FC<LiveFeedProps> = ({
                       <span className="text-txt-base font-medium">
                         {item.username}
                       </span>
+                      {item.matchType !== "OneVOne" && item.matchType !== "Solo" && (
+                        <span className="text-xs text-sol-purple bg-sol-purple/10 px-2 py-0.5 rounded">
+                          Team {item.winnerSide + 1}
+                        </span>
+                      )}
                       <span className="text-sol-mint font-semibold">
-                        +{item.solAmount} SOL
+                        +{item.solAmount.toFixed(3)} SOL
                       </span>
                     </div>
                     <div className="text-xs text-txt-muted">
-                      {item.gameMode} • {formatTime(item.timestamp)}
+                      {formatGameDisplay(item.gameType || "PickHigher", item.gameMode, item.matchType)} • {formatTime(item.timestamp)}
                     </div>
                   </div>
                 </div>
-                <div className="text-sol-mint text-sm font-medium">WIN</div>
+                <div className="text-sol-mint text-sm font-medium">VIEW →</div>
               </div>
             </motion.div>
           ))}

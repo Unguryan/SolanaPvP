@@ -11,8 +11,10 @@ public static class MatchMapper
         {
             MatchPda = dbo.MatchPda,
             CreatorPubkey = dbo.CreatorPubkey,
+            GameType = dbo.GameType,
             GameMode = dbo.GameMode,
-            MatchType = dbo.MatchType,
+            MatchMode = dbo.MatchMode,
+            TeamSize = dbo.TeamSize,
             StakeLamports = dbo.StakeLamports,
             Status = dbo.Status,
             DeadlineTs = dbo.DeadlineTs,
@@ -40,8 +42,10 @@ public static class MatchMapper
         {
             MatchPda = domain.MatchPda,
             CreatorPubkey = domain.CreatorPubkey,
+            GameType = domain.GameType,
             GameMode = domain.GameMode,
-            MatchType = domain.MatchType,
+            MatchMode = domain.MatchMode,
+            TeamSize = domain.TeamSize,
             StakeLamports = domain.StakeLamports,
             Status = domain.Status,
             DeadlineTs = domain.DeadlineTs,

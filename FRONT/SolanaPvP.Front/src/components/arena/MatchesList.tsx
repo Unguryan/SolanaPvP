@@ -8,6 +8,7 @@ import {
   GlassCardHeader,
   GlassCardTitle,
 } from "@/components/ui/GlassCard";
+import { formatGameDisplay } from "@/utils/gameModeMapper";
 
 interface MatchesListProps {
   className?: string;
@@ -114,10 +115,11 @@ export const MatchesList: React.FC<MatchesListProps> = ({
 
   const getMatchStatusText = (match: MatchLobby) => {
     switch (match.status) {
-      case "Waiting":
+      case "Open":
         return "Open";
-      case "AwaitingRandomness":
       case "Pending":
+        return "Starting";
+      case "InProgress":
         return "In Game";
       case "Resolved":
         return "Ended";
@@ -130,10 +132,11 @@ export const MatchesList: React.FC<MatchesListProps> = ({
 
   const getMatchStatusColor = (match: MatchLobby) => {
     switch (match.status) {
-      case "Waiting":
+      case "Open":
         return "text-green-400";
-      case "AwaitingRandomness":
       case "Pending":
+        return "text-yellow-400";
+      case "InProgress":
         return "text-blue-400";
       case "Resolved":
         return "text-orange-400";
@@ -186,8 +189,8 @@ export const MatchesList: React.FC<MatchesListProps> = ({
             match.playersMax
           );
           const timeRemaining = timeLeft[match.id] || 0;
-          const isWaiting = match.status === "Waiting";
-          const isInGame = match.status === "AwaitingRandomness" || match.status === "Pending";
+          const isWaiting = match.status === "Open";
+          const isInGame = match.status === "Pending" || match.status === "InProgress";
 
           return (
             <motion.div
@@ -211,11 +214,11 @@ export const MatchesList: React.FC<MatchesListProps> = ({
                         {match.stake} SOL
                       </span>
                       <span className="text-txt-muted text-sm">
-                        {match.gameMode === "Pick3from9"
-                          ? "Pick 3 from 9"
-                          : match.gameMode === "Pick5from16"
-                          ? "Pick 5 from 16"
-                          : "Pick 3 from 9"}
+                        {formatGameDisplay(
+                          match.gameType || "PickHigher",
+                          match.gameMode,
+                          match.teamSize || "OneVOne"
+                        )}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2 text-xs text-txt-muted">

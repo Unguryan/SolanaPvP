@@ -1,24 +1,6 @@
 // Game configuration constants
-import { GameModeType, MatchType } from "@/types/match";
-
 export const GAME_MODES = {
-  [GameModeType.PickThreeFromNine]: {
-    name: "Pick 3 from 9",
-    description: "Choose 3 cards from 9 available options",
-    maxSelections: 3,
-    gridSize: { rows: 3, cols: 3 },
-    timeLimit: 30, // seconds
-    icon: "🎴",
-  },
-  [GameModeType.PickFiveFromSixteen]: {
-    name: "Pick 5 from 16",
-    description: "Choose 5 chests from 16 available options",
-    maxSelections: 5,
-    gridSize: { rows: 4, cols: 4 },
-    timeLimit: 45, // seconds
-    icon: "🏆",
-  },
-  [GameModeType.PickOneFromThree]: {
+  "1x3": {
     name: "Pick 1 from 3",
     description: "Choose 1 card from 3 available options",
     maxSelections: 1,
@@ -26,26 +8,48 @@ export const GAME_MODES = {
     timeLimit: 15, // seconds
     icon: "🎯",
   },
+  "3x9": {
+    name: "Pick 3 from 9",
+    description: "Choose 3 cards from 9 available options",
+    maxSelections: 3,
+    gridSize: { rows: 3, cols: 3 },
+    timeLimit: 30, // seconds
+    icon: "🎴",
+  },
+  "5x16": {
+    name: "Pick 5 from 16",
+    description: "Choose 5 chests from 16 available options",
+    maxSelections: 5,
+    gridSize: { rows: 4, cols: 4 },
+    timeLimit: 45, // seconds
+    icon: "🏆",
+  },
 } as const;
 
-export const MATCH_TYPES = {
-  [MatchType.Solo]: {
+export const TEAM_SIZES = {
+  OneVOne: {
     name: "1v1",
     description: "Solo match",
     maxParticipants: 2,
     icon: "⚔️",
   },
-  [MatchType.Duo]: {
+  TwoVTwo: {
     name: "2v2",
     description: "Duo match",
     maxParticipants: 4,
     icon: "👥",
   },
-  [MatchType.Team]: {
+  FiveVFive: {
     name: "5v5",
     description: "Team match",
     maxParticipants: 10,
     icon: "🏟️",
+  },
+  OneVTen: {
+    name: "1v10",
+    description: "DeathMatch",
+    maxParticipants: 11,
+    icon: "💀",
   },
 } as const;
 

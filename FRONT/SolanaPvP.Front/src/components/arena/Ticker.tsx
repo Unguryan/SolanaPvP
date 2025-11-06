@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useRef, useEffect, useMemo } from "react";
+import { motion, useAnimationControls } from "framer-motion";
 import { useArenaStore } from "@/store/arenaStore";
 
 interface TickerItem {
@@ -15,22 +16,36 @@ interface TickerProps {
 
 export const Ticker: React.FC<TickerProps> = ({
   className = "",
-  speed = 230,
-  pauseOnHover = true,
+  speed = 230, // eslint-disable-line @typescript-eslint/no-unused-vars
+  pauseOnHover = true, // eslint-disable-line @typescript-eslint/no-unused-vars
 }) => {
-  const [isPaused, setIsPaused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const controls = useAnimationControls();
   const { feed } = useArenaStore();
 
   // Convert feed items to ticker items and memoize
   const displayTickerItems = useMemo(() => {
-    const tickerItems: TickerItem[] = feed.map((item) => ({
-      id: item.id,
-      text: `🎉 ${item.username} won ${item.solAmount.toFixed(2)} SOL in ${
-        item.gameMode
-      }`,
-      type: "win" as const,
-    }));
+    console.log("[Ticker] Feed items:", feed);
+    const tickerItems: TickerItem[] = feed.map((item) => {
+      console.log("[Ticker] Processing item:", item);
+      console.log("[Ticker] Username:", item.username);
+      
+      // Truncate username to 12 characters
+      const username = item.username && item.username.length > 12 
+        ? item.username.substring(0, 12) + "..." 
+        : item.username;
+      
+      // For team matches, show team indicator
+      const teamText = item.matchType !== "OneVOne" && item.matchType !== "Solo"
+        ? ` (Team ${item.winnerSide + 1})` 
+        : "";
+      
+      return {
+        id: item.id,
+        text: `${username}${teamText} won ${item.solAmount.toFixed(2)} SOL`,
+        type: "win" as const,
+      };
+    });
 
     // If no feed items yet, show a placeholder message
     return tickerItems.length > 0
@@ -38,7 +53,7 @@ export const Ticker: React.FC<TickerProps> = ({
       : [
           {
             id: "placeholder",
-            text: "🎮 Welcome to Solana PvP Arena - Live matches will appear here",
+            text: "Welcome to Solana PvP Arena - Live matches will appear here",
             type: "info" as const,
           },
         ];
@@ -51,56 +66,23 @@ export const Ticker: React.FC<TickerProps> = ({
     itemsRef.current = displayTickerItems;
   }, [displayTickerItems]);
 
-  const handleMouseEnter = () => {
-    if (pauseOnHover) {
-      setIsPaused(true);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    if (pauseOnHover) {
-      setIsPaused(false);
-    }
-  };
-
-  // Calculate much faster speed (3.6x faster than original: 30 / 1.8 / 2 = ~8.33s)
-  const baseSpeed = speed / 1.8;
-  const animationSpeed = baseSpeed / 2; // Make it 2x faster than current
-
-  // Use CSS animation for smoother, hardware-accelerated performance
+  // Use Framer Motion for smooth animation - no pause on hover to prevent blinking
   useEffect(() => {
-    if (containerRef.current) {
-      const styleId = "ticker-animation-style";
-      // Remove existing style if any
-      const existingStyle = document.getElementById(styleId);
-      if (existingStyle) {
-        existingStyle.remove();
-      }
-
-      const style = document.createElement("style");
-      style.id = styleId;
-      style.textContent = `
-        @keyframes ticker-scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-33.333%); }
-        }
-        .ticker-animation {
-          animation: ticker-scroll ${animationSpeed}s linear infinite;
-          will-change: transform;
-        }
-        .ticker-paused {
-          animation-play-state: paused !important;
-        }
-      `;
-      document.head.appendChild(style);
-      return () => {
-        const styleToRemove = document.getElementById(styleId);
-        if (styleToRemove) {
-          document.head.removeChild(styleToRemove);
-        }
-      };
+    if (containerRef.current && feed.length > 0) {
+      const containerWidth = containerRef.current.scrollWidth / 3; // One third of total (3 copies)
+      const duration = containerWidth / 50; // 50px per second = smooth readable speed
+      
+      controls.start({
+        x: [0, -containerWidth],
+        transition: {
+          duration: duration,
+          ease: "linear",
+          repeat: Infinity,
+          repeatType: "loop",
+        },
+      });
     }
-  }, [animationSpeed]);
+  }, [controls, feed]);
 
   // For seamless infinite animation without jumps, create 3 copies
   // This ensures smooth transition when looping back
@@ -113,15 +95,12 @@ export const Ticker: React.FC<TickerProps> = ({
   return (
     <div
       className={`w-full z-40 bg-bg/80 backdrop-blur-sm border-t border-b border-white/10 ${className}`}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
     >
       <div className="overflow-hidden py-1">
-        <div
+        <motion.div
           ref={containerRef}
-          className={`flex whitespace-nowrap ticker-animation ${
-            isPaused ? "ticker-paused" : ""
-          }`}
+          animate={controls}
+          className="flex whitespace-nowrap"
           style={{ width: "fit-content" }}
         >
           {displayItems.map((item, index) => (
@@ -142,7 +121,7 @@ export const Ticker: React.FC<TickerProps> = ({
               </span>
             </div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </div>
   );

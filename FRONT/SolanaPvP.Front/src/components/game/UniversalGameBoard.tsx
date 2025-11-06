@@ -5,34 +5,37 @@ import {
   UniversalGameBoardProps,
   GameState,
   GameResult,
-  Player,
+  GameType,
+  MatchMode,
 } from "@/types/game";
-import { TileGrid } from "./TileGrid";
-import { ChestGrid } from "./ChestGrid";
-import { CardRow } from "./CardRow";
-import { PlayerCard } from "./PlayerCard";
 import { WaitingLobby } from "./WaitingLobby";
-import { GameResultModal } from "./GameResultModal";
-import { TeamBattleLayout } from "./TeamBattleLayout";
+import { GameLayout } from "./GameLayout";
+import { PickHigherGame } from "./games/PickHigherGame";
 import {
   getGameModeConfig,
   calculateGameResult,
 } from "@/utils/gameScoreDistribution";
 import {
   generateWinnableTiles,
-  generateDemoPlayers,
+  generateTargetedTiles,
 } from "@/lib/gameMockGenerator";
 
 export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
+  gameType: _gameType = GameType.PickHigher, // eslint-disable-line @typescript-eslint/no-unused-vars
   gameMode,
-  matchType,
+  matchMode: _matchMode = MatchMode.Team, // eslint-disable-line @typescript-eslint/no-unused-vars
+  teamSize,
   stakeSol,
   players,
   currentPlayer = "You",
+  currentPlayerPubkey,
+  matchFromBackend,
   timeLimit = 20,
   onGameComplete,
   isDemoMode = false,
 }) => {
+  // Map teamSize to old matchType format for backwards compatibility
+  const matchType = teamSize || "Solo";
   const [gameState, setGameState] = useState<GameState>({
     status: "waiting",
     timeRemaining: timeLimit,
@@ -40,18 +43,19 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     players: players.map((p) => ({
       id: p.username,
       username: p.username,
+      pubkey: (p as any).pubkey,
       targetScore: p.targetScore,
       currentScore: p.currentScore || 0,
       selections: [],
       isReady: p.isReady,
-      isScoreRevealed: p.username === currentPlayer, // Current player always shows score
+      isScoreRevealed: currentPlayerPubkey 
+        ? (p as any).pubkey === currentPlayerPubkey 
+        : p.username === currentPlayer, // Current player always shows score
     })),
     currentPlayerTurn: currentPlayer,
     winner: undefined,
   });
 
-  const [showResultModal, setShowResultModal] = useState(false);
-  const [gameResult, setGameResult] = useState<GameResult | null>(null);
   const [opponentRevealTimers, setOpponentRevealTimers] = useState<
     Map<string, NodeJS.Timeout>
   >(new Map());
@@ -61,24 +65,34 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
   const maxPlayers = matchType === "Solo" ? 2 : matchType === "Duo" ? 2 : 5;
   const isWaitingForPlayers = gameState.players.length < maxPlayers;
   const isWaitingForScores = gameState.status === "loading";
+  const [localGameResult, setLocalGameResult] = useState<GameResult | null>(null);
 
   // Check if we should hide other players' scores (opponents reveal individually)
   const shouldHideScores = useCallback(
     (playerUsername: string) => {
-      // Current player always sees their own score
-      if (playerUsername === currentPlayer) return false;
-
-      // Check if this opponent has revealed their score
+      // Find the player by username
       const player = gameState.players.find(
         (p) => p.username === playerUsername
       );
+      
+      // Current player always sees their own score (check by pubkey if available)
+      if (currentPlayerPubkey && player?.pubkey === currentPlayerPubkey) {
+        return false;
+      }
+      
+      // Fallback to username check for demo mode
+      if (!currentPlayerPubkey && playerUsername === currentPlayer) {
+        return false;
+      }
+
+      // Check if this opponent has revealed their score
       const shouldHide = !player?.isScoreRevealed;
       console.log(
         `shouldHideScores(${playerUsername}): isScoreRevealed=${player?.isScoreRevealed}, shouldHide=${shouldHide}`
       );
       return shouldHide;
     },
-    [currentPlayer, gameState]
+    [currentPlayer, currentPlayerPubkey, gameState]
   );
 
   // For team battles, also hide scores during the entire game
@@ -93,10 +107,11 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     setGameState((prev) => {
       const newPlayers = prev.players.map((p) => {
         if (p.username === playerUsername) {
-          console.log(`Setting isScoreRevealed: true for ${playerUsername}`);
+          console.log(`Setting isScoreRevealed: true and currentScore = targetScore for ${playerUsername}`);
           return {
             ...p,
             isScoreRevealed: true,
+            currentScore: p.targetScore, // AI "completed" their selection, show targetScore
           };
         }
         return p;
@@ -231,26 +246,41 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
       // Simulate loading delay
       setTimeout(() => {
         // Get current player and AI players
-        const currentPlayerData = gameState.players.find(
-          (p) => p.username === currentPlayer
-        );
-        const aiPlayers = gameState.players.filter(
-          (p) => p.username !== currentPlayer
-        );
+        // Use currentPlayerPubkey if available (real game), otherwise username (demo)
+        let currentPlayerData;
+        let aiPlayers;
+        
+        if (currentPlayerPubkey) {
+          // Real game: find by pubkey
+          currentPlayerData = gameState.players.find((p) => p.pubkey === currentPlayerPubkey);
+          aiPlayers = gameState.players.filter((p) => p.pubkey !== currentPlayerPubkey);
+          
+          console.log(`[Real Game] Current player:`, currentPlayerData?.username, currentPlayerPubkey);
+          console.log(`[Real Game] AI opponents:`, aiPlayers.map(p => p.username));
+        } else {
+          // Demo mode: use username
+          currentPlayerData = gameState.players.find((p) => p.username === currentPlayer);
+          aiPlayers = gameState.players.filter((p) => p.username !== currentPlayer);
+        }
 
-        // Find the highest AI score to determine what player needs to beat
-        const highestAIScore = Math.max(
-          ...aiPlayers.map((p) => p.currentScore)
-        );
-
-        // Generate tiles that give player a chance to win
-        // Player needs to reach at least highestAIScore + 100 to win
-        const targetWinScore = highestAIScore + 100;
-        const playerCurrentScore = currentPlayerData?.currentScore || 0;
-        const neededScore = Math.max(0, targetWinScore - playerCurrentScore);
-
-        // Generate tiles with values that could help player reach winning score
-        const tiles = generateWinnableTiles(gameMode, neededScore);
+        // For real games: use targetScore from backend (outcome already determined)
+        // Generate tiles where player can reach their targetScore through selections
+        const tiles = isDemoMode
+          ? (() => {
+              // Demo mode: generate tiles to give player chance to win
+              const highestAIScore = Math.max(
+                ...aiPlayers.map((p) => p.currentScore)
+              );
+              const targetWinScore = highestAIScore + 100;
+              const playerCurrentScore = currentPlayerData?.currentScore || 0;
+              const neededScore = Math.max(0, targetWinScore - playerCurrentScore);
+              return generateWinnableTiles(gameMode, neededScore);
+            })()
+          : generateTargetedTiles(
+              gameMode,
+              currentPlayerData?.targetScore || 1000,
+              gameConfig.maxSelections
+            );
 
         setGameState((prev) => ({
           ...prev,
@@ -259,9 +289,8 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
           timeRemaining: timeLimit,
         }));
 
-        // Set up individual timers for ALL AI players (12-18 seconds)
-        // In demo mode: all players except current player are AI
-        // aiPlayers already defined above
+        // Set up individual timers for ALL AI players (everyone except current player)
+        // In both demo AND real games: all opponents are AI-controlled
         const newTimers = new Map<string, NodeJS.Timeout>();
 
         console.log(
@@ -290,8 +319,12 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     gameMode,
     timeLimit,
     currentPlayer,
+    currentPlayerPubkey,
     showOpponentScore,
     matchType,
+    isDemoMode,
+    matchFromBackend,
+    gameConfig.maxSelections,
   ]);
 
   // Handle tile selection
@@ -299,9 +332,11 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     (index: number) => {
       if (gameState.status !== "playing") return;
 
-      const currentPlayerData = gameState.players.find(
-        (p) => p.username === currentPlayer
-      );
+      // Find current player by pubkey (real game) or username (demo)
+      const currentPlayerData = currentPlayerPubkey
+        ? gameState.players.find((p) => p.pubkey === currentPlayerPubkey)
+        : gameState.players.find((p) => p.username === currentPlayer);
+      
       if (!currentPlayerData) return;
 
       // Check if current player has reached selection limit
@@ -310,27 +345,62 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
       }
 
       setGameState((prev) => {
+        // Calculate tile value FIRST (before updating players)
+        let calculatedTileValue = prev.tiles[index]?.value || 0;
+        
+        // Find current player to calculate correct value
+        const currentPlayerData = currentPlayerPubkey
+          ? prev.players.find((p) => p.pubkey === currentPlayerPubkey)
+          : prev.players.find((p) => p.username === currentPlayer);
+        
+        if (currentPlayerData && !isDemoMode && currentPlayerData.targetScore > 0) {
+          // Real game: calculate value to reach targetScore
+          const selectionsCount = currentPlayerData.selections.length + 1; // +1 for current selection
+          const remainingSelections = gameConfig.maxSelections - selectionsCount;
+          
+          if (remainingSelections === 0) {
+            // Last selection: make it exactly targetScore
+            calculatedTileValue = currentPlayerData.targetScore - currentPlayerData.currentScore;
+          } else {
+            // Not last selection: distribute remaining score
+            const remainingScore = currentPlayerData.targetScore - currentPlayerData.currentScore;
+            // Divide remaining score by remaining selections (with some randomness)
+            const baseValue = Math.floor(remainingScore / (remainingSelections + 1));
+            const variation = Math.floor(baseValue * 0.3); // ±30% variation
+            calculatedTileValue = baseValue + Math.floor(Math.random() * variation * 2) - variation;
+            calculatedTileValue = Math.max(1, calculatedTileValue); // At least 1
+          }
+        }
+        
+        // Update players with calculated value
         const newPlayers = prev.players.map((player) => {
-          if (player.username === currentPlayer) {
+          // Match by pubkey (real game) or username (demo)
+          const isCurrentPlayer = currentPlayerPubkey
+            ? player.pubkey === currentPlayerPubkey
+            : player.username === currentPlayer;
+            
+          if (isCurrentPlayer) {
             const newSelections = [...player.selections, index];
-            const tileValue = prev.tiles[index]?.value || 0;
             return {
               ...player,
               selections: newSelections,
-              currentScore: player.currentScore + tileValue,
+              currentScore: player.currentScore + calculatedTileValue,
             };
           }
           return player;
         });
 
+        // Update tiles - set the CALCULATED value to the selected tile
         const newTiles = prev.tiles.map((tile, i) =>
-          i === index ? { ...tile, selected: true, revealed: true } : tile
+          i === index 
+            ? { ...tile, selected: true, revealed: true, value: calculatedTileValue } 
+            : tile
         );
 
         // Check if current player has finished all selections
-        const updatedCurrentPlayer = newPlayers.find(
-          (p) => p.username === currentPlayer
-        );
+        const updatedCurrentPlayer = currentPlayerPubkey
+          ? newPlayers.find((p) => p.pubkey === currentPlayerPubkey)
+          : newPlayers.find((p) => p.username === currentPlayer);
         if (
           updatedCurrentPlayer &&
           updatedCurrentPlayer.selections.length >= gameConfig.maxSelections
@@ -357,8 +427,10 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     [
       gameState.status,
       currentPlayer,
+      currentPlayerPubkey,
       gameState.players,
       gameConfig.maxSelections,
+      isDemoMode,
     ]
   );
 
@@ -371,7 +443,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
       opponentRevealTimers.forEach((timer) => clearTimeout(timer));
       setOpponentRevealTimers(new Map());
 
-      // Wait 5 seconds then show results
+      // Wait 1 second then show results modal
       setTimeout(() => {
         const result = calculateGameResult(
           gameState.players,
@@ -379,14 +451,46 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
           matchType,
           currentPlayer
         );
-        setGameResult(result);
-        setShowResultModal(true);
-
-        // Only call onGameComplete once
-        if (onGameComplete) {
-          onGameComplete(result);
+        
+        // Determine if current player won from backend data
+        let isCurrentPlayerWinner = result.winner === currentPlayer || result.winner === "You";
+        let actualWinAmount = result.winAmount;
+        
+        if (matchFromBackend && currentPlayerPubkey) {
+          const myParticipant = matchFromBackend.participants?.find(
+            (p: any) => p.pubkey === currentPlayerPubkey
+          );
+          if (myParticipant) {
+            isCurrentPlayerWinner = myParticipant.isWinner ?? false;
+            
+            // Calculate actual win amount from real game data
+            // Winner gets total pot (all stakes combined)
+            if (isCurrentPlayerWinner) {
+              const totalParticipants = matchFromBackend.participants?.length || 2;
+              const totalPot = stakeSol * totalParticipants;
+              
+              // Winner gets full pot
+              actualWinAmount = totalPot;
+            } else {
+              // Loser gets nothing
+              actualWinAmount = 0;
+            }
+          }
         }
-      }, 5000);
+        
+        const enhancedResult = {
+          ...result,
+          isCurrentPlayerWinner,
+          winAmount: actualWinAmount, // Override with actual win amount
+        };
+        
+        setLocalGameResult(enhancedResult);
+
+        // Call onGameComplete to notify parent (MatchPreview will show modal)
+        if (onGameComplete) {
+          onGameComplete(enhancedResult);
+        }
+      }, 2000); // Show modal after 1 second
     }
   }, [
     gameState.status,
@@ -396,6 +500,8 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     onGameComplete,
     opponentRevealTimers,
     currentPlayer,
+    currentPlayerPubkey,
+    matchFromBackend,
   ]);
 
   // Cleanup timers on unmount
@@ -405,39 +511,6 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     };
   }, [opponentRevealTimers]);
 
-  const renderGameGrid = () => {
-    switch (gameMode) {
-      case "PickThreeFromNine":
-        return (
-          <TileGrid
-            tiles={gameState.tiles}
-            onTileClick={handleTileClick}
-            disabled={gameState.status !== "playing"}
-            currentPlayer={currentPlayer}
-          />
-        );
-      case "PickFiveFromSixteen":
-        return (
-          <ChestGrid
-            tiles={gameState.tiles}
-            onTileClick={handleTileClick}
-            disabled={gameState.status !== "playing"}
-            currentPlayer={currentPlayer}
-          />
-        );
-      case "PickOneFromThree":
-        return (
-          <CardRow
-            tiles={gameState.tiles}
-            onTileClick={handleTileClick}
-            disabled={gameState.status !== "playing"}
-            currentPlayer={currentPlayer}
-          />
-        );
-      default:
-        return null;
-    }
-  };
 
   if (isWaitingForPlayers) {
     return (
@@ -473,105 +546,29 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Game Header */}
-      <div className="text-center">
-        <motion.h2
-          className="text-2xl font-display font-bold text-sol-purple mb-2"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          {gameConfig.name}
-        </motion.h2>
-        <div className="flex items-center justify-center space-x-4 text-sm text-txt-muted">
-          <span>Stake: {stakeSol} SOL</span>
-          <span>•</span>
-          <span>Mode: {matchType}</span>
-          <span>•</span>
-          <span>Time: {gameState.timeRemaining}s</span>
-        </div>
-      </div>
-
-      {/* Players */}
-      {matchType === "Duo" || matchType === "Team" ? (
-        <TeamBattleLayout
-          players={gameState.players}
+    <>
+      <GameLayout
+        gameName={gameConfig.name}
+        stakeSol={stakeSol}
+        matchType={matchType}
+        timeRemaining={gameState.timeRemaining}
+        players={gameState.players}
+        currentPlayer={currentPlayer}
+        currentPlayerPubkey={currentPlayerPubkey}
+        gameStatus={gameState.status}
+        gameResult={localGameResult}
+        shouldHideScores={shouldHideScores}
+        hideTeamScores={shouldHideTeamScores}
+      >
+        {/* PickHigher Game */}
+        <PickHigherGame
+          gameMode={gameMode as "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree"}
+          tiles={gameState.tiles}
+          onTileClick={handleTileClick}
+          disabled={gameState.status !== "playing"}
           currentPlayer={currentPlayer}
-          gameStatus={gameState.status}
-          gameResult={gameResult}
-          shouldHideScores={shouldHideScores}
-          hideTeamScores={shouldHideTeamScores}
         />
-      ) : (
-        <div className="flex gap-4 justify-center">
-          {gameState.players.map((player) => (
-            <PlayerCard
-              key={player.id}
-              player={player}
-              isCurrentPlayer={
-                player.username === currentPlayer &&
-                gameState.status === "playing"
-              }
-              isWinner={gameResult?.winner === player.username}
-              hideScore={shouldHideScores(player.username)}
-              className="w-44 flex-shrink-0"
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Game Grid */}
-      <div className="flex justify-center">
-        <motion.div
-          className="glass-card p-6 rounded-xl w-fit"
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          {renderGameGrid()}
-        </motion.div>
-      </div>
-
-      {/* Result Modal */}
-      <GameResultModal
-        isOpen={showResultModal}
-        result={gameResult}
-        onClose={() => setShowResultModal(false)}
-        onPlayAgain={() => {
-          setShowResultModal(false);
-          // Clear any existing timers
-          opponentRevealTimers.forEach((timer) => clearTimeout(timer));
-          setOpponentRevealTimers(new Map());
-
-          // Reset completion flag
-          gameCompletedRef.current = false;
-
-          // Clear game result
-          setGameResult(null);
-
-          // Generate fresh players with new random scores
-          const freshPlayers = generateDemoPlayers(matchType, currentPlayer);
-
-          // Reset game state completely
-          setGameState({
-            status: "waiting",
-            timeRemaining: timeLimit,
-            tiles: [],
-            players: freshPlayers.map((p: Player) => ({
-              id: p.username,
-              username: p.username,
-              targetScore: p.targetScore,
-              currentScore: p.username === currentPlayer ? 0 : p.currentScore,
-              selections: [],
-              isReady: p.isReady,
-              isScoreRevealed: p.username === currentPlayer,
-            })),
-            currentPlayerTurn: currentPlayer,
-            winner: undefined,
-          });
-        }}
-        isDemoMode={isDemoMode}
-      />
-    </div>
+      </GameLayout>
+    </>
   );
 };

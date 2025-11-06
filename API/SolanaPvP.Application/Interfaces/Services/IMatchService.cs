@@ -6,6 +6,7 @@ public interface IMatchService
 {
     Task<PagedResult<MatchView>> GetMatchesAsync(MatchFilter filter, Paging paging);
     Task<PagedResult<MatchView>> GetActiveMatchesAsync(Paging paging);
+    Task<List<MatchView>> GetRecentResolvedMatchesAsync(int count = 10);
     Task<MatchDetails?> GetMatchAsync(string matchPda);
     Task<UserProfile?> GetUserAsync(string pubkey);
     Task<UserProfile?> GetUserByUsernameAsync(string username);
@@ -26,8 +27,10 @@ public class PagedResult<T>
 public class MatchFilter
 {
     public int? Status { get; set; }
-    public string? GameMode { get; set; }
-    public string? MatchType { get; set; }
+    public string? GameType { get; set; }    // NEW: filter by game type
+    public string? GameMode { get; set; }    // Now string filter
+    public string? MatchMode { get; set; }   // NEW: Team or DeathMatch
+    public string? TeamSize { get; set; }    // RENAMED: from MatchType
     public bool? IsPrivate { get; set; }
 }
 
@@ -40,14 +43,19 @@ public class Paging
 public class MatchView
 {
     public string MatchPda { get; set; } = string.Empty;
-    public string GameMode { get; set; } = string.Empty;
-    public string MatchType { get; set; } = string.Empty;
+    public string CreatorPubkey { get; set; } = string.Empty; // Creator's public key
+    public string GameType { get; set; } = string.Empty;      // NEW: PickHigher, Plinko, etc.
+    public string GameMode { get; set; } = string.Empty;      // CHANGED: now string ("1x3", "3x9", "5x16")
+    public string MatchMode { get; set; } = string.Empty;     // NEW: Team or DeathMatch
+    public string TeamSize { get; set; } = string.Empty;      // RENAMED: from MatchType
     public long StakeLamports { get; set; }
     public string Status { get; set; } = string.Empty;
     public long DeadlineTs { get; set; }
     public int? WinnerSide { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? JoinedAt { get; set; }
+    public DateTime? PendingAt { get; set; }
+    public DateTime? GameStartTime { get; set; }
     public DateTime? ResolvedAt { get; set; }
     public List<ParticipantView> Participants { get; set; } = new();
 }
@@ -55,8 +63,11 @@ public class MatchView
 public class MatchDetails
 {
     public string MatchPda { get; set; } = string.Empty;
-    public string GameMode { get; set; } = string.Empty;
-    public string MatchType { get; set; } = string.Empty;
+    public string CreatorPubkey { get; set; } = string.Empty; // Creator's public key
+    public string GameType { get; set; } = string.Empty;      // NEW: PickHigher, Plinko, etc.
+    public string GameMode { get; set; } = string.Empty;      // CHANGED: now string ("1x3", "3x9", "5x16")
+    public string MatchMode { get; set; } = string.Empty;     // NEW: Team or DeathMatch
+    public string TeamSize { get; set; } = string.Empty;      // RENAMED: from MatchType
     public long StakeLamports { get; set; }
     public string Status { get; set; } = string.Empty;
     public long DeadlineTs { get; set; }
@@ -66,6 +77,8 @@ public class MatchDetails
     public string? PayoutTx { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? JoinedAt { get; set; }
+    public DateTime? PendingAt { get; set; }
+    public DateTime? GameStartTime { get; set; }
     public DateTime? ResolvedAt { get; set; }
     public List<ParticipantView> Participants { get; set; } = new();
     public GameDataView? GameData { get; set; }
@@ -74,6 +87,7 @@ public class MatchDetails
 public class ParticipantView
 {
     public string Pubkey { get; set; } = string.Empty;
+    public string? Username { get; set; }
     public int Side { get; set; }
     public int Position { get; set; }
     public int? TargetScore { get; set; }
@@ -82,7 +96,7 @@ public class ParticipantView
 
 public class GameDataView
 {
-    public string GameMode { get; set; } = string.Empty;
+    public string GameMode { get; set; } = string.Empty; // Now string: "1x3", "3x9", "5x16"
     public int Side0TotalScore { get; set; }
     public int Side1TotalScore { get; set; }
     public DateTime GeneratedAt { get; set; }

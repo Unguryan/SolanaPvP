@@ -7,7 +7,6 @@ using SolanaPvP.Domain.Enums;
 using SolanaPvP.Domain.Models;
 using SolanaPvP.Domain.Settings;
 using System.Collections.Concurrent;
-using MatchType = SolanaPvP.Domain.Enums.MatchType;
 
 namespace SolanaPvP.API_Project.Workers;
 
@@ -191,13 +190,15 @@ public class IndexerWorker : BackgroundService
             return;
         }
 
-        // Create match
+        // Create match using new architecture
         var match = new Match
         {
             MatchPda = parsedEvent.MatchPda,
             CreatorPubkey = matchData.Creator,
-            GameMode = matchData.GameMode,
-            MatchType = matchData.MatchType,
+            GameType = matchData.GameType, // From blockchain
+            GameMode = matchData.GameMode, // From blockchain
+            MatchMode = matchData.MatchMode, // From blockchain  
+            TeamSize = matchData.TeamSize, // From blockchain
             StakeLamports = matchData.StakeLamports,
             Status = MatchStatus.Open,
             DeadlineTs = matchData.DeadlineTs,
@@ -209,18 +210,25 @@ public class IndexerWorker : BackgroundService
         await matchRepository.CreateAsync(match);
         _logger.LogInformation("[ProcessMatchCreated] Match saved to DB: {MatchPda}", parsedEvent.MatchPda);
 
+        // Use creator's side from blockchain event
+        int creatorSide = matchData.CreatorSide;
+        int creatorPosition = 0;
+        
+        _logger.LogInformation("[ProcessMatchCreated] Creator {Creator} joined side {Side}", 
+            matchData.Creator, creatorSide);
+        
         // Create creator participant
         var creatorParticipant = new MatchParticipant
         {
             MatchPda = parsedEvent.MatchPda,
             Pubkey = matchData.Creator,
-            Side = 0,
-            Position = 0
+            Side = creatorSide,
+            Position = creatorPosition
         };
         
         // Add participant to match (explicitly to DbSet to ensure it's saved)
         await matchRepository.AddParticipantAsync(creatorParticipant);
-        _logger.LogDebug("[ProcessMatchCreated] Creator participant added to match");
+        _logger.LogDebug("[ProcessMatchCreated] Creator participant added to match with side {Side}", creatorSide);
 
         // Update LastSeen for creator (or create if first time from blockchain)
         try
@@ -234,12 +242,15 @@ public class IndexerWorker : BackgroundService
         }
 
         // Schedule refund task with deadline based on team size
-        // 1v1: 2 minutes, 2v2: 5 minutes, 5v5: 10 minutes
-        int refundDelaySeconds = match.MatchType switch
+        // 1v1: 2 minutes, 2v2: 5 minutes, 5v5: 10 minutes, larger teams: longer
+        int refundDelaySeconds = match.TeamSize switch
         {
-            MatchType.Solo => 120,  // 2 minutes
-            MatchType.Duo => 300,   // 5 minutes
-            MatchType.Team => 600,  // 10 minutes
+            "1v1" or "OneVOne" => 120,      // 2 minutes
+            "2v2" or "TwoVTwo" => 300,      // 5 minutes
+            "5v5" or "FiveVFive" => 600,    // 10 minutes
+            "1v10" or "OneVTen" => 900,      // 15 minutes (DeathMatch)
+            "2v20" or "TwoVTwenty" => 1200,  // 20 minutes (DeathMatch)
+            "4v40" or "FourVForty" => 1800,  // 30 minutes (DeathMatch)
             _ => 120
         };
         long refundDeadline = ((DateTimeOffset)match.CreatedAt).ToUnixTimeSeconds() + refundDelaySeconds;
@@ -270,8 +281,8 @@ public class IndexerWorker : BackgroundService
         var joinData = ParseMatchJoinedPayload(parsedEvent.PayloadJson);
         if (joinData == null) return;
         
-        _logger.LogDebug("[ProcessMatchJoined] Parsed data - Player: {Player}, RandomnessAccount: {RandomnessAccount}, IsFull: {IsFull}",
-            joinData.Player, joinData.RandomnessAccount, joinData.IsFull);
+        _logger.LogInformation("[ProcessMatchJoined] Parsed data - Player: {Player}, Side: {Side}, RandomnessAccount: {RandomnessAccount}, IsFull: {IsFull}",
+            joinData.Player, joinData.Side, joinData.RandomnessAccount, joinData.IsFull);
 
         // Get existing match
         var match = await matchRepository.GetByMatchPdaAsync(parsedEvent.MatchPda);
@@ -287,17 +298,21 @@ public class IndexerWorker : BackgroundService
         var existingParticipant = match.Participants.FirstOrDefault(p => p.Pubkey == joinData.Player);
         if (existingParticipant == null)
         {
+            // Determine position: count existing players on this side
+            var existingOnSide = match.Participants.Count(p => p.Side == joinData.Side);
+            
             // Create joiner participant and add to DbSet explicitly
             var joinerParticipant = new MatchParticipant
             {
                 MatchPda = parsedEvent.MatchPda,
                 Pubkey = joinData.Player,
-                Side = 1,
-                Position = 0
+                Side = joinData.Side, // Use side from blockchain event
+                Position = existingOnSide
             };
             
             await matchRepository.AddParticipantAsync(joinerParticipant);
-            _logger.LogDebug("[ProcessMatchJoined] Joiner participant added to match");
+            _logger.LogInformation("[ProcessMatchJoined] Joiner participant added to match - Side: {Side}, Position: {Position}", 
+                joinData.Side, existingOnSide);
         }
         else
         {
@@ -380,20 +395,67 @@ public class IndexerWorker : BackgroundService
 
     private async Task ProcessMatchResolvedAsync(ParsedEvent parsedEvent, string signature, IServiceProvider serviceProvider)
     {
+        _logger.LogInformation("[ProcessMatchResolved] Starting for match {MatchPda}", parsedEvent.MatchPda);
+        
         var matchRepository = serviceProvider.GetRequiredService<IMatchRepository>();
         var gameDataGenerator = serviceProvider.GetRequiredService<IGameDataGenerator>();
         var matchService = serviceProvider.GetRequiredService<IMatchService>();
 
         // Parse resolution data
+        _logger.LogDebug("[ProcessMatchResolved] Parsing payload: {Payload}", parsedEvent.PayloadJson);
         var resolutionData = ParseMatchResolvedPayload(parsedEvent.PayloadJson);
-        if (resolutionData == null) return;
+        if (resolutionData == null)
+        {
+            _logger.LogWarning("[ProcessMatchResolved] Failed to parse resolution data");
+            return;
+        }
+        
+        _logger.LogInformation("[ProcessMatchResolved] Parsed winner side: {WinnerSide}", resolutionData.WinnerSide);
 
         // Get existing match
         var match = await matchRepository.GetByMatchPdaAsync(parsedEvent.MatchPda);
-        if (match == null) return;
+        if (match == null)
+        {
+            _logger.LogWarning("[ProcessMatchResolved] Match not found in DB: {MatchPda}", parsedEvent.MatchPda);
+            return;
+        }
+        
+        _logger.LogInformation("[ProcessMatchResolved] Match found, participants count: {Count}", match.Participants.Count);
 
         // Generate game data based on winner_side
+        _logger.LogInformation("[ProcessMatchResolved] Calling GameDataGenerator...");
         var gameData = await gameDataGenerator.GenerateGameDataAsync(match, resolutionData.WinnerSide);
+        _logger.LogInformation("[ProcessMatchResolved] GameData generated successfully");
+        
+        // Assign targetScore to each participant based on their side
+        var side0Participants = match.Participants.Where(p => p.Side == 0).ToList();
+        var side1Participants = match.Participants.Where(p => p.Side == 1).ToList();
+        
+        // Distribute side0 total score among side0 participants
+        if (side0Participants.Any())
+        {
+            int scorePerPlayer = gameData.Side0TotalScore / side0Participants.Count;
+            foreach (var participant in side0Participants)
+            {
+                participant.TargetScore = scorePerPlayer;
+                participant.IsWinner = resolutionData.WinnerSide == 0;
+                await matchRepository.UpdateParticipantAsync(participant);
+            }
+        }
+        
+        // Distribute side1 total score among side1 participants  
+        if (side1Participants.Any())
+        {
+            int scorePerPlayer = gameData.Side1TotalScore / side1Participants.Count;
+            foreach (var participant in side1Participants)
+            {
+                participant.TargetScore = scorePerPlayer;
+                participant.IsWinner = resolutionData.WinnerSide == 1;
+                await matchRepository.UpdateParticipantAsync(participant);
+            }
+        }
+        
+        _logger.LogInformation("[ProcessMatchResolved] Assigned and saved target scores for {Count} participants", match.Participants.Count);
         
         // Update match to InProgress
         match.Status = MatchStatus.InProgress;
@@ -449,9 +511,11 @@ public class IndexerWorker : BackgroundService
 
             var bytes = Convert.FromBase64String(rawData);
             
-            // LobbyCreated struct layout:
+            // LobbyCreated struct layout (NEW):
             // discriminator (8) + lobby (32) + lobby_id (8) + creator (32) + stake_lamports (8) + team_size (1) + created_at (8)
-            // Total: 97 bytes
+            // + game (String: 4-byte len + data) + game_mode (String: 4-byte len + data) 
+            // + arena_type (String: 4-byte len + data) + team_size_str (String: 4-byte len + data)
+            // Minimum: 97 bytes (without strings)
             
             if (bytes.Length < 97)
             {
@@ -467,7 +531,7 @@ public class IndexerWorker : BackgroundService
             // Skip lobby_id (8 bytes)
             offset += 8;
             
-            // Read creator pubkey (32 bytes) ← ВАЖНО!
+            // Read creator pubkey (32 bytes)
             var creatorBytes = bytes.Skip(offset).Take(32).ToArray();
             var creator = new Solnet.Wallet.PublicKey(creatorBytes).Key;
             offset += 32;
@@ -477,28 +541,58 @@ public class IndexerWorker : BackgroundService
             offset += 8;
             
             // Read team_size (1 byte)
-            var teamSize = bytes[offset];
+            var teamSizeNum = bytes[offset];
             offset += 1;
             
             // Read created_at (8 bytes)
             var createdAt = BitConverter.ToInt64(bytes, offset);
+            offset += 8;
             
-            // Determine GameMode and MatchType based on team_size
-            var gameMode = teamSize == 1 ? GameModeType.PickThreeFromNine : GameModeType.PickThreeFromNine;
-            var matchType = teamSize == 1 ? Domain.Enums.MatchType.Solo : 
-                           teamSize == 2 ? Domain.Enums.MatchType.Duo : 
-                           Domain.Enums.MatchType.Team;
+            // Read game (String with 4-byte length prefix)
+            var gameLen = BitConverter.ToInt32(bytes, offset);
+            offset += 4;
+            var game = System.Text.Encoding.UTF8.GetString(bytes, offset, gameLen);
+            offset += gameLen;
+            
+            // Read game_mode (String with 4-byte length prefix)
+            var gameModeLen = BitConverter.ToInt32(bytes, offset);
+            offset += 4;
+            var gameMode = System.Text.Encoding.UTF8.GetString(bytes, offset, gameModeLen);
+            offset += gameModeLen;
+            
+            // Read arena_type (String with 4-byte length prefix)
+            var arenaTypeLen = BitConverter.ToInt32(bytes, offset);
+            offset += 4;
+            var arenaType = System.Text.Encoding.UTF8.GetString(bytes, offset, arenaTypeLen);
+            offset += arenaTypeLen;
+            
+            // Read team_size_str (String with 4-byte length prefix)
+            var teamSizeStrLen = BitConverter.ToInt32(bytes, offset);
+            offset += 4;
+            var teamSizeStr = System.Text.Encoding.UTF8.GetString(bytes, offset, teamSizeStrLen);
+            offset += teamSizeStrLen;
+            
+            // Read creator_side (1 byte) - NEW field!
+            byte creatorSide = 0;
+            if (offset < bytes.Length)
+            {
+                creatorSide = bytes[offset];
+                offset += 1;
+            }
 
-            _logger.LogDebug("[ParseMatchCreated] Parsed - Creator: {Creator}, Stake: {Stake}, TeamSize: {TeamSize}", 
-                creator, stakeLamports, teamSize);
+            _logger.LogDebug("[ParseMatchCreated] Parsed - Creator: {Creator}, Game: {Game}, Mode: {GameMode}, Arena: {ArenaType}, Team: {TeamSize}, CreatorSide: {CreatorSide}", 
+                creator, game, gameMode, arenaType, teamSizeStr, creatorSide);
 
             return new MatchCreatedData
             {
                 Creator = creator,
-                StakeLamports = stakeLamports,
+                GameType = game,
                 GameMode = gameMode,
-                MatchType = matchType,
-                DeadlineTs = createdAt
+                MatchMode = arenaType,
+                TeamSize = teamSizeStr,
+                StakeLamports = stakeLamports,
+                DeadlineTs = createdAt,
+                CreatorSide = creatorSide
             };
         }
         catch (Exception ex)
@@ -538,8 +632,12 @@ public class IndexerWorker : BackgroundService
             var player = new Solnet.Wallet.PublicKey(playerBytes).Key;
             offset += 32;
             
-            // Skip side, team1_count, team2_count (3 bytes)
-            offset += 3;
+            // Read side (1 byte)
+            var side = bytes[offset];
+            offset += 1;
+            
+            // Skip team1_count, team2_count (2 bytes)
+            offset += 2;
             
             // Read is_full (1 byte)
             var isFull = bytes[offset] != 0;
@@ -552,6 +650,7 @@ public class IndexerWorker : BackgroundService
             return new MatchJoinedData
             {
                 Player = player,
+                Side = side,
                 RandomnessAccount = randomnessAccount,
                 IsFull = isFull
             };
@@ -612,8 +711,10 @@ public class IndexerWorker : BackgroundService
         return new MatchView
         {
             MatchPda = matchDetails.MatchPda,
+            GameType = matchDetails.GameType,
             GameMode = matchDetails.GameMode,
-            MatchType = matchDetails.MatchType,
+            MatchMode = matchDetails.MatchMode,
+            TeamSize = matchDetails.TeamSize,
             StakeLamports = matchDetails.StakeLamports,
             Status = matchDetails.Status,
             DeadlineTs = matchDetails.DeadlineTs,
@@ -637,15 +738,19 @@ public class IndexerWorker : BackgroundService
 public class MatchCreatedData
 {
     public string Creator { get; set; } = string.Empty;
-    public GameModeType GameMode { get; set; }
-    public SolanaPvP.Domain.Enums.MatchType MatchType { get; set; }
+    public string GameType { get; set; } = string.Empty; // NEW: "PickHigher", etc.
+    public string GameMode { get; set; } = string.Empty; // NEW: "1x3", "3x9", etc.
+    public string MatchMode { get; set; } = string.Empty; // NEW: "SingleBattle", "DeathMatch"
+    public string TeamSize { get; set; } = string.Empty; // CHANGED: "1v1", "2v2", etc.
     public long StakeLamports { get; set; }
     public long DeadlineTs { get; set; }
+    public int CreatorSide { get; set; } // NEW: Which team creator joined (0 or 1)
 }
 
 public class MatchJoinedData
 {
     public string Player { get; set; } = string.Empty;
+    public int Side { get; set; } // NEW: Which team player joined (0, 1, 2, ...)
     public string? RandomnessAccount { get; set; }
     public bool IsFull { get; set; }
 }

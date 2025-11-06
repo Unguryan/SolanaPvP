@@ -69,7 +69,26 @@ public class UserRepository : IUserRepository
     public async Task UpdateStatsAsync(string pubkey, bool isWinner, long earningsLamports)
     {
         var user = await _context.Users.FindAsync(pubkey);
-        if (user == null) return;
+        if (user == null)
+        {
+            // User not found - create a new user automatically
+            var newUser = new UserDBO
+            {
+                Pubkey = pubkey,
+                Username = $"user_{new Random().Next(100000, 999999)}",
+                Wins = isWinner ? 1 : 0,
+                Losses = isWinner ? 0 : 1,
+                MatchesPlayed = 1,
+                TotalEarningsLamports = earningsLamports,
+                FirstSeen = DateTime.UtcNow,
+                LastSeen = DateTime.UtcNow,
+                CanChangeUsername = true
+            };
+            
+            _context.Users.Add(newUser);
+            await _context.SaveChangesAsync();
+            return;
+        }
 
         if (isWinner)
         {
@@ -138,13 +157,15 @@ public class UserRepository : IUserRepository
         
         if (user == null)
         {
-            // User doesn't exist - create with minimal data (called from blockchain event)
+            // User doesn't exist - create with auto-generated username
+            var username = $"user_{new Random().Next(100000, 999999)}";
+            
             var newUser = new UserDBO
             {
                 Pubkey = pubkey,
                 FirstSeen = DateTime.UtcNow,
                 LastSeen = DateTime.UtcNow,
-                Username = null, // Will be auto-generated on first frontend login
+                Username = username, // Auto-generate username immediately
                 Wins = 0,
                 Losses = 0,
                 MatchesPlayed = 0,

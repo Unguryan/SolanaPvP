@@ -52,6 +52,20 @@ public class MatchService : IMatchService
         };
     }
 
+    public async Task<List<MatchView>> GetRecentResolvedMatchesAsync(int count = 10)
+    {
+        var resolvedMatches = await _matchRepository.GetMatchesAsync(
+            status: (int)MatchStatus.Resolved,
+            skip: 0,
+            take: count
+        );
+        
+        return resolvedMatches
+            .OrderByDescending(m => m.ResolvedAt)
+            .Select(ConvertToMatchView)
+            .ToList();
+    }
+
     public async Task<MatchDetails?> GetMatchAsync(string matchPda)
     {
         var match = await _matchRepository.GetByMatchPdaAsync(matchPda);
@@ -196,14 +210,19 @@ public class MatchService : IMatchService
         return new MatchView
         {
             MatchPda = match.MatchPda,
-            GameMode = match.GameMode.ToString(),
-            MatchType = match.MatchType.ToString(),
+            CreatorPubkey = match.CreatorPubkey,
+            GameType = match.GameType, // Already string
+            GameMode = match.GameMode, // Already string
+            MatchMode = match.MatchMode, // Already string
+            TeamSize = match.TeamSize, // Already string
             StakeLamports = match.StakeLamports,
             Status = match.Status.ToString(),
             DeadlineTs = match.DeadlineTs,
             WinnerSide = match.WinnerSide,
             CreatedAt = match.CreatedAt,
             JoinedAt = match.JoinedAt,
+            PendingAt = match.PendingAt,
+            GameStartTime = match.GameStartTime,
             ResolvedAt = match.ResolvedAt,
             Participants = match.Participants.Select(ConvertToParticipantView).ToList()
         };
@@ -214,8 +233,11 @@ public class MatchService : IMatchService
         return new MatchDetails
         {
             MatchPda = match.MatchPda,
-            GameMode = match.GameMode.ToString(),
-            MatchType = match.MatchType.ToString(),
+            CreatorPubkey = match.CreatorPubkey,
+            GameType = match.GameType, // Already string
+            GameMode = match.GameMode, // Already string
+            MatchMode = match.MatchMode, // Already string
+            TeamSize = match.TeamSize, // Already string
             StakeLamports = match.StakeLamports,
             Status = match.Status.ToString(),
             DeadlineTs = match.DeadlineTs,
@@ -225,11 +247,13 @@ public class MatchService : IMatchService
             PayoutTx = match.PayoutTx,
             CreatedAt = match.CreatedAt,
             JoinedAt = match.JoinedAt,
+            PendingAt = match.PendingAt,
+            GameStartTime = match.GameStartTime,
             ResolvedAt = match.ResolvedAt,
             Participants = match.Participants.Select(ConvertToParticipantView).ToList(),
             GameData = match.GameData != null ? new GameDataView
             {
-                GameMode = match.GameData.GameMode.ToString(),
+                GameMode = match.GameData.GameMode, // Already string
                 Side0TotalScore = match.GameData.Side0TotalScore,
                 Side1TotalScore = match.GameData.Side1TotalScore,
                 GeneratedAt = match.GameData.GeneratedAt
@@ -242,6 +266,7 @@ public class MatchService : IMatchService
         return new ParticipantView
         {
             Pubkey = participant.Pubkey,
+            Username = participant.User?.Username, // Include username from User navigation property
             Side = participant.Side,
             Position = participant.Position,
             TargetScore = participant.TargetScore,

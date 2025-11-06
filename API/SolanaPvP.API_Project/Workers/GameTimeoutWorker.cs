@@ -82,10 +82,23 @@ public class GameTimeoutWorker : BackgroundService
                     await matchRepository.UpdateAsync(match);
 
                     // Update user stats
+                    _logger.LogInformation("[GameTimeoutWorker] Updating stats for {Count} participants...", match.Participants.Count);
+                    
                     foreach (var participant in match.Participants)
                     {
                         var isWinner = participant.Side == match.WinnerSide;
-                        var earnings = isWinner ? match.StakeLamports * 2 : 0;
+                        // Calculate earnings: winner gets 2x stake minus 1% fee
+                        // Total pot = stake * teamSize * 2
+                        // Winner gets: (pot * 0.99) / teamSize
+                        var totalParticipants = match.Participants.Count;
+                        var totalPot = match.StakeLamports * totalParticipants;
+                        var potAfterFee = (long)(totalPot * 0.99);
+                        var winnersCount = match.Participants.Count(p => p.Side == match.WinnerSide);
+                        var earnings = isWinner ? potAfterFee / winnersCount : 0;
+                        
+                        _logger.LogInformation("[GameTimeoutWorker] Player {Pubkey}: Winner={IsWinner}, Earnings={Earnings}", 
+                            participant.Pubkey, isWinner, earnings);
+                        
                         await userRepository.UpdateStatsAsync(participant.Pubkey, isWinner, earnings);
                     }
 
@@ -97,6 +110,27 @@ public class GameTimeoutWorker : BackgroundService
                     if (matchDetails != null)
                     {
                         await hubContext.NotifyMatchFinalized(match.MatchPda, matchDetails);
+                        
+                        // Broadcast feed event for ticker/feeds
+                        await hubContext.Clients.All.SendAsync("feed:append", new {
+                            matchPda = match.MatchPda,
+                            winnerSide = match.WinnerSide,
+                            stakeLamports = match.StakeLamports,
+                            gameType = match.GameType, // Already string
+                            gameMode = match.GameMode, // Already string
+                            matchMode = match.MatchMode, // Already string
+                            teamSize = match.TeamSize, // Already string
+                            resolvedAt = match.ResolvedAt?.ToString("O"), // ISO 8601 UTC format
+                            participants = match.Participants.Select(p => new {
+                                pubkey = p.Pubkey,
+                                username = p.User?.Username,
+                                side = p.Side,
+                                targetScore = p.TargetScore,
+                                isWinner = p.IsWinner
+                            })
+                        });
+                        
+                        _logger.LogInformation("[GameTimeoutWorker] Feed event broadcast for match {MatchPda}", match.MatchPda);
                     }
                 }
             }

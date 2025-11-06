@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using SolanaPvP.Domain.Enums;
 
 namespace SolanaPvP.EF_Core.DBOs;
 
@@ -8,7 +7,7 @@ public class GameDataDBO
 {
     public int Id { get; set; }
     public string MatchPda { get; set; } = string.Empty;
-    public GameModeType GameMode { get; set; }
+    public string GameMode { get; set; } = string.Empty; // CHANGED: from enum to string
     public int Side0TotalScore { get; set; }
     public int Side1TotalScore { get; set; }
     public DateTime GeneratedAt { get; set; }

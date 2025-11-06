@@ -31,6 +31,7 @@ interface WebSocketState {
   onMatchInProgress: (callback: (match: any) => void) => void;
   onMatchFinalized: (callback: (match: any) => void) => void;
   onMatchRefunded: (callback: (match: MatchView) => void) => void;
+  onFeedAppend: (callback: (feedData: any) => void) => void;
   onInvitationReceived: (
     callback: (invitation: MatchInvitation) => void
   ) => void;
@@ -164,6 +165,10 @@ export const useWebSocketStore = create<WebSocketState>((set) => ({
 
   onMatchRefunded: (callback) => {
     signalRService.on("matchRefunded", callback);
+  },
+
+  onFeedAppend: (callback) => {
+    signalRService.on("feed:append", callback);
   },
 
   onInvitationReceived: (callback) => {

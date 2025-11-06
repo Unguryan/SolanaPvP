@@ -15,7 +15,24 @@ public static class MatchParticipantMapper
             Side = dbo.Side,
             Position = dbo.Position,
             TargetScore = dbo.TargetScore,
-            IsWinner = dbo.IsWinner
+            IsWinner = dbo.IsWinner,
+            // Copy User without circular navigation properties
+            User = dbo.User != null ? new User
+            {
+                Pubkey = dbo.User.Pubkey,
+                Username = dbo.User.Username,
+                Wins = dbo.User.Wins,
+                Losses = dbo.User.Losses,
+                TotalEarningsLamports = dbo.User.TotalEarningsLamports,
+                MatchesPlayed = dbo.User.MatchesPlayed,
+                FirstSeen = dbo.User.FirstSeen,
+                LastSeen = dbo.User.LastSeen,
+                LastUsernameChange = dbo.User.LastUsernameChange,
+                CanChangeUsername = dbo.User.CanChangeUsername,
+                MatchParticipants = new List<MatchParticipant>(), // Empty to avoid circular reference
+                SentInvitations = new List<MatchInvitation>(),
+                ReceivedInvitations = new List<MatchInvitation>()
+            } : null!
         };
     }
 

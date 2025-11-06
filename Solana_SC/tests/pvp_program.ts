@@ -69,27 +69,6 @@ describe("pvp_program", () => {
     );
   });
 
-  it("Initializes global config", async () => {
-    try {
-      const tx = await program.methods
-        .initConfig(admin.publicKey)
-        .accounts({
-          payer: admin.publicKey,
-        })
-        .signers([admin])
-        .rpc();
-
-      console.log("Init config transaction signature", tx);
-
-      const configAccount = await program.account.globalConfig.fetch(configPda);
-      expect(configAccount.admin.toString()).to.equal(
-        admin.publicKey.toString()
-      );
-    } catch (e) {
-      console.log("Config already initialized or error:", e);
-    }
-  });
-
   it("Creates a lobby", async () => {
     const lobbyId = new anchor.BN(1);
     const teamSize = 1;

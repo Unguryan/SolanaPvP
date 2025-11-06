@@ -41,7 +41,7 @@ security_txt! {
     policy: "https://github.com/Unguryan/SolanaPvP/blob/main/SECURITY.md",
     preferred_languages: "en",
     source_code: "https://github.com/Unguryan/SolanaPvP",
-    source_release: "v1.0.4",
+    source_release: "v1.1.0",
     source_revision: "main"
 }
 
@@ -92,6 +92,12 @@ pub struct LobbyCreated {
     pub stake_lamports: u64,
     pub team_size: u8,
     pub created_at: i64,
+    // NEW: Game configuration
+    pub game: String,
+    pub game_mode: String,
+    pub arena_type: String,
+    pub team_size_str: String,
+    pub creator_side: u8, // NEW: Which team creator joined (0 or 1)
 }
 
 #[event]
@@ -368,6 +374,10 @@ pub mod pvp_program {
         team_size: u8,          // must be 1/2/5
         stake_lamports: u64,
         side: u8,               // 0 or 1
+        game: String,           // "PickHigher", etc.
+        game_mode: String,      // "1x3", "3x9", "5x16", etc.
+        arena_type: String,     // "SingleBattle", "DeathMatch"
+        team_size_str: String,  // "1v1", "2v2", "5v5", etc.
     ) -> Result<()> {
         require!(ALLOWED_TEAM_SIZES.contains(&team_size), PvpError::InvalidTeamSize);
         require!(stake_lamports >= MIN_STAKE_LAMPORTS, PvpError::StakeTooSmall);
@@ -388,6 +398,11 @@ pub mod pvp_program {
         lobby.winner_side        = 0; // not set yet
         lobby.team1              = Vec::with_capacity(team_size as usize);
         lobby.team2              = Vec::with_capacity(team_size as usize);
+        // NEW: Store game configuration
+        lobby.game               = game.clone();
+        lobby.game_mode          = game_mode.clone();
+        lobby.arena_type         = arena_type.clone();
+        lobby.team_size_str      = team_size_str.clone();
 
         // Mark an active lobby for this creator (prevents creating another)
         let active = &mut ctx.accounts.active;
@@ -411,6 +426,11 @@ pub mod pvp_program {
             stake_lamports,
             team_size,
             created_at: lobby.created_at,
+            game,
+            game_mode,
+            arena_type,
+            team_size_str,
+            creator_side: side, // Include which team creator joined
         });
 
         Ok(())
@@ -849,11 +869,17 @@ pub struct Lobby {
     pub winner_side: u8,        // 0 or 1, set when resolved
     pub team1: Vec<Pubkey>,
     pub team2: Vec<Pubkey>,
+    // NEW: Game configuration fields
+    pub game: String,           // "PickHigher", "Plinko", etc. (max 32 chars)
+    pub game_mode: String,      // "1x3", "3x9", "5x16", etc. (max 16 chars)
+    pub arena_type: String,     // "SingleBattle", "DeathMatch" (max 32 chars)
+    pub team_size_str: String,  // "1v1", "2v2", "5v5", "1v10", etc. (max 16 chars)
 }
 impl Lobby {
     // Layout size calculation:
-    // discr(8)+bump(1)+lobby_id(8)+creator(32)+status(1)+team_size(1)+stake(8)+created_at(8)+finalized(1)+vrf_seed(32)+vrf_request(32)+winner(1)+vec headers(4+4)
-    pub const FIXED: usize = 8 + 1 + 8 + 32 + 1 + 1 + 8 + 8 + 1 + 32 + 32 + 1 + 4 + 4;
+    // Old: discr(8)+bump(1)+lobby_id(8)+creator(32)+status(1)+team_size(1)+stake(8)+created_at(8)+finalized(1)+vrf_seed(32)+vrf_request(32)+winner(1)+vec headers(4+4)
+    // New: + game(4+32) + game_mode(4+16) + arena_type(4+32) + team_size_str(4+16)
+    pub const FIXED: usize = 8 + 1 + 8 + 32 + 1 + 1 + 8 + 8 + 1 + 32 + 32 + 1 + 4 + 4 + (4+32) + (4+16) + (4+32) + (4+16);
     pub const PER_PLAYER: usize = 32;
     pub const SIZE: usize = Self::FIXED + (Self::PER_PLAYER * MAX_TEAM_SIZE_ALLOC * 2);
 }

@@ -10,7 +10,7 @@ import {
   GlassCardHeader,
   GlassCardTitle,
 } from "@/components/ui/GlassCard";
-import { usePvpProgram, useLobbyOperations } from "@/hooks/usePvpProgram";
+import { usePvpProgram, useLobbyOperations, useLobbyData } from "@/hooks/usePvpProgram";
 import { useActiveLobby } from "@/hooks/useActiveLobby";
 import { PdaUtils } from "@/services/solana/accounts";
 import { MIN_STAKE_LAMPORTS } from "@/services/solana/config";
@@ -22,7 +22,7 @@ export const CreateLobby: React.FC = () => {
   const navigate = useNavigate();
   const { publicKey, connected } = useWallet();
   const { isInitialized } = usePvpProgram();
-  const { createLobby, isCreating } = useLobbyOperations();
+  const { createLobby, refundLobby, isCreating, isRefunding } = useLobbyOperations();
   const {
     hasActiveLobby,
     activeLobby,
@@ -39,7 +39,12 @@ export const CreateLobby: React.FC = () => {
     null
   );
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [refundError, setRefundError] = useState<string | null>(null);
+  const [refundSuccess, setRefundSuccess] = useState<string | null>(null);
   const [userBalance, setUserBalance] = useState<number>(0);
+
+  // Fetch full lobby data from blockchain if user has active lobby
+  const { lobby: lobbyData } = useLobbyData(activeLobby?.lobby);
 
   const gameModes: { mode: GameMode; label: string; icon: string }[] = [
     { mode: "Pick3from9", label:  "3 from 9", icon: "🎯" },
@@ -124,12 +129,30 @@ export const CreateLobby: React.FC = () => {
     try {
       const stakeLamports = Math.floor(stakeSOL * LAMPORTS_PER_SOL);
 
+      // Map gameMode to the correct format
+      const gameModeMapping: Record<GameMode, string> = {
+        "Pick3from9": "3x9",
+        "Pick5from16": "5x16",
+        "Pick1from3": "1x3",
+      };
+      
+      // Map teamSize to string format
+      const teamSizeMapping: Record<TeamSize, string> = {
+        1: "1v1",
+        2: "2v2",
+        5: "5v5",
+      };
+
       console.log("[CreateLobby] Creating lobby with params:", {
         lobbyId,
         teamSize,
         stakeLamports,
         side,
         creator: publicKey.toString(),
+        game: "PickHigher",
+        gameMode: gameModeMapping[gameMode],
+        arenaType: "SingleBattle",
+        teamSizeStr: teamSizeMapping[teamSize],
       });
 
       const tx = await createLobby({
@@ -137,6 +160,10 @@ export const CreateLobby: React.FC = () => {
         teamSize,
         stakeLamports,
         side,
+        game: "PickHigher",
+        gameMode: gameModeMapping[gameMode],
+        arenaType: "SingleBattle",
+        teamSizeStr: teamSizeMapping[teamSize],
       });
 
       console.log("[CreateLobby] Transaction successful:", tx);
@@ -189,6 +216,40 @@ export const CreateLobby: React.FC = () => {
         setValidationMessage(errorMessage);
         setTimeout(() => setValidationMessage(null), 5000);
       }
+    }
+  };
+
+  const handleRefund = async () => {
+    if (!activeLobby || !publicKey || !lobbyData) return;
+    
+    try {
+      setRefundError(null);
+      setRefundSuccess(null);
+      
+      // Get all participants from both teams
+      const participants = [...lobbyData.team1, ...lobbyData.team2];
+      
+      console.log("[CreateLobby] Requesting refund for lobby:", activeLobby.lobby.toString());
+      console.log("[CreateLobby] Participants:", participants.map(p => p.toString()));
+      
+      // Call refund API
+      const tx = await refundLobby({
+        lobbyPda: activeLobby.lobby,
+        creator: lobbyData.creator,
+        participants,
+      });
+      
+      console.log("[CreateLobby] Refund successful! Transaction:", tx);
+      setRefundSuccess("Refund successful! Your funds have been returned.");
+      
+      // Refresh the page after a short delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (err: any) {
+      console.error("[CreateLobby] Refund failed:", err);
+      setRefundError(err.message || "Failed to refund lobby");
+      setTimeout(() => setRefundError(null), 5000);
     }
   };
 
@@ -262,31 +323,51 @@ export const CreateLobby: React.FC = () => {
         <div className="space-y-4">
           {/* Active Lobby Warning */}
           {hasActiveLobby && activeLobby && (
-            <GlassCard className="p-4 border-yellow-500/50 bg-yellow-500/10">
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">⚠️</span>
+            <GlassCard className="p-6 border-2 border-yellow-500/50 bg-yellow-500/5 shadow-lg">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                    <span className="text-2xl">⚠️</span>
+                  </div>
+                </div>
                 <div className="flex-1">
-                  <h3 className="text-yellow-400 font-semibold mb-1">
-                    You already have an active lobby
+                  <h3 className="text-yellow-400 font-bold text-lg mb-2">
+                    You have an active lobby
                   </h3>
-                  <p className="text-sm text-txt-muted mb-2">
-                    Lobby: {activeLobby.lobby.toString().slice(0, 8)}...
-                    {activeLobby.lobby.toString().slice(-8)}
-                  </p>
-                  <p className="text-xs text-txt-muted">
-                    Please finish or cancel your current lobby before creating a
-                    new one.
-                  </p>
-                  <GlowButton
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      navigate(`/match/${activeLobby.lobby.toString()}`)
-                    }
-                    className="mt-3 text-xs border-yellow-500/30"
-                  >
-                    Go to Active Lobby →
-                  </GlowButton>
+                  <div className="space-y-2 mb-4">
+                    <p className="text-sm text-txt-muted">
+                      Please finish or request a refund for your current lobby before creating a new one.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <GlowButton
+                      variant="neon"
+                      size="sm"
+                      onClick={() => navigate(`/match/${activeLobby.lobby.toString()}`)}
+                      className="flex-1"
+                    >
+                      View
+                    </GlowButton>
+                    <GlowButton
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRefund}
+                      disabled={isRefunding || !lobbyData}
+                      className="flex-1 border-red-500/50 hover:border-red-500 text-red-400"
+                    >
+                      {isRefunding ? "..." : "Refund"}
+                    </GlowButton>
+                  </div>
+                  {refundError && (
+                    <p className="text-red-400 text-sm mt-3 p-2 bg-red-500/10 rounded">
+                      {refundError}
+                    </p>
+                  )}
+                  {refundSuccess && (
+                    <p className="text-sol-mint text-sm mt-3 p-2 bg-sol-mint/10 rounded">
+                      {refundSuccess}
+                    </p>
+                  )}
                 </div>
               </div>
             </GlassCard>

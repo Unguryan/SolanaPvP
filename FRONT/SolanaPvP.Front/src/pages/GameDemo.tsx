@@ -264,7 +264,7 @@ export const GameDemo: React.FC = () => {
               <UniversalGameBoard
                 key={gameKey}
                 gameMode={currentGameMode}
-                matchType={currentMatchType}
+                teamSize={currentMatchType}
                 stakeSol={stakeAmount} // Demo stake
                 players={generateDemoPlayers(currentMatchType, "You")}
                 currentPlayer="You"

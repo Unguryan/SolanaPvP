@@ -1,6 +1,4 @@
 // Invitation related types
-import { GameModeType, MatchType } from "./match";
-
 export enum InvitationStatus {
   Pending = "Pending",
   Accepted = "Accepted",
@@ -13,8 +11,10 @@ export interface MatchInvitation {
   id: number;
   inviterPubkey: string;
   inviteePubkey: string;
-  gameMode: GameModeType;
-  matchType: MatchType;
+  gameType: string;        // NEW: "PickHigher", etc.
+  gameMode: string;        // CHANGED: now string ("1x3", "3x9", "5x16")
+  matchMode: string;       // NEW: "Team" or "DeathMatch"
+  teamSize: string;        // RENAMED: from matchType
   stakeLamports: number;
   status: InvitationStatus;
   createdAt: string;
@@ -37,8 +37,10 @@ export interface MatchInvitation {
 
 export interface CreateInvitationRequest {
   inviteePubkey: string;
-  gameMode: GameModeType;
-  matchType: MatchType;
+  gameType: string;        // NEW
+  gameMode: string;        // CHANGED
+  matchMode: string;       // NEW
+  teamSize: string;        // RENAMED
   stakeLamports: number;
   expirationMinutes?: number;
 }

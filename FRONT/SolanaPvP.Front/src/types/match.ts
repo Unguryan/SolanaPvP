@@ -1,16 +1,4 @@
 // Match related types
-export enum GameModeType {
-  PickThreeFromNine = "PickThreeFromNine",
-  PickFiveFromSixteen = "PickFiveFromSixteen",
-  PickOneFromThree = "PickOneFromThree",
-}
-
-export enum MatchType {
-  Solo = "Solo",
-  Duo = "Duo",
-  Team = "Team",
-}
-
 export enum MatchStatus {
   Open = "Open",
   Pending = "Pending",
@@ -32,6 +20,7 @@ export interface MatchParticipant {
 export interface GameData {
   id: number;
   matchId: number;
+  gameMode: string;
   side0TotalScore: number;
   side1TotalScore: number;
 }
@@ -39,8 +28,11 @@ export interface GameData {
 export interface Match {
   id: number;
   matchPda: string;
-  gameMode: GameModeType;
-  matchType: MatchType;
+  creator: string;         // Creator's public key
+  gameType: string;        // NEW: "PickHigher", "Plinko", etc.
+  gameMode: string;        // CHANGED: now string ("1x3", "3x9", "5x16")
+  matchMode: string;       // NEW: "Team" or "DeathMatch"
+  teamSize: string;        // RENAMED: from matchType ("OneVOne", "TwoVTwo", etc.)
   status: MatchStatus;
   stakeLamports: number;
   winnerSide?: number;
@@ -49,6 +41,7 @@ export interface Match {
   createdAt: string;
   pendingAt?: string;
   gameStartTime?: string;
+  payoutTx?: string;
   participants: MatchParticipant[];
   gameData?: GameData;
 }
@@ -56,8 +49,11 @@ export interface Match {
 export interface MatchView {
   id: number;
   matchPda: string;
-  gameMode: GameModeType;
-  matchType: MatchType;
+  creator: string;         // Creator's public key
+  gameType: string;        // NEW: "PickHigher", etc.
+  gameMode: string;        // CHANGED: now string
+  matchMode: string;       // NEW: "Team" or "DeathMatch"
+  teamSize: string;        // RENAMED: from matchType
   status: MatchStatus;
   stakeLamports: number;
   winnerSide?: number;
@@ -69,8 +65,10 @@ export interface MatchView {
 
 export interface MatchFilter {
   status?: MatchStatus;
-  gameMode?: GameModeType;
-  matchType?: MatchType;
+  gameType?: string;       // NEW: filter by game type
+  gameMode?: string;       // CHANGED: now string
+  matchMode?: string;      // NEW: Team or DeathMatch
+  teamSize?: string;       // RENAMED: from matchType
   isPrivate?: boolean;
   page?: number;
   pageSize?: number;

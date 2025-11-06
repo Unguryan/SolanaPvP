@@ -95,6 +95,22 @@
         {
           "name": "side",
           "type": "u8"
+        },
+        {
+          "name": "game",
+          "type": "string"
+        },
+        {
+          "name": "game_mode",
+          "type": "string"
+        },
+        {
+          "name": "arena_type",
+          "type": "string"
+        },
+        {
+          "name": "team_size_str",
+          "type": "string"
         }
       ]
     },
@@ -995,6 +1011,22 @@
             "type": {
               "vec": "pubkey"
             }
+          },
+          {
+            "name": "game",
+            "type": "string"
+          },
+          {
+            "name": "game_mode",
+            "type": "string"
+          },
+          {
+            "name": "arena_type",
+            "type": "string"
+          },
+          {
+            "name": "team_size_str",
+            "type": "string"
           }
         ]
       }
@@ -1027,6 +1059,26 @@
           {
             "name": "created_at",
             "type": "i64"
+          },
+          {
+            "name": "game",
+            "type": "string"
+          },
+          {
+            "name": "game_mode",
+            "type": "string"
+          },
+          {
+            "name": "arena_type",
+            "type": "string"
+          },
+          {
+            "name": "team_size_str",
+            "type": "string"
+          },
+          {
+            "name": "creator_side",
+            "type": "u8"
           }
         ]
       }

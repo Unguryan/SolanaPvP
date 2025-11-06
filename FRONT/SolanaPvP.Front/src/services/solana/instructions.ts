@@ -17,6 +17,11 @@ export interface CreateLobbyParams {
   stakeLamports: number;
   side: 0 | 1;
   creator: PublicKey;
+  // NEW: Game configuration
+  game: string;           // "PickHigher", "Plinko", etc.
+  gameMode: string;       // "1x3", "3x9", "5x16", etc.
+  arenaType: string;      // "SingleBattle", "DeathMatch"
+  teamSizeStr: string;    // "1v1", "2v2", "5v5", etc.
 }
 
 export interface JoinLobbyParams {
@@ -48,7 +53,11 @@ export class PvpInstructions {
           new BN(params.lobbyId),
           params.teamSize,
           new BN(params.stakeLamports),
-          params.side
+          params.side,
+          params.game,
+          params.gameMode,
+          params.arenaType,
+          params.teamSizeStr
         )
         .accounts({
           creator: params.creator,
@@ -275,7 +284,11 @@ export class PvpInstructions {
         new BN(params.lobbyId),
         params.teamSize,
         new BN(params.stakeLamports),
-        params.side
+        params.side,
+        params.game,
+        params.gameMode,
+        params.arenaType,
+        params.teamSizeStr
       )
       .accounts({
         creator: params.creator,

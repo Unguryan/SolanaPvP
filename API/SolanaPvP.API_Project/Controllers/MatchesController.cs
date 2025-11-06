@@ -17,8 +17,10 @@ public class MatchesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedResult<MatchView>>> GetMatches(
         [FromQuery] int? status,
+        [FromQuery] string? gameType,
         [FromQuery] string? gameMode,
-        [FromQuery] string? matchType,
+        [FromQuery] string? matchMode,
+        [FromQuery] string? teamSize,
         [FromQuery] bool? isPrivate,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
@@ -26,8 +28,10 @@ public class MatchesController : ControllerBase
         var filter = new MatchFilter
         {
             Status = status,
+            GameType = gameType,
             GameMode = gameMode,
-            MatchType = matchType,
+            MatchMode = matchMode,
+            TeamSize = teamSize,
             IsPrivate = isPrivate
         };
 
@@ -54,6 +58,13 @@ public class MatchesController : ControllerBase
 
         var result = await _matchService.GetActiveMatchesAsync(paging);
         return Ok(result);
+    }
+
+    [HttpGet("recent")]
+    public async Task<ActionResult<List<MatchView>>> GetRecentMatches([FromQuery] int count = 10)
+    {
+        var matches = await _matchService.GetRecentResolvedMatchesAsync(Math.Min(count, 50));
+        return Ok(matches);
     }
 
     [HttpGet("{matchPda}")]

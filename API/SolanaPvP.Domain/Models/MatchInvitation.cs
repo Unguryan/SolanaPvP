@@ -7,8 +7,10 @@ public class MatchInvitation
     public int Id { get; set; }
     public string InviterPubkey { get; set; } = string.Empty;
     public string InviteePubkey { get; set; } = string.Empty;
-    public GameModeType GameMode { get; set; }
-    public SolanaPvP.Domain.Enums.MatchType MatchType { get; set; }
+    public GameType GameType { get; set; }        // NEW: PickHigher, Plinko, etc.
+    public string GameMode { get; set; } = string.Empty; // CHANGED: from enum to string
+    public MatchMode MatchMode { get; set; }      // NEW: Team or DeathMatch
+    public TeamSize TeamSize { get; set; }        // RENAMED: from MatchType
     public long StakeLamports { get; set; }
     public InvitationStatus Status { get; set; }
     public DateTime CreatedAt { get; set; }

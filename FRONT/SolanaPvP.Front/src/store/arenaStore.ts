@@ -2,22 +2,29 @@ import { create } from "zustand";
 
 export type FeedItem = {
   id: string;
+  matchPda: string;
   username: string;
   solAmount: number;
+  gameType?: string;    // NEW: "PickHigher", etc.
+  gameMode: string;     // Now: "1x3", "3x9", "5x16"
+  matchType: string;    // TeamSize for now (will migrate)
+  winnerSide: number;
   timestamp: number;
-  gameMode: string;
 };
 
 export type MatchLobby = {
   id: string;
   matchPda?: string; // Optional PDA, if not provided, id will be used as matchPda
+  creator: string; // Creator's public key
   stake: number;
   playersReady: number;
   playersMax: number;
   endsAt: number;
-  gameMode: string;
-  matchType?: "Solo" | "Duo" | "Team";
-  status?: string; // "Waiting" | "AwaitingRandomness" | "Resolved" | "Refunded"
+  gameType?: string; // NEW: "PickHigher", etc.
+  gameMode: string; // CHANGED: now flexible ("1x3", "3x9", etc.)
+  matchMode?: string; // NEW: "Team" or "DeathMatch"
+  teamSize?: string; // RENAMED: from matchType ("OneVOne", etc.)
+  status?: string; // "Open" | "Pending" | "InProgress" | "Resolved" | "Refunded"
   resolvedAt?: number; // Timestamp when match was resolved
 };
 

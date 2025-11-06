@@ -70,6 +70,11 @@ export interface LobbyAccount {
   winnerSide: number;
   team1: PublicKey[];
   team2: PublicKey[];
+  // NEW: Game configuration fields (from v1.1.0)
+  game: string;           // "PickHigher", "Plinko", etc.
+  gameMode: string;       // "1x3", "3x9", "5x16", etc.
+  arenaType: string;      // "SingleBattle", "DeathMatch"
+  teamSizeStr: string;    // "1v1", "2v2", "5v5", etc.
 }
 
 export interface GlobalConfigAccount {
@@ -130,6 +135,10 @@ export function serializeLobbyAccount(account: LobbyAccount): string {
     winnerSide: account.winnerSide,
     team1: account.team1.map((pk) => pk.toString()),
     team2: account.team2.map((pk) => pk.toString()),
+    game: account.game,
+    gameMode: account.gameMode,
+    arenaType: account.arenaType,
+    teamSizeStr: account.teamSizeStr,
   });
 }
 
@@ -149,6 +158,10 @@ export function deserializeLobbyAccount(data: string): LobbyAccount {
     winnerSide: parsed.winnerSide,
     team1: parsed.team1.map((pk: string) => new PublicKey(pk)),
     team2: parsed.team2.map((pk: string) => new PublicKey(pk)),
+    game: parsed.game || "PickHigher",
+    gameMode: parsed.gameMode || "3x9",
+    arenaType: parsed.arenaType || "SingleBattle",
+    teamSizeStr: parsed.teamSizeStr || "1v1",
   };
 }
 

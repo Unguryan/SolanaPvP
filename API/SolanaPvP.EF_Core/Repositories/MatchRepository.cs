@@ -131,4 +131,21 @@ public class MatchRepository : IMatchRepository
         _context.MatchParticipants.Add(dbo);
         await _context.SaveChangesAsync();
     }
+
+    public async Task UpdateParticipantAsync(MatchParticipant participant)
+    {
+        var dbo = participant.ToDBO();
+        
+        // Detach any existing tracked entity with the same key
+        var existingEntry = _context.ChangeTracker.Entries<MatchParticipantDBO>()
+            .FirstOrDefault(e => e.Entity.Id == dbo.Id);
+        
+        if (existingEntry != null)
+        {
+            _context.Entry(existingEntry.Entity).State = EntityState.Detached;
+        }
+        
+        _context.MatchParticipants.Update(dbo);
+        await _context.SaveChangesAsync();
+    }
 }
