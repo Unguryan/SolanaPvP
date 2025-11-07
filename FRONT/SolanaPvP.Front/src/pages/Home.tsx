@@ -23,7 +23,7 @@ export const Home: React.FC = () => {
       <main className="relative">
         {/* Desktop Layout (≥1024px) */}
         <div className="hidden lg:block">
-          <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4 lg:py-8 space-y-4 lg:space-y-8">
             {/* Hero CTA at top */}
             <div className="flex justify-center">
               <HeroCTA />
@@ -46,7 +46,7 @@ export const Home: React.FC = () => {
 
         {/* Mobile/Tablet Layout (<1024px) */}
         <div className="lg:hidden">
-          <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+          <div className="max-w-7xl mx-auto px-3 py-4 space-y-3">
             {/* Hero CTA */}
             <div className="text-center">
               <HeroCTA />

@@ -68,13 +68,36 @@ export const useArenaRealtime = () => {
       updateMatch(lobbyMatch);
     });
 
-    signalRService.on("matchResolved", (match: any) => {
-      console.log("📢 [Arena] Match resolved:", match);
+    signalRService.on("matchInProgress", (match: any) => {
+      console.log("📢 [Arena] Match in progress:", match);
 
-      // Remove from active matches IMMEDIATELY (no 5 second delay)
-      // Feed updates are now handled by feed:append event from GameTimeoutWorker
+      // Update match status to InProgress
+      const playersMax = getPlayersMaxFromTeamSize(match.teamSize || "OneVOne");
+
+      const lobbyMatch: MatchLobby = {
+        id: match.matchPda,
+        matchPda: match.matchPda,
+        creator: match.creatorPubkey || match.creator || "",
+        stake: match.stakeLamports / 1000000000,
+        playersReady: match.participants?.length || 0,
+        playersMax,
+        endsAt: match.deadlineTs * 1000,
+        gameType: match.gameType,
+        gameMode: match.gameMode,
+        matchMode: match.matchMode,
+        teamSize: match.teamSize,
+        status: "InProgress", // Update status
+      };
+      updateMatch(lobbyMatch);
+    });
+
+    signalRService.on("matchFinalized", (match: any) => {
+      console.log("📢 [Arena] Match finalized:", match);
+
+      // Remove from active matches IMMEDIATELY
+      // Feed updates are handled by feed:append event from GameTimeoutWorker
       removeMatch(match.matchPda);
-      console.log("📢 [Arena] Removed resolved match from active list");
+      console.log("📢 [Arena] Removed finalized match from active list");
     });
 
     signalRService.on("matchRefunded", (match: any) => {

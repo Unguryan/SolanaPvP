@@ -746,11 +746,11 @@ export const MatchPreview: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-bg py-8">
-        <div className="max-w-4xl mx-auto px-4">
-          <Skeleton className="h-20 w-full mb-6" />
-          <Skeleton className="h-64 w-full mb-6" />
-          <Skeleton className="h-64 w-full mb-6" />
+      <div className="min-h-screen bg-bg py-4 lg:py-8">
+        <div className="max-w-4xl mx-auto px-3 lg:px-4">
+          <Skeleton className="h-20 w-full mb-4 lg:mb-6" />
+          <Skeleton className="h-64 w-full mb-4 lg:mb-6" />
+          <Skeleton className="h-64 w-full mb-4 lg:mb-6" />
         </div>
       </div>
     );
@@ -788,24 +788,24 @@ export const MatchPreview: React.FC = () => {
     if (isViewer) {
       // Spectators only see stats, not the game board
       return (
-        <div className="min-h-screen bg-bg py-8">
-          <div className="max-w-4xl mx-auto px-6">
+        <div className="min-h-screen bg-bg py-4 lg:py-8">
+          <div className="max-w-4xl mx-auto px-3 lg:px-6">
             <motion.div
-              className="text-center mb-8"
+              className="text-center mb-4 lg:mb-8"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <h1 className="text-4xl font-display font-bold text-txt-base mb-2">
+              <h1 className="text-2xl lg:text-4xl font-display font-bold text-txt-base mb-2">
                 {getArenaTypeDisplay()} #{lobby.lobbyId.toString()}
               </h1>
               <div className="flex items-center justify-center gap-2">
-                <span className="text-lg text-blue-400">{lobby.status}</span>
+                <span className="text-base lg:text-lg text-blue-400">{lobby.status}</span>
                 <span className="text-txt-muted">•</span>
-                <span className="text-txt-muted">{stakeSOL} SOL stake</span>
+                <span className="text-txt-muted text-sm lg:text-base">{stakeSOL} SOL stake</span>
               </div>
             </motion.div>
 
-            <GlassCard className="p-8 text-center">
+            <GlassCard className="p-4 lg:p-8 text-center">
               <h2 className="text-2xl font-bold text-sol-purple mb-4">
                 Watching Match
               </h2>
@@ -837,14 +837,14 @@ export const MatchPreview: React.FC = () => {
 
     // Participants see the full game
     return (
-      <div className="min-h-screen bg-bg py-8">
-        <div className="max-w-7xl mx-auto px-6">
+      <div className="min-h-screen bg-bg py-4 lg:py-8">
+        <div className="max-w-7xl mx-auto px-3 lg:px-6">
           <motion.div
-            className="text-center mb-6 lg:mb-8"
+            className="text-center mb-4 lg:mb-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <h1 className="text-2xl lg:text-4xl font-display font-bold text-txt-base mb-2">
+            <h1 className="text-xl lg:text-4xl font-display font-bold text-txt-base mb-2">
               {getArenaTypeDisplay()} #{lobby.lobbyId.toString()}
             </h1>
           </motion.div>
@@ -886,12 +886,12 @@ export const MatchPreview: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bg py-8 relative">
+    <div className="min-h-screen bg-bg py-4 lg:py-8 relative">
       {/* Join Message Toast */}
       <AnimatePresence>
         {joinMessage && (
           <motion.div
-            className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[6vh] pt-[6vh] px-4 pointer-events-none"
+            className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[6vh] pt-[6vh] px-3 pointer-events-none"
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
@@ -947,20 +947,20 @@ export const MatchPreview: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <div className="max-w-6xl mx-auto px-6">
+      <div className="max-w-6xl mx-auto px-3 lg:px-6">
         {/* Header */}
         <motion.div
-          className="text-center mb-6 lg:mb-8"
+          className="text-center mb-4 lg:mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="text-2xl lg:text-4xl font-display font-bold text-txt-base mb-2">
+          <h1 className="text-xl lg:text-4xl font-display font-bold text-txt-base mb-2">
             {getArenaTypeDisplay()} #{lobby.lobbyId.toString()}
           </h1>
         </motion.div>
 
         {/* Match Info */}
-        <GlassCard className="p-4 lg:p-6 mb-4">
+        <GlassCard className="p-3 lg:p-6 mb-3 lg:mb-4">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
             <div>
               <p className="text-xs lg:text-sm text-txt-muted mb-1">Status</p>

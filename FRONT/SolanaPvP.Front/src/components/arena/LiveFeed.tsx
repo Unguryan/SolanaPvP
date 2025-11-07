@@ -67,7 +67,7 @@ export const LiveFeed: React.FC<LiveFeedProps> = ({
   }
 
   return (
-    <GlassCard className={`p-4 ${className}`}>
+    <GlassCard className={`p-3 lg:p-4 ${className}`}>
       <GlassCardHeader>
         <GlassCardTitle className="text-lg font-display text-sol-purple flex items-center">
           <span className="w-2 h-2 bg-sol-mint rounded-full mr-2 animate-pulse" />
@@ -75,7 +75,7 @@ export const LiveFeed: React.FC<LiveFeedProps> = ({
         </GlassCardTitle>
       </GlassCardHeader>
 
-      <div className="space-y-2 max-h-96 overflow-y-auto">
+      <div className="space-y-1.5 lg:space-y-2 max-h-96 overflow-y-auto">
         <AnimatePresence>
           {displayItems.map((item, index) => (
             <motion.div
@@ -85,24 +85,19 @@ export const LiveFeed: React.FC<LiveFeedProps> = ({
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
               onClick={() => navigate(`/match/${item.matchPda}`)}
-              className="feed-item cursor-pointer hover:bg-white/5 p-3 rounded-lg transition-colors"
+              className="feed-item cursor-pointer hover:bg-white/5 p-2 lg:p-3 rounded-lg transition-colors"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="text-lg">
+              <div className="flex items-center justify-between gap-2 lg:gap-3">
+                <div className="flex items-center space-x-2 lg:space-x-3 flex-1 min-w-0">
+                  <div className="text-base lg:text-lg flex-shrink-0">
                     {getGameModeIcon(item.gameMode)}
                   </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-txt-base font-medium">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-1.5 lg:space-x-2 flex-wrap">
+                      <span className="text-txt-base font-medium text-sm lg:text-base truncate">
                         {item.username}
                       </span>
-                      {item.matchType !== "OneVOne" && item.matchType !== "Solo" && (
-                        <span className="text-xs text-sol-purple bg-sol-purple/10 px-2 py-0.5 rounded">
-                          Team {item.winnerSide + 1}
-                        </span>
-                      )}
-                      <span className="text-sol-mint font-semibold">
+                      <span className="text-sol-mint font-semibold text-sm lg:text-base flex-shrink-0">
                         +{item.solAmount.toFixed(3)} SOL
                       </span>
                     </div>
@@ -111,7 +106,7 @@ export const LiveFeed: React.FC<LiveFeedProps> = ({
                     </div>
                   </div>
                 </div>
-                <div className="text-sol-mint text-sm font-medium">VIEW →</div>
+                <div className="text-sol-mint text-xs lg:text-sm font-medium flex-shrink-0">VIEW →</div>
               </div>
             </motion.div>
           ))}

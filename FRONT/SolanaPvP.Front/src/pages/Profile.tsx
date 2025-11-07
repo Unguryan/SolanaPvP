@@ -119,12 +119,12 @@ export const Profile: React.FC = () => {
 
   if (!publicKey) {
     return (
-      <div className="min-h-screen bg-bg py-8 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-display font-bold text-txt-base mb-4">
+      <div className="min-h-screen bg-bg py-4 lg:py-8 flex items-center justify-center">
+        <div className="text-center px-3">
+          <h2 className="text-xl lg:text-2xl font-display font-bold text-txt-base mb-4">
             Connect Your Wallet
           </h2>
-          <p className="text-txt-muted">
+          <p className="text-txt-muted text-sm lg:text-base">
             Please connect your wallet to view your profile
           </p>
         </div>
@@ -134,8 +134,8 @@ export const Profile: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-bg py-8">
-        <div className="max-w-6xl mx-auto px-6">
+      <div className="min-h-screen bg-bg py-4 lg:py-8">
+        <div className="max-w-6xl mx-auto px-3 lg:px-6">
           <div className="text-center mb-8">
             <Skeleton className="h-12 w-64 mx-auto mb-4" />
             <Skeleton className="h-6 w-96 mx-auto" />
@@ -155,12 +155,12 @@ export const Profile: React.FC = () => {
 
   if (error || !profile) {
     return (
-      <div className="min-h-screen bg-bg py-8 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-display font-bold text-red-400 mb-4">
+      <div className="min-h-screen bg-bg py-4 lg:py-8 flex items-center justify-center">
+        <div className="text-center px-3">
+          <h2 className="text-xl lg:text-2xl font-display font-bold text-red-400 mb-4">
             Error Loading Profile
           </h2>
-          <p className="text-txt-muted">{error || "Profile not found"}</p>
+          <p className="text-txt-muted text-sm lg:text-base">{error || "Profile not found"}</p>
         </div>
       </div>
     );
@@ -170,8 +170,8 @@ export const Profile: React.FC = () => {
     profile.matchesPlayed > 0 ? profile.wins / profile.matchesPlayed : 0;
 
   return (
-    <div className="min-h-screen bg-bg py-8">
-      <div className="max-w-6xl mx-auto px-6">
+    <div className="min-h-screen bg-bg py-4 lg:py-8">
+      <div className="max-w-6xl mx-auto px-3 lg:px-6">
         {/* Header */}
         <div className="text-center mb-8">
           <motion.h1

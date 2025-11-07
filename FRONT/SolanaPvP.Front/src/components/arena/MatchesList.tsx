@@ -155,13 +155,13 @@ export const MatchesList: React.FC<MatchesListProps> = ({
 
   if (isLoading) {
     return (
-      <GlassCard className={`p-4 ${className}`}>
+      <GlassCard className={`p-3 lg:p-4 ${className}`}>
         <GlassCardHeader>
           <GlassCardTitle className="text-lg font-display text-sol-purple">
             Live Matches
           </GlassCardTitle>
         </GlassCardHeader>
-        <div className="space-y-3">
+        <div className="space-y-2 lg:space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-20 w-full" />
           ))}
@@ -171,7 +171,7 @@ export const MatchesList: React.FC<MatchesListProps> = ({
   }
 
   return (
-    <GlassCard className={`p-4 ${className}`}>
+    <GlassCard className={`p-3 lg:p-4 ${className}`}>
       <GlassCardHeader>
         <GlassCardTitle className="text-lg font-display text-sol-purple flex items-center">
           <span className="w-2 h-2 bg-sol-mint rounded-full mr-2 animate-pulse" />
@@ -179,7 +179,7 @@ export const MatchesList: React.FC<MatchesListProps> = ({
         </GlassCardTitle>
       </GlassCardHeader>
 
-      <div className="space-y-3 max-h-96 overflow-y-auto">
+      <div className="space-y-2 lg:space-y-3 max-h-96 overflow-y-auto">
         {matches
           .filter((m) => m.status !== "Resolved" && m.status !== "Refunded") // Filter out ended matches
           .slice(0, maxItems)
@@ -203,17 +203,17 @@ export const MatchesList: React.FC<MatchesListProps> = ({
               )} cursor-pointer hover:bg-white/5 transition-colors`}
               onClick={() => handleMatchClick(match)}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="text-lg">
+              <div className="flex items-center justify-between gap-2 lg:gap-3">
+                <div className="flex items-center space-x-2 lg:space-x-3 flex-1 min-w-0">
+                  <div className="text-base lg:text-lg flex-shrink-0">
                     {getGameModeIcon(match.gameMode)}
                   </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-txt-base font-medium">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-1.5 lg:space-x-2 flex-wrap">
+                      <span className="text-txt-base font-medium text-sm lg:text-base">
                         {match.stake} SOL
                       </span>
-                      <span className="text-txt-muted text-sm">
+                      <span className="text-txt-muted text-xs lg:text-sm">
                         {formatGameDisplay(
                           match.gameType || "PickHigher",
                           match.gameMode,
@@ -221,7 +221,7 @@ export const MatchesList: React.FC<MatchesListProps> = ({
                         )}
                       </span>
                     </div>
-                    <div className="flex items-center space-x-2 text-xs text-txt-muted">
+                    <div className="flex items-center space-x-1.5 lg:space-x-2 text-xs text-txt-muted">
                       <span>
                         {match.playersReady}/{match.playersMax} players
                       </span>
@@ -241,16 +241,16 @@ export const MatchesList: React.FC<MatchesListProps> = ({
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <div className={`text-sm font-semibold mb-1 ${getMatchStatusColor(match)}`}>
+                <div className="text-right flex-shrink-0">
+                  <div className={`text-xs lg:text-sm font-semibold mb-0.5 lg:mb-1 ${getMatchStatusColor(match)}`}>
                     {getMatchStatusText(match)}
                   </div>
                   {isWaiting && (
                     <>
-                      <div className="text-xs text-txt-muted mb-1">
+                      <div className="text-xs text-txt-muted mb-0.5 lg:mb-1">
                         {fillPercentage}% full
                       </div>
-                      <div className="w-16 h-1 bg-txt-muted/20 rounded-full overflow-hidden">
+                      <div className="w-12 lg:w-16 h-1 bg-txt-muted/20 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-sol-purple to-sol-mint transition-all duration-300"
                           style={{ width: `${fillPercentage}%` }}

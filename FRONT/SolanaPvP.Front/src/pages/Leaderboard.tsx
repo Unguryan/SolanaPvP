@@ -110,8 +110,8 @@ export const Leaderboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-bg py-8">
-        <div className="max-w-7xl mx-auto px-6">
+      <div className="min-h-screen bg-bg py-4 lg:py-8">
+        <div className="max-w-7xl mx-auto px-3 lg:px-6">
           <div className="text-center mb-8">
             <Skeleton className="h-12 w-64 mx-auto mb-4" />
             <Skeleton className="h-6 w-96 mx-auto" />
@@ -127,8 +127,8 @@ export const Leaderboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bg py-8">
-      <div className="max-w-7xl mx-auto px-6">
+    <div className="min-h-screen bg-bg py-4 lg:py-8">
+      <div className="max-w-7xl mx-auto px-3 lg:px-6">
         {/* Header */}
         <div className="text-center mb-8">
           <motion.h1

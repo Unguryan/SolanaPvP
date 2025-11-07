@@ -265,12 +265,12 @@ export const CreateLobby: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-bg py-8 relative">
+    <div className="min-h-screen bg-bg py-4 lg:py-8 relative">
       {/* Validation Message Toast */}
       <AnimatePresence>
         {validationMessage && (
           <motion.div
-            className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[6vh] pt-[6vh] px-4 pointer-events-none"
+            className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[6vh] pt-[6vh] px-3 pointer-events-none"
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
@@ -289,7 +289,7 @@ export const CreateLobby: React.FC = () => {
       <AnimatePresence>
         {successMessage && (
           <motion.div
-            className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[6vh] pt-[6vh] px-4 pointer-events-none"
+            className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[6vh] pt-[6vh] px-3 pointer-events-none"
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
@@ -304,7 +304,7 @@ export const CreateLobby: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <div className="max-w-4xl mx-auto px-6">
+      <div className="max-w-4xl mx-auto px-3 lg:px-6">
         {/* Header */}
         <motion.div
           className="text-center mb-8"

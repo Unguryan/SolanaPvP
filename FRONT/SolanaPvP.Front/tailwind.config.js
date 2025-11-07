@@ -17,6 +17,13 @@ module.exports = {
         sol: {
           purple: "#9945FF",
           mint: "#14F195",
+          cyan: "#00FFA3",
+          green: "#14F195",
+          orange: "#FF7A00",
+        },
+        loader: {
+          bg: "#05070d",
+          glass: "#0b0f17",
         },
         // Legacy colors for compatibility
         primary: '#9945FF',
@@ -80,6 +87,18 @@ module.exports = {
         'fade-slide': 'fadeSlide 0.3s ease-out',
         'ticker-scroll': 'tickerScroll 30s linear infinite',
         'shimmer': 'shimmer 2s linear infinite',
+        // Match Loader animations
+        'hue-rotate': 'hueRotate 12s linear infinite',
+        'hue-rotate-reverse': 'hueRotateReverse 14s linear infinite',
+        'scan': 'scan 3.8s linear infinite',
+        'pulse-dot': 'pulseDot 1.6s ease-in-out infinite',
+        'rise': 'rise 1.9s linear infinite',
+        'flicker': 'flicker 1s ease-in-out infinite',
+        'flicker-slow': 'flicker 1.15s ease-in-out infinite',
+        'flicker-fast': 'flicker 0.85s ease-in-out infinite',
+        'breathe': 'breathe 2.2s ease-in-out infinite',
+        'progress-slide': 'progressSlide 1.4s ease-in-out infinite',
+        'blink-caret': 'blinkCaret 0.9s steps(1) infinite',
       },
              keyframes: {
                cardFlip: {
@@ -123,7 +142,43 @@ module.exports = {
         shimmer: {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(100%)' },
-        }
+        },
+        // Match Loader keyframes
+        hueRotate: {
+          'to': { filter: 'blur(12px) hue-rotate(360deg)' },
+        },
+        hueRotateReverse: {
+          'to': { filter: 'blur(12px) hue-rotate(-360deg)' },
+        },
+        scan: {
+          '0%': { transform: 'translateY(0%) translateZ(0)' },
+          '100%': { transform: 'translateY(260%) translateZ(0)' },
+        },
+        pulseDot: {
+          '0%, 100%': { opacity: '0.45', transform: 'scale(0.9) translateZ(0)' },
+          '50%': { opacity: '1', transform: 'scale(1) translateZ(0)' },
+        },
+        rise: {
+          '0%': { transform: 'translateY(0) scale(0.9) translateZ(0)', opacity: '0.95' },
+          '100%': { transform: 'translateY(-100px) scale(0.6) translateZ(0)', opacity: '0' },
+        },
+        flicker: {
+          '0%': { transform: 'translateY(0) scaleY(1) rotate(-1deg) translateZ(0)' },
+          '50%': { transform: 'translateY(-3px) scaleY(1.08) rotate(-1.5deg) translateZ(0)' },
+          '100%': { transform: 'translateY(0) scaleY(1) rotate(-1deg) translateZ(0)' },
+        },
+        breathe: {
+          '0%, 100%': { transform: 'translateX(-50%) scale(0.96) translateZ(0)' },
+          '50%': { transform: 'translateX(-50%) scale(1.06) translateZ(0)' },
+        },
+        progressSlide: {
+          '0%': { transform: 'translateX(-120%) translateZ(0)' },
+          '50%': { transform: 'translateX(60%) translateZ(0)' },
+          '100%': { transform: 'translateX(140%) translateZ(0)' },
+        },
+        blinkCaret: {
+          '50%': { opacity: '0' },
+        },
       },
       fontFamily: {
         'sans': ['Inter', 'system-ui', 'sans-serif'],
