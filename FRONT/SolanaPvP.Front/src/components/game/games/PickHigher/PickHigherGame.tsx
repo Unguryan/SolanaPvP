@@ -1,9 +1,9 @@
 // PickHigher game logic - handles tile/chest/card selection
 import React from "react";
 import { GameTile, GamePlayer } from "@/types/game";
-import { TileGrid } from "../TileGrid";
-import { ChestGrid } from "../ChestGrid";
-import { CardRow } from "../CardRow";
+import { TileGrid } from "../../TileGrid";
+import { ChestGrid } from "../../ChestGrid";
+import { CardRow } from "../../CardRow";
 
 interface PickHigherGameProps {
   gameMode: "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree";

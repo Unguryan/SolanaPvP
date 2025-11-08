@@ -87,9 +87,14 @@ export function calculateGameResult(
   players: GamePlayer[],
   stakeSol: number,
   matchType?: "Solo" | "Duo" | "Team",
-  currentPlayer?: string
+  currentPlayer?: string,
+  useFinalScores?: boolean // Для Plinko используем targetScore
 ): GameResult {
   const isTeamBattle = matchType === "Duo" || matchType === "Team";
+
+  // Для финального результата используем targetScore
+  const getPlayerScore = (player: GamePlayer) => 
+    useFinalScores ? player.targetScore : player.currentScore;
 
   if (isTeamBattle) {
     // Team battle logic
@@ -98,11 +103,11 @@ export function calculateGameResult(
     const teamB = players.slice(teamSize, teamSize * 2);
 
     const teamAScore = teamA.reduce(
-      (sum, player) => sum + player.currentScore,
+      (sum, player) => sum + getPlayerScore(player),
       0
     );
     const teamBScore = teamB.reduce(
-      (sum, player) => sum + player.currentScore,
+      (sum, player) => sum + getPlayerScore(player),
       0
     );
 
@@ -116,7 +121,7 @@ export function calculateGameResult(
     // Create scores record
     const scores: Record<string, number> = {};
     players.forEach((player) => {
-      scores[player.username] = player.currentScore;
+      scores[player.username] = getPlayerScore(player);
     });
 
     const teamScores: Record<string, number> = {
@@ -135,7 +140,7 @@ export function calculateGameResult(
   } else {
     // Solo battle logic (existing)
     const sortedPlayers = [...players].sort(
-      (a, b) => b.currentScore - a.currentScore
+      (a, b) => getPlayerScore(b) - getPlayerScore(a)
     );
     const winner = sortedPlayers[0];
 
@@ -147,7 +152,7 @@ export function calculateGameResult(
     // Create scores record
     const scores: Record<string, number> = {};
     players.forEach((player) => {
-      scores[player.username] = player.currentScore;
+      scores[player.username] = getPlayerScore(player);
     });
 
     return {
@@ -182,6 +187,33 @@ export function getGameModeConfig(gameMode: string) {
         maxSelections: 1,
         icon: "🎴",
         name: "Pick 1 from 3 Cards",
+      };
+    case "Plinko3Balls5Rows":
+      return {
+        gridSize: 5,
+        maxSelections: 3,
+        icon: "🎰",
+        name: "Plinko: 3 Balls",
+        rows: 5,
+        slots: 7, // 5 rows → 7 slots (нечетное!)
+      };
+    case "Plinko5Balls7Rows":
+      return {
+        gridSize: 7,
+        maxSelections: 5,
+        icon: "🎰",
+        name: "Plinko: 5 Balls",
+        rows: 7,
+        slots: 9, // 7 rows → 9 slots (нечетное!)
+      };
+    case "Plinko7Balls9Rows":
+      return {
+        gridSize: 9,
+        maxSelections: 7,
+        icon: "🎰",
+        name: "Plinko: 7 Balls",
+        rows: 9,
+        slots: 11, // 9 rows → 11 slots (нечетное!)
       };
     default:
       return {

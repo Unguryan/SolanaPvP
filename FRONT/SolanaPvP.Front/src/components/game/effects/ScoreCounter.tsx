@@ -32,7 +32,7 @@ export const ScoreCounter: React.FC<ScoreCounterProps> = ({
     spring.set(value);
 
     // Update display value
-    const unsubscribe = animatedValue.onChange((latest) => {
+    const unsubscribe = animatedValue.on("change", (latest) => {
       setDisplayValue(latest);
     });
 
@@ -46,7 +46,8 @@ export const ScoreCounter: React.FC<ScoreCounterProps> = ({
       unsubscribe();
       clearTimeout(timer);
     };
-  }, [value, duration, spring, animatedValue, onComplete]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, duration]); // УБРАЛ spring, animatedValue, onComplete - они вызывают бесконечный цикл!
 
   const getColorClass = () => {
     if (value >= 1000) return "text-sol-purple";

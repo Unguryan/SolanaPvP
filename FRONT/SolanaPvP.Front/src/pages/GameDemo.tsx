@@ -11,7 +11,7 @@ import {
 import { generateDemoPlayers } from "@/lib/gameMockGenerator";
 import { getGameModeConfig } from "@/utils/gameScoreDistribution";
 import { Confetti } from "@/components/game/effects/Confetti";
-import { GameResult } from "@/types/game";
+import { GameResult, GameType } from "@/types/game";
 import { AuroraBackground } from "@/components/effects/AuroraBackground";
 import { MatchLoader } from "@/components/loaders/MatchLoader";
 import { GameResultModal } from "@/components/game/GameResultModal";
@@ -20,7 +20,10 @@ import { cn } from "@/utils/cn";
 type GameMode =
   | "PickThreeFromNine"
   | "PickFiveFromSixteen"
-  | "PickOneFromThree";
+  | "PickOneFromThree"
+  | "Plinko3Balls5Rows"
+  | "Plinko5Balls7Rows"
+  | "Plinko7Balls9Rows";
 type MatchType = "Solo" | "Duo" | "Team";
 type GameCategory = "PickHigher" | "Plinko";
 
@@ -36,11 +39,21 @@ export const GameDemo: React.FC = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
 
-  const gameModes: { mode: GameMode; label: string; icon: string }[] = [
+  // PickHigher game modes
+  const pickHigherModes: { mode: GameMode; label: string; icon: string }[] = [
     { mode: "PickThreeFromNine", label: "3v9", icon: "🏆" }, // Сундуки (3x3)
     { mode: "PickFiveFromSixteen", label: "5v16", icon: "🎯" }, // Плитки (4x4)
     { mode: "PickOneFromThree", label: "1v3", icon: "🎴" }, // Карты (3 cards)
   ];
+
+  // Plinko game modes
+  const plinkoModes: { mode: GameMode; label: string; icon: string }[] = [
+    { mode: "Plinko3Balls5Rows", label: "3 Balls", icon: "🎱" },
+    { mode: "Plinko5Balls7Rows", label: "5 Balls", icon: "🎱" },
+    { mode: "Plinko7Balls9Rows", label: "7 Balls", icon: "🎱" },
+  ];
+
+  const gameModes = currentGame === "Plinko" ? plinkoModes : pickHigherModes;
 
   const matchTypes: { type: MatchType; label: string; description: string }[] =
     [
@@ -50,6 +63,9 @@ export const GameDemo: React.FC = () => {
     ];
 
   const handleStartGame = () => {
+    // Scroll to top FIRST
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    
     // Show loader for 5 seconds
     setIsLoading(true);
     
@@ -58,14 +74,13 @@ export const GameDemo: React.FC = () => {
     const randomStake = stakes[Math.floor(Math.random() * stakes.length)];
     setStakeAmount(randomStake);
 
-    // Scroll to top immediately
-    window.scrollTo({ top: 0, behavior: "smooth" });
-
     // Start game after loader
     setTimeout(() => {
       setIsLoading(false);
       setIsGameActive(true);
       setGameKey((prev) => prev + 1); // Force re-render
+      // Scroll again after game starts
+      setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
     }, 5000); // 5 seconds loader
   };
 
@@ -142,7 +157,7 @@ export const GameDemo: React.FC = () => {
 
       <div className="relative min-h-screen bg-bg overflow-hidden">
         <AuroraBackground />
-        <div className="relative z-10 max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-8">
+        <div className="relative z-10 max-w-7xl mx-auto px-1 md:px-6 py-2 md:py-8">
           {/* Header */}
           <motion.div
             className="text-center mb-4 md:mb-8"
@@ -172,7 +187,10 @@ export const GameDemo: React.FC = () => {
                 <div className="flex gap-3 md:gap-4 overflow-x-scroll pb-2 -mx-1 px-1 mt-0 game-scroll">
                   {/* Pick Higher */}
                   <button
-                    onClick={() => setCurrentGame("PickHigher")}
+                    onClick={() => {
+                      setCurrentGame("PickHigher");
+                      setCurrentGameMode("PickThreeFromNine");
+                    }}
                     className={cn(
                       "flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px]",
                       currentGame === "PickHigher"
@@ -184,14 +202,21 @@ export const GameDemo: React.FC = () => {
                     <span className="text-sm font-semibold text-white">Pick Higher</span>
                   </button>
 
-                  {/* Plinko - Coming Soon */}
+                  {/* Plinko */}
                   <button
-                    disabled
-                    className="flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 bg-white/5 border-white/10 opacity-50 cursor-not-allowed min-w-[100px]"
+                    onClick={() => {
+                      setCurrentGame("Plinko");
+                      setCurrentGameMode("Plinko3Balls5Rows");
+                    }}
+                    className={cn(
+                      "flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px]",
+                      currentGame === "Plinko"
+                        ? "bg-gradient-to-br from-purple-500 to-pink-600 border-purple-400/50 shadow-lg"
+                        : "bg-white/5 border-white/10 hover:bg-white/10"
+                    )}
                   >
                     <div className="text-4xl md:text-5xl">🎰</div>
-                    <span className="text-sm font-semibold text-white/70">Plinko</span>
-                    <span className="text-[10px] text-white/50">Soon</span>
+                    <span className="text-sm font-semibold text-white">Plinko</span>
                   </button>
 
                   {/* Bomber - Future */}
@@ -206,14 +231,13 @@ export const GameDemo: React.FC = () => {
                 </div>
               </GlassCard>
 
-              {/* Game Mode Selection - только для Pick Higher */}
-              {currentGame === "PickHigher" && (
-                <GlassCard className="p-4 md:p-6">
-                  <GlassCardHeader>
-                    <GlassCardTitle className="md:text-2xl text-lg font-display text-sol-purple">
-                      Game mode
-                    </GlassCardTitle>
-                  </GlassCardHeader>
+              {/* Game Mode Selection - for both games */}
+              <GlassCard className="p-4 md:p-6">
+                <GlassCardHeader>
+                  <GlassCardTitle className="md:text-2xl text-lg font-display text-sol-purple">
+                    Game mode
+                  </GlassCardTitle>
+                </GlassCardHeader>
                 <div className="grid grid-cols-3 gap-3 md:gap-4 mt-3 md:mt-4">
                   {gameModes.map(({ mode, label, icon }, index) => {
                     const variants = ["mint", "orange", "blue"] as const;
@@ -233,7 +257,6 @@ export const GameDemo: React.FC = () => {
                   })}
                 </div>
               </GlassCard>
-              )}
 
               {/* Match Type Selection */}
               <GlassCard className="p-4 md:p-6">
@@ -332,12 +355,13 @@ export const GameDemo: React.FC = () => {
               {/* Game Board */}
               <UniversalGameBoard
                 key={gameKey}
+                gameType={currentGame === "Plinko" ? GameType.Plinko : GameType.PickHigher}
                 gameMode={currentGameMode}
                 teamSize={currentMatchType}
                 stakeSol={stakeAmount} // Demo stake
-                players={generateDemoPlayers(currentMatchType, "You")}
+                players={generateDemoPlayers(currentMatchType, "You", currentGameMode)}
                 currentPlayer="You"
-                timeLimit={20}
+                timeLimit={20} // 20s for all games
                 onGameComplete={handleGameComplete}
                 isDemoMode={true}
               />

@@ -10,7 +10,9 @@ import {
 } from "@/types/game";
 import { WaitingLobby } from "./WaitingLobby";
 import { GameLayout } from "./GameLayout";
-import { PickHigherGame } from "./games/PickHigherGame";
+import { PickHigherGame } from "./games/PickHigher";
+import { PlinkoGame } from "./games/Plinko";
+import type { PlinkoGameHandle } from "./games/Plinko/PlinkoGame";
 import {
   getGameModeConfig,
   calculateGameResult,
@@ -19,9 +21,10 @@ import {
   generateWinnableTiles,
   generateTargetedTiles,
 } from "@/lib/gameMockGenerator";
+import { breakdownScoreToSlots, getSlotValues } from "@/utils/plinkoScoreBreakdown";
 
 export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
-  gameType: _gameType = GameType.PickHigher, // eslint-disable-line @typescript-eslint/no-unused-vars
+  gameType = GameType.PickHigher,
   gameMode,
   matchMode: _matchMode = MatchMode.Team, // eslint-disable-line @typescript-eslint/no-unused-vars
   teamSize,
@@ -36,6 +39,9 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
 }) => {
   // Map teamSize to old matchType format for backwards compatibility
   const matchType = teamSize || "Solo";
+  
+  // Determine if this is a Plinko game
+  const isPlinkoGame = gameType === GameType.Plinko || gameMode.startsWith("Plinko");
   const [gameState, setGameState] = useState<GameState>({
     status: "waiting",
     timeRemaining: timeLimit,
@@ -61,6 +67,11 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
   >(new Map());
   const gameCompletedRef = useRef(false);
   const autoSelectingRef = useRef(false);
+  const plinkoGameRef = useRef<PlinkoGameHandle>(null);
+  
+  // Plinko-specific state
+  const [plinkoSlots, setPlinkoSlots] = useState<number[]>([]); // Pre-determined slots for each ball
+  const [currentBallIndex, setCurrentBallIndex] = useState(0); // Current ball being dropped
 
   const gameConfig = getGameModeConfig(gameMode);
   const maxPlayers = matchType === "Solo" ? 2 : matchType === "Duo" ? 2 : 5;
@@ -157,32 +168,51 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
           aiPlayers = gameState.players.filter((p) => p.username !== currentPlayer);
         }
 
-        // For real games: use targetScore from backend (outcome already determined)
-        // Generate tiles where player can reach their targetScore through selections
-        const tiles = isDemoMode
-          ? (() => {
-              // Demo mode: generate tiles to give player chance to win
-              // Берем максимальный targetScore среди ВСЕХ игроков
-              const allTargetScores = gameState.players.map((p) => p.targetScore);
-              const maxTargetScore = Math.max(...allTargetScores);
-              // Добавляем 5% для гарантии возможности выиграть
-              const winningTarget = Math.floor(maxTargetScore * 1.05);
-              const playerCurrentScore = currentPlayerData?.currentScore || 0;
-              const neededScore = Math.max(0, winningTarget - playerCurrentScore);
-              return generateWinnableTiles(gameMode, neededScore);
-            })()
-          : generateTargetedTiles(
-              gameMode,
-              currentPlayerData?.targetScore || 1000,
-              gameConfig.maxSelections
-            );
+        // For Plinko: generate slot indices based on target score
+        // For PickHigher: generate tiles
+        if (isPlinkoGame) {
+          // Plinko mode: break down target score into slots
+          const targetScore = currentPlayerData?.targetScore || 1000;
+          const ballCount = gameConfig.maxSelections;
+          const slotCount = (gameConfig as any).slots || 6;
+          
+          const slots = breakdownScoreToSlots(targetScore, ballCount, slotCount);
+          setPlinkoSlots(slots);
+          setCurrentBallIndex(0);
+          
+          setGameState((prev) => ({
+            ...prev,
+            status: "playing",
+            tiles: [], // No tiles for Plinko
+            timeRemaining: timeLimit,
+          }));
+        } else {
+          // PickHigher mode: generate tiles
+          const tiles = isDemoMode
+            ? (() => {
+                // Demo mode: generate tiles to give player chance to win
+                // Берем максимальный targetScore среди ВСЕХ игроков
+                const allTargetScores = gameState.players.map((p) => p.targetScore);
+                const maxTargetScore = Math.max(...allTargetScores);
+                // Добавляем 5% для гарантии возможности выиграть
+                const winningTarget = Math.floor(maxTargetScore * 1.05);
+                const playerCurrentScore = currentPlayerData?.currentScore || 0;
+                const neededScore = Math.max(0, winningTarget - playerCurrentScore);
+                return generateWinnableTiles(gameMode, neededScore);
+              })()
+            : generateTargetedTiles(
+                gameMode,
+                currentPlayerData?.targetScore || 1000,
+                gameConfig.maxSelections
+              );
 
-        setGameState((prev) => ({
-          ...prev,
-          status: "playing",
-          tiles,
-          timeRemaining: timeLimit,
-        }));
+          setGameState((prev) => ({
+            ...prev,
+            status: "playing",
+            tiles,
+            timeRemaining: timeLimit,
+          }));
+        }
 
         // Set up individual timers for ALL AI players (everyone except current player)
         // In both demo AND real games: all opponents are AI-controlled
@@ -219,8 +249,97 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     matchType,
     isDemoMode,
     matchFromBackend,
-    gameConfig.maxSelections,
+    gameConfig,
+    isPlinkoGame,
   ]);
+
+  // Handle ball drop for Plinko
+  const handleBallDrop = useCallback(
+    (slotIndex: number) => {
+      console.log('🔵 handleBallDrop called! Slot:', slotIndex, 'Status:', gameState.status);
+      
+      // При revealing тоже принимаем очки (для автоброса после таймера)
+      if (gameState.status !== "playing" && gameState.status !== "revealing") {
+        console.log('❌ BLOCKED by status:', gameState.status);
+        return;
+      }
+
+      // Find current player
+      const currentPlayerData = currentPlayerPubkey
+        ? gameState.players.find((p) => p.pubkey === currentPlayerPubkey)
+        : gameState.players.find((p) => p.username === currentPlayer);
+      
+      if (!currentPlayerData) {
+        console.log('❌ BLOCKED: current player not found');
+        return;
+      }
+
+      console.log('👤 Current player:', currentPlayer, 'Selections:', currentPlayerData.selections.length, '/', gameConfig.maxSelections);
+
+      // НЕ блокируем если revealing - автоброшенные шарики должны засчитаться!
+      if (gameState.status === "playing" && currentPlayerData.selections.length >= gameConfig.maxSelections) {
+        console.log('❌ BLOCKED: max selections in playing mode');
+        return;
+      }
+
+      // Get the value from the slot
+      const slotCount = (gameConfig as any).slots || 6;
+      const slotValues = getSlotValues(slotCount);
+      const ballValue = slotValues[slotIndex];
+      
+      console.log('✅ Ball value:', ballValue, 'Adding to score...');
+
+      setGameState((prev) => {
+        // Update players with ball value
+        const newPlayers = prev.players.map((player) => {
+          const isCurrentPlayer = currentPlayerPubkey
+            ? player.pubkey === currentPlayerPubkey
+            : player.username === currentPlayer;
+            
+          if (isCurrentPlayer) {
+            const newSelections = [...player.selections, slotIndex];
+            const newScore = player.currentScore + ballValue;
+            console.log('💎 Player update:', player.username, 'Score:', player.currentScore, '→', newScore, 'Selections:', player.selections.length, '→', newSelections.length);
+            return {
+              ...player,
+              selections: newSelections,
+              currentScore: newScore,
+            };
+          }
+          return player;
+        });
+
+        // Check if current player has finished all balls
+        const updatedCurrentPlayer = currentPlayerPubkey
+          ? newPlayers.find((p) => p.pubkey === currentPlayerPubkey)
+          : newPlayers.find((p) => p.username === currentPlayer);
+        
+        if (
+          updatedCurrentPlayer &&
+          updatedCurrentPlayer.selections.length >= gameConfig.maxSelections
+        ) {
+          // For Plinko: DON'T move to revealing - wait for timer!
+          // For PickHigher: reveal immediately (not implemented yet)
+          // Just update players, keep status "playing"
+        }
+
+        // Move to next ball
+        setCurrentBallIndex((prevIndex) => prevIndex + 1);
+
+        return {
+          ...prev,
+          players: newPlayers,
+        };
+      });
+    },
+    [
+      gameState.status,
+      currentPlayer,
+      currentPlayerPubkey,
+      gameState.players,
+      gameConfig,
+    ]
+  );
 
   // Handle tile selection
   const handleTileClick = useCallback(
@@ -390,7 +509,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
             // Timeout waiting for players - refund
             return { ...prev, status: "finished" };
           } else if (prev.status === "playing") {
-            // Timeout during game - auto-select for current player
+            // Timeout during game - auto-select/drop for current player
             const currentPlayerData = prev.players.find(
               (p) => p.username === currentPlayer
             );
@@ -398,8 +517,13 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
               currentPlayerData &&
               currentPlayerData.selections.length < gameConfig.maxSelections
             ) {
-              // Auto-select remaining tiles for current player
-              autoSelectForPlayer(currentPlayer);
+              if (isPlinkoGame) {
+                // Plinko: автоброс всех оставшихся шариков
+                plinkoGameRef.current?.dropAllRemainingBalls();
+              } else {
+                // PickHigher: автовыбор
+                autoSelectForPlayer(currentPlayer);
+              }
             }
             return { ...prev, status: "revealing" };
           }
@@ -414,6 +538,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     autoSelectForPlayer,
     currentPlayer,
     gameConfig.maxSelections,
+    isPlinkoGame,
   ]);
 
   // Handle game completion
@@ -425,13 +550,14 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
       opponentRevealTimers.forEach((timer) => clearTimeout(timer));
       setOpponentRevealTimers(new Map());
 
-      // Wait 2 seconds then show results modal
-      setTimeout(() => {
+      // УМНАЯ ЗАДЕРЖКА для Plinko!
+      const showResults = () => {
         const result = calculateGameResult(
           gameState.players,
           stakeSol,
           matchType,
-          currentPlayer
+          currentPlayer,
+          true // useFinalScores = true (используем targetScore!)
         );
         
         // Determine if current player won from backend data
@@ -472,7 +598,22 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
         if (onGameComplete) {
           onGameComplete(enhancedResult);
         }
-      }, 2000); // Show modal after 2 seconds
+      };
+
+      // Проверяем, был ли автоброс (для Plinko)
+      if (isPlinkoGame && plinkoGameRef.current?.wasAutoDropped()) {
+        // Автоброс: ждем пока все шарики упадут + 2 сек
+        const checkInterval = setInterval(() => {
+          if (plinkoGameRef.current?.getAllBallsLanded()) {
+            clearInterval(checkInterval);
+            // Все шарики упали, ждем еще 2 секунды
+            setTimeout(showResults, 2000);
+          }
+        }, 100); // Проверяем каждые 100ms
+      } else {
+        // Юзер сам все бросил: ждем 3 секунды
+        setTimeout(showResults, 3000);
+      }
     }
   }, [
     gameState.status,
@@ -484,6 +625,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     currentPlayer,
     currentPlayerPubkey,
     matchFromBackend,
+    isPlinkoGame,
   ]);
 
   // Cleanup timers on unmount
@@ -542,15 +684,29 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
         shouldHideScores={shouldHideScores}
         hideTeamScores={shouldHideTeamScores}
       >
-        {/* PickHigher Game */}
-        <PickHigherGame
-          gameMode={gameMode as "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree"}
-          tiles={gameState.tiles}
-          onTileClick={handleTileClick}
-          disabled={gameState.status !== "playing"}
-          currentPlayer={currentPlayer}
-          players={gameState.players}
-        />
+        {/* Game Board - Plinko or PickHigher */}
+        {isPlinkoGame ? (
+          <PlinkoGame
+            ref={plinkoGameRef}
+            gameMode={gameMode as "Plinko3Balls5Rows" | "Plinko5Balls7Rows" | "Plinko7Balls9Rows"}
+            onBallDrop={handleBallDrop}
+            disabled={gameState.status !== "playing"}
+            currentPlayer={currentPlayer}
+            players={gameState.players}
+            currentBallIndex={currentBallIndex}
+            targetSlotIndex={plinkoSlots[currentBallIndex]}
+            allTargetSlots={plinkoSlots}
+          />
+        ) : (
+          <PickHigherGame
+            gameMode={gameMode as "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree"}
+            tiles={gameState.tiles}
+            onTileClick={handleTileClick}
+            disabled={gameState.status !== "playing"}
+            currentPlayer={currentPlayer}
+            players={gameState.players}
+          />
+        )}
       </GameLayout>
     </>
   );

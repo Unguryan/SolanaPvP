@@ -43,17 +43,17 @@ export const GameLayout: React.FC<GameLayoutProps> = ({
   children,
 }) => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-2 md:space-y-6">
       {/* Game Header */}
       <div className="text-center">
         <motion.h2
-          className="text-2xl font-display font-bold text-sol-purple mb-2"
+          className="text-lg md:text-2xl font-display font-bold text-sol-purple mb-1 md:mb-2"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
           {gameName}
         </motion.h2>
-        <div className="flex items-center justify-center space-x-4 text-sm text-txt-muted">
+        <div className="flex items-center justify-center space-x-2 md:space-x-4 text-xs md:text-sm text-txt-muted">
           <span>Stake: {stakeSol} SOL</span>
           <span>•</span>
           <span>Mode: {matchType}</span>
@@ -73,7 +73,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({
           hideTeamScores={hideTeamScores}
         />
       ) : (
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-2 md:gap-4 justify-center">
           {players.map((player) => (
             <PlayerCard
               key={player.id}
@@ -86,7 +86,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({
               }
               isWinner={gameResult?.winner === player.username}
               hideScore={shouldHideScores(player.username)}
-              className="w-44 flex-shrink-0"
+              className="w-36 md:w-44 flex-shrink-0"
             />
           ))}
         </div>

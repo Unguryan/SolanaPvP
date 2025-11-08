@@ -5,6 +5,7 @@ import {
   distributeScoreArray,
   generateRandomValues,
 } from "@/utils/gameScoreDistribution";
+import { getSlotValues } from "@/utils/plinkoScoreBreakdown";
 
 const AI_NAMES = [
   "CryptoKing",
@@ -25,17 +26,52 @@ const AI_NAMES = [
   "Web3Wizard",
 ];
 
+/**
+ * Generate realistic Plinko score from actual slot values
+ * @param ballCount - Number of balls (3, 5, or 7)
+ * @param slotCount - Number of slots (6, 8, or 10 -> returns 7, 9, or 11)
+ * @returns Realistic score that can be achieved
+ */
+function generateRealisticPlinkoScore(ballCount: number, slotCount: number): number {
+  const slotValues = getSlotValues(slotCount);
+  let totalScore = 0;
+  
+  for (let i = 0; i < ballCount; i++) {
+    // Pick random slot value (weighted toward middle for realism)
+    const randomIndex = Math.floor(Math.random() * slotValues.length);
+    totalScore += slotValues[randomIndex];
+  }
+  
+  return totalScore;
+}
+
 export const generateDemoPlayers = (
   matchType: "Solo" | "Duo" | "Team",
-  currentUsername: string = "You"
+  currentUsername: string = "You",
+  gameMode?: string
 ): GamePlayer[] => {
   const players: GamePlayer[] = [];
+  
+  // Check if this is Plinko game
+  const isPlinko = gameMode?.startsWith("Plinko");
+  
+  let playerTargetScore: number;
+  
+  if (isPlinko) {
+    // Generate REALISTIC Plinko scores based on actual slot values
+    const ballCount = gameMode === "Plinko3Balls5Rows" ? 3 : gameMode === "Plinko5Balls7Rows" ? 5 : 7;
+    const slotCount = gameMode === "Plinko3Balls5Rows" ? 6 : gameMode === "Plinko5Balls7Rows" ? 8 : 10;
+    playerTargetScore = generateRealisticPlinkoScore(ballCount, slotCount);
+  } else {
+    // PickHigher - old logic
+    playerTargetScore = Math.floor(Math.random() * 400) + 400; // 400-800
+  }
 
   // Add current user
   players.push({
     id: "current-user",
     username: currentUsername,
-    targetScore: Math.floor(Math.random() * 800) + 1200, // 1200-2000
+    targetScore: playerTargetScore,
     currentScore: 0,
     selections: [],
     isReady: true,
@@ -49,14 +85,25 @@ export const generateDemoPlayers = (
 
   for (let i = 0; i < aiCount; i++) {
     const uniqueName = shuffledNames[i % shuffledNames.length];
-    const targetScore = Math.floor(Math.random() * 800) + 1200; // 1200-2000
-    // Give AI players balanced scores - not too high to allow player to win
-    const aiScore = Math.floor(Math.random() * 800) + 400; // 400-1200 (balanced)
+    
+    let aiTargetScore: number;
+    
+    if (isPlinko) {
+      // Generate realistic Plinko score for AI
+      const ballCount = gameMode === "Plinko3Balls5Rows" ? 3 : gameMode === "Plinko5Balls7Rows" ? 5 : 7;
+      const slotCount = gameMode === "Plinko3Balls5Rows" ? 6 : gameMode === "Plinko5Balls7Rows" ? 8 : 10;
+      aiTargetScore = generateRealisticPlinkoScore(ballCount, slotCount);
+    } else {
+      // PickHigher - old logic
+      const variance = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
+      aiTargetScore = Math.floor(playerTargetScore * variance);
+    }
+    
     players.push({
       id: `ai-player-${i}`,
       username: uniqueName,
-      targetScore: targetScore,
-      currentScore: aiScore,
+      targetScore: aiTargetScore,
+      currentScore: 0, // Everyone starts at 0
       selections: [],
       isReady: true,
     });
