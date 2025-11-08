@@ -60,10 +60,12 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     Map<string, NodeJS.Timeout>
   >(new Map());
   const gameCompletedRef = useRef(false);
+  const autoSelectingRef = useRef(false);
 
   const gameConfig = getGameModeConfig(gameMode);
   const maxPlayers = matchType === "Solo" ? 2 : matchType === "Duo" ? 2 : 5;
-  const isWaitingForPlayers = gameState.players.length < maxPlayers;
+  // В Demo режиме сразу пропускаем waiting, в реальной игре ждем игроков
+  const isWaitingForPlayers = isDemoMode ? false : gameState.players.length < maxPlayers;
   const isWaitingForScores = gameState.status === "loading";
   const [localGameResult, setLocalGameResult] = useState<GameResult | null>(null);
 
@@ -124,126 +126,18 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     });
   }, []);
 
-  // Auto-select function for timeout
-  const autoSelectForPlayer = useCallback(
-    (playerUsername: string) => {
-      const player = gameState.players.find(
-        (p) => p.username === playerUsername
-      );
-      if (!player) return;
-
-      const remainingSelections =
-        gameConfig.maxSelections - player.selections.length;
-      if (remainingSelections <= 0) return;
-
-      // Get unselected tiles
-      const unselectedTiles = gameState.tiles
-        .map((tile, index) => ({ tile, index }))
-        .filter(({ tile }) => !tile.selected);
-
-      // Randomly select remaining tiles
-      const shuffled = [...unselectedTiles].sort(() => Math.random() - 0.5);
-      const autoSelections = shuffled
-        .slice(0, remainingSelections)
-        .map(({ index }) => index);
-
-      // Auto-select remaining tiles for current player
-
-      setGameState((prev) => {
-        const newTiles = [...prev.tiles];
-        const newPlayers = prev.players.map((p) => {
-          if (p.username === playerUsername) {
-            let newScore = p.currentScore;
-            const newSelections = [...p.selections];
-
-            autoSelections.forEach((tileIndex) => {
-              // Use existing tile value instead of generating new one
-              const tileValue = newTiles[tileIndex]?.value || 0;
-              newTiles[tileIndex] = {
-                ...newTiles[tileIndex],
-                selected: true,
-                revealed: true,
-                value: tileValue,
-              };
-              newSelections.push(tileIndex);
-              newScore += tileValue;
-            });
-
-            return {
-              ...p,
-              selections: newSelections,
-              currentScore: newScore,
-            };
-          }
-          return p;
-        });
-
-        // After auto-selection, reveal all remaining tiles (same logic as in handleTileClick)
-        const allTilesRevealed = newTiles.map((tile) => ({
-          ...tile,
-          revealed: true,
-        }));
-
-        return {
-          ...prev,
-          tiles: allTilesRevealed,
-          players: newPlayers,
-        };
-      });
-    },
-    [gameState.players, gameState.tiles, gameConfig.maxSelections]
-  );
-
-  // Timer effect
-  useEffect(() => {
-    if (gameState.status !== "playing" && gameState.status !== "waiting")
-      return;
-
-    const timer = setInterval(() => {
-      setGameState((prev) => {
-        if (prev.timeRemaining <= 0) {
-          if (prev.status === "waiting") {
-            // Timeout waiting for players - refund
-            return { ...prev, status: "finished" };
-          } else if (prev.status === "playing") {
-            // Timeout during game - auto-select for current player
-            const currentPlayerData = prev.players.find(
-              (p) => p.username === currentPlayer
-            );
-            if (
-              currentPlayerData &&
-              currentPlayerData.selections.length < gameConfig.maxSelections
-            ) {
-              // Auto-select remaining tiles for current player
-              autoSelectForPlayer(currentPlayer);
-            }
-            return { ...prev, status: "revealing" };
-          }
-        }
-        return { ...prev, timeRemaining: prev.timeRemaining - 1 };
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [
-    gameState.status,
-    autoSelectForPlayer,
-    currentPlayer,
-    gameConfig.maxSelections,
-  ]);
-
   // Initialize game when all players are ready
   useEffect(() => {
     if (isWaitingForPlayers || isWaitingForScores) return;
 
     if (
       gameState.status === "waiting" &&
-      gameState.players.length >= maxPlayers
+      (isDemoMode || gameState.players.length >= maxPlayers)
     ) {
       // Start loading phase
       setGameState((prev) => ({ ...prev, status: "loading" }));
 
-      // Simulate loading delay
+      // Simulate loading delay (shorter for demo)
       setTimeout(() => {
         // Get current player and AI players
         // Use currentPlayerPubkey if available (real game), otherwise username (demo)
@@ -268,12 +162,13 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
         const tiles = isDemoMode
           ? (() => {
               // Demo mode: generate tiles to give player chance to win
-              const highestAIScore = Math.max(
-                ...aiPlayers.map((p) => p.currentScore)
-              );
-              const targetWinScore = highestAIScore + 100;
+              // Берем максимальный targetScore среди ВСЕХ игроков
+              const allTargetScores = gameState.players.map((p) => p.targetScore);
+              const maxTargetScore = Math.max(...allTargetScores);
+              // Добавляем 5% для гарантии возможности выиграть
+              const winningTarget = Math.floor(maxTargetScore * 1.05);
               const playerCurrentScore = currentPlayerData?.currentScore || 0;
-              const neededScore = Math.max(0, targetWinScore - playerCurrentScore);
+              const neededScore = Math.max(0, winningTarget - playerCurrentScore);
               return generateWinnableTiles(gameMode, neededScore);
             })()
           : generateTargetedTiles(
@@ -434,6 +329,93 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     ]
   );
 
+  // Auto-select function for timeout - вызывает handleTileClick для правильного расчета
+  const autoSelectForPlayer = useCallback(
+    (playerUsername: string) => {
+      // Защита от повторного вызова
+      if (autoSelectingRef.current) return;
+      autoSelectingRef.current = true;
+
+      const player = gameState.players.find(
+        (p) => p.username === playerUsername
+      );
+      if (!player) {
+        autoSelectingRef.current = false;
+        return;
+      }
+
+      const remainingSelections =
+        gameConfig.maxSelections - player.selections.length;
+      if (remainingSelections <= 0) {
+        autoSelectingRef.current = false;
+        return;
+      }
+
+      // Get unselected tiles
+      const unselectedTiles = gameState.tiles
+        .map((tile, index) => ({ tile, index }))
+        .filter(({ tile }) => !tile.selected && !tile.revealed);
+
+      // Randomly select remaining tiles
+      const shuffled = [...unselectedTiles].sort(() => Math.random() - 0.5);
+      const autoSelections = shuffled
+        .slice(0, remainingSelections)
+        .map(({ index }) => index);
+
+      console.log(`[AutoSelect] Player: ${playerUsername}, Remaining: ${remainingSelections}, Selecting: ${autoSelections}`);
+
+      // Вызываем handleTileClick для каждого tile
+      // Это гарантирует правильный расчет значений для достижения targetScore
+      autoSelections.forEach((tileIndex) => {
+        handleTileClick(tileIndex);
+      });
+
+      // Сбрасываем флаг после небольшой задержки
+      setTimeout(() => {
+        autoSelectingRef.current = false;
+      }, 500);
+    },
+    [gameState.players, gameState.tiles, gameConfig.maxSelections, handleTileClick]
+  );
+
+  // Timer effect
+  useEffect(() => {
+    if (gameState.status !== "playing" && gameState.status !== "waiting")
+      return;
+
+    const timer = setInterval(() => {
+      setGameState((prev) => {
+        if (prev.timeRemaining <= 0) {
+          if (prev.status === "waiting") {
+            // Timeout waiting for players - refund
+            return { ...prev, status: "finished" };
+          } else if (prev.status === "playing") {
+            // Timeout during game - auto-select for current player
+            const currentPlayerData = prev.players.find(
+              (p) => p.username === currentPlayer
+            );
+            if (
+              currentPlayerData &&
+              currentPlayerData.selections.length < gameConfig.maxSelections
+            ) {
+              // Auto-select remaining tiles for current player
+              autoSelectForPlayer(currentPlayer);
+            }
+            return { ...prev, status: "revealing" };
+          }
+        }
+        return { ...prev, timeRemaining: prev.timeRemaining - 1 };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [
+    gameState.status,
+    autoSelectForPlayer,
+    currentPlayer,
+    gameConfig.maxSelections,
+  ]);
+
   // Handle game completion
   useEffect(() => {
     if (gameState.status === "revealing" && !gameCompletedRef.current) {
@@ -443,7 +425,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
       opponentRevealTimers.forEach((timer) => clearTimeout(timer));
       setOpponentRevealTimers(new Map());
 
-      // Wait 1 second then show results modal
+      // Wait 2 seconds then show results modal
       setTimeout(() => {
         const result = calculateGameResult(
           gameState.players,
@@ -490,7 +472,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
         if (onGameComplete) {
           onGameComplete(enhancedResult);
         }
-      }, 2000); // Show modal after 1 second
+      }, 2000); // Show modal after 2 seconds
     }
   }, [
     gameState.status,
@@ -567,6 +549,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
           onTileClick={handleTileClick}
           disabled={gameState.status !== "playing"}
           currentPlayer={currentPlayer}
+          players={gameState.players}
         />
       </GameLayout>
     </>

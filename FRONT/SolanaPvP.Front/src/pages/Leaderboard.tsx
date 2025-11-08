@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/GlassCard";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { TrophyIcon, UserGroupIcon } from "@heroicons/react/24/outline";
+import { AuroraBackground } from "@/components/effects/AuroraBackground";
 
 // Helper functions
 const getRankIcon = (rank: number) => {
@@ -110,7 +111,8 @@ export const Leaderboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-bg py-4 lg:py-8">
+      <div className="relative min-h-screen bg-bg py-4 lg:py-8 overflow-hidden">
+        <AuroraBackground />
         <div className="max-w-7xl mx-auto px-3 lg:px-6">
           <div className="text-center mb-8">
             <Skeleton className="h-12 w-64 mx-auto mb-4" />
@@ -127,7 +129,9 @@ export const Leaderboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bg py-4 lg:py-8">
+    <div className="relative min-h-screen bg-bg py-4 lg:py-8 overflow-hidden">
+      <AuroraBackground />
+      <div className="relative z-10">
       <div className="max-w-7xl mx-auto px-3 lg:px-6">
         {/* Header */}
         <div className="text-center mb-8">
@@ -344,6 +348,7 @@ export const Leaderboard: React.FC = () => {
             ))}
           </div>
         </GlassCard>
+      </div>
       </div>
     </div>
   );

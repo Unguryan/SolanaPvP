@@ -25,6 +25,8 @@ import { matchesApi } from "@/services/api/matches";
 import { mapTeamSizeToMatchType, mapGameModeToFrontend } from "@/utils/gameModeMapper";
 import * as anchor from "@coral-xyz/anchor";
 import { useWebSocketStore } from "@/store/websocketStore";
+import { AuroraBackground } from "@/components/effects/AuroraBackground";
+import { MatchLoader } from "@/components/loaders/MatchLoader";
 
 type PageMode = "preview" | "preparing" | "game" | "results";
 
@@ -746,7 +748,8 @@ export const MatchPreview: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-bg py-4 lg:py-8">
+      <div className="relative min-h-screen bg-bg py-4 lg:py-8 overflow-hidden">
+        <AuroraBackground />
         <div className="max-w-4xl mx-auto px-3 lg:px-4">
           <Skeleton className="h-20 w-full mb-4 lg:mb-6" />
           <Skeleton className="h-64 w-full mb-4 lg:mb-6" />
@@ -758,7 +761,8 @@ export const MatchPreview: React.FC = () => {
 
   if (!lobby && !isLoading) {
     return (
-      <div className="min-h-screen bg-bg flex items-center justify-center">
+      <div className="relative min-h-screen bg-bg flex items-center justify-center overflow-hidden">
+        <AuroraBackground />
         <GlassCard className="p-8 text-center">
           <h2 className="text-2xl font-bold text-txt-base mb-4">
             Match Not Found
@@ -788,7 +792,8 @@ export const MatchPreview: React.FC = () => {
     if (isViewer) {
       // Spectators only see stats, not the game board
       return (
-        <div className="min-h-screen bg-bg py-4 lg:py-8">
+        <div className="relative min-h-screen bg-bg py-4 lg:py-8 overflow-hidden">
+          <AuroraBackground />
           <div className="max-w-4xl mx-auto px-3 lg:px-6">
             <motion.div
               className="text-center mb-4 lg:mb-8"
@@ -837,7 +842,8 @@ export const MatchPreview: React.FC = () => {
 
     // Participants see the full game
     return (
-      <div className="min-h-screen bg-bg py-4 lg:py-8">
+      <div className="relative min-h-screen bg-bg py-4 lg:py-8 overflow-hidden">
+        <AuroraBackground />
         <div className="max-w-7xl mx-auto px-3 lg:px-6">
           <motion.div
             className="text-center mb-4 lg:mb-8"
@@ -886,7 +892,9 @@ export const MatchPreview: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bg py-4 lg:py-8 relative">
+    <div className="relative min-h-screen bg-bg py-4 lg:py-8 overflow-hidden">
+      <AuroraBackground />
+      <div className="relative z-10">
       {/* Join Message Toast */}
       <AnimatePresence>
         {joinMessage && (
@@ -906,43 +914,33 @@ export const MatchPreview: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Preparation Overlay */}
+      {/* Preparation Overlay - MatchLoader */}
       <AnimatePresence>
         {pageMode === "preparing" && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center"
-            style={{ backdropFilter: "blur(10px)" }}
+            className="fixed inset-0 z-50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <div className="absolute inset-0 bg-black/60" />
-            <motion.div
-              className="relative z-10 text-center"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5 }}
-            >
-              <motion.div
-                className="text-8xl mb-6"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              >
-                ⚔️
-              </motion.div>
-              <h2 className="text-4xl font-display font-bold text-sol-purple mb-3">
-                Preparing Match
-              </h2>
-              {matchFromBackend?.status === "Pending" && matchFromBackend?.pendingAt ? (
-                <p className="text-xl text-txt-muted">
-                  {Date.now() - new Date(matchFromBackend.pendingAt).getTime() < 5000
-                    ? "Creating new Arena...."
-                    : "Waiting for VRF..."}
-                </p>
-              ) : (
-                <p className="text-xl text-txt-muted">Preparing arena...</p>
-              )}
-            </motion.div>
+            <MatchLoader
+              team1={{
+                name: "Team 1",
+                players: getTeam1Players().map((pubkey) => `@${getPlayerDisplay(pubkey)}`),
+              }}
+              team2={{
+                name: "Team 2",
+                players: getTeam2Players().map((pubkey) => `@${getPlayerDisplay(pubkey)}`),
+              }}
+              statusMessages={[
+                "Connecting to Solana",
+                "Creating new arena",
+                `Preparing ${lobby.teamSize}v${lobby.teamSize} match`,
+                "Waiting for VRF",
+                "Locking escrow...",
+                "Match starting soon",
+              ]}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -1239,6 +1237,7 @@ export const MatchPreview: React.FC = () => {
             Back to Matches
           </GlowButton>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -106,69 +106,6 @@ export const HeroCTA: React.FC<HeroCTAProps> = ({ className = "" }) => {
           <div className="text-sm text-txt-muted">Game Modes</div>
         </div>
       </motion.div>
-
-      {/* Floating Elements */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <motion.div
-          animate={{
-            y: [0, -10, 0],
-            rotate: [0, 5, 0],
-          }}
-          transition={{
-            duration: 4,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute top-10 left-10 text-2xl opacity-20"
-        >
-          🎴
-        </motion.div>
-        <motion.div
-          animate={{
-            y: [0, 10, 0],
-            rotate: [0, -5, 0],
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1,
-          }}
-          className="absolute top-20 right-10 text-2xl opacity-20"
-        >
-          🏆
-        </motion.div>
-        <motion.div
-          animate={{
-            y: [0, -15, 0],
-            rotate: [0, 10, 0],
-          }}
-          transition={{
-            duration: 5,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 2,
-          }}
-          className="absolute bottom-20 left-20 text-2xl opacity-20"
-        >
-          🎯
-        </motion.div>
-        <motion.div
-          animate={{
-            y: [0, 15, 0],
-            rotate: [0, -10, 0],
-          }}
-          transition={{
-            duration: 4,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 0.5,
-          }}
-          className="absolute bottom-10 right-20 text-2xl opacity-20"
-        >
-          💎
-        </motion.div>
-      </div>
     </motion.div>
   );
 };

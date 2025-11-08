@@ -15,16 +15,16 @@ interface MatchLoaderProps {
 }
 
 const DEFAULT_STATUS_MESSAGES = [
-  "Connecting for Web3",
-  "Preparing Arena",
+  "Connecting to Solana",
+  "Creating new arena",
+  "Preparing match",
   "Waiting for VRF",
-  "Finalizing Match",
-  "Seeding randomness",
-  "Verifying payouts",
+  "Locking escrow...",
+  "Match starting soon",
 ];
 
-// Hook for typewriter effect
-const useTypewriter = (texts: string[], typingSpeed = 100, deletingSpeed = 50) => {
+// Hook for typewriter effect - оптимизирован для 30 секунд (5 сек на сообщение)
+const useTypewriter = (texts: string[], typingSpeed = 80, deletingSpeed = 40) => {
   const [displayText, setDisplayText] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -39,8 +39,8 @@ const useTypewriter = (texts: string[], typingSpeed = 100, deletingSpeed = 50) =
           if (displayText.length < currentText.length) {
             setDisplayText(currentText.slice(0, displayText.length + 1));
           } else {
-            // Finished typing, pause then start deleting
-            setTimeout(() => setIsDeleting(true), 2000);
+            // Finished typing, pause then start deleting (3.5 seconds)
+            setTimeout(() => setIsDeleting(true), 3500);
           }
         } else {
           // Deleting
@@ -75,7 +75,7 @@ export const MatchLoader: React.FC<MatchLoaderProps> = ({
       <AuroraBackground />
 
       {/* Main Stage */}
-      <section className="relative z-10 flex flex-col md:flex-row items-stretch md:items-center justify-center gap-6 md:gap-4 mx-auto mt-16 mb-8 px-4 max-w-7xl">
+      <section className="relative z-10 flex flex-col md:flex-row items-stretch md:items-center justify-center gap-1 tablet:gap-3 lg:gap-6 mx-auto mt-16 mb-8 px-4 tablet:px-6 lg:px-8 max-w-7xl">
         {/* Team 1 Panel (Bevel) */}
         <div className="w-full md:flex-1 flex justify-center">
           <TeamPanel team={team1} type="bevel" />
@@ -94,7 +94,7 @@ export const MatchLoader: React.FC<MatchLoaderProps> = ({
 
       {/* Current Status - с typewriter эффектом */}
       <div className="relative z-10 w-full max-w-[600px] mx-auto mb-6 px-4">
-        <div className="flex items-center justify-center gap-3 py-5 px-8 rounded-2xl border-2 border-white/20 shadow-[0_0_40px_rgba(153,69,255,0.2)]"
+        <div className="flex items-center justify-center gap-2 md:gap-3 py-3 px-4 md:py-5 md:px-8 rounded-2xl border-2 border-white/20 shadow-[0_0_40px_rgba(153,69,255,0.2)]"
           style={{
             background: "rgba(11,15,23,0.9)",
           }}
@@ -142,7 +142,7 @@ const TeamPanel: React.FC<{ team: TeamData; type: "bevel" | "hex" }> = ({ team, 
 
   return (
     <motion.div
-      className="relative w-full md:w-[420px]"
+      className="relative w-full md:w-[360px] tablet:w-[390px] lg:w-[420px]"
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5, delay: cardDelay, ease: "easeOut" }}
@@ -191,10 +191,10 @@ const TeamPanel: React.FC<{ team: TeamData; type: "bevel" | "hex" }> = ({ team, 
           />
 
           {/* Content */}
-          <div className="relative p-8 z-10">
+          <div className="relative p-4 md:p-8 z-10">
             {/* Team name - без лейбла "Team" */}
             <motion.h3
-              className="font-display font-extrabold text-white mb-6"
+              className="font-display font-extrabold text-white mb-3"
               style={{
                 fontSize: "clamp(26px, 3.5vw, 36px)",
                 textShadow: `0 0 20px ${accentColor}50`,
@@ -207,7 +207,7 @@ const TeamPanel: React.FC<{ team: TeamData; type: "bevel" | "hex" }> = ({ team, 
             </motion.h3>
 
             {/* Players list - появляются одновременно в обеих командах */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               {team.players.map((player, idx) => (
                 <motion.div
                   key={idx}
@@ -279,7 +279,7 @@ const VSCenter: React.FC = () => {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
     >
-      <div className="relative w-28 h-28">
+      <div className="relative w-24 md:w-26 tablet:w-30 lg:w-32 h-24 md:h-26 tablet:h-30 lg:h-32">
         {/* Outer rotating ring */}
         <motion.div
           className="absolute inset-0 rounded-full"
@@ -327,48 +327,51 @@ const VSCenter: React.FC = () => {
           }}
         />
 
-        {/* Floating energy particles - уменьшено с 5 до 3 для оптимизации */}
+        {/* Floating energy particles - с рандомными позициями */}
         <div className="absolute inset-0">
           {[
-            { angle: 0, delay: 0, color: "#9945FF" },
-            { angle: 120, delay: 0.3, color: "#14F195" },
-            { angle: 240, delay: 0.6, color: "#00FFA3" },
-          ].map((particle, idx) => (
-            <motion.div
-              key={idx}
-              className="absolute w-2 h-2 rounded-full"
-              style={{
-                top: "50%",
-                left: "50%",
-                background: particle.color,
-                boxShadow: `0 0 12px ${particle.color}`,
-                willChange: "transform, opacity",
-              }}
-              animate={{
-                x: [
-                  0,
-                  Math.cos((particle.angle * Math.PI) / 180) * 50,
-                  Math.cos((particle.angle * Math.PI) / 180) * 60,
-                ],
-                y: [
-                  0,
-                  Math.sin((particle.angle * Math.PI) / 180) * 50,
-                  Math.sin((particle.angle * Math.PI) / 180) * 60,
-                ],
-                opacity: [0, 0.8, 0],
-                scale: [0.5, 1, 0.5],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                delay: particle.delay,
-                ease: "easeOut",
-              }}
-            />
-          ))}
+            { angle: Math.random() * 360, delay: 0, color: "#9945FF" },
+            { angle: Math.random() * 360, delay: 0.4, color: "#14F195" },
+            { angle: Math.random() * 360, delay: 0.8, color: "#00FFA3" },
+          ].map((particle, idx) => {
+            const distance = 45 + Math.random() * 15; // 45-60px
+            return (
+              <motion.div
+                key={idx}
+                className="absolute w-1.5 h-1.5 rounded-full"
+                style={{
+                  top: "50%",
+                  left: "50%",
+                  background: particle.color,
+                  boxShadow: `0 0 10px ${particle.color}`,
+                  willChange: "transform, opacity",
+                }}
+                animate={{
+                  x: [
+                    0,
+                    Math.cos((particle.angle * Math.PI) / 180) * distance,
+                    Math.cos((particle.angle * Math.PI) / 180) * (distance + 10),
+                  ],
+                  y: [
+                    0,
+                    Math.sin((particle.angle * Math.PI) / 180) * distance,
+                    Math.sin((particle.angle * Math.PI) / 180) * (distance + 10),
+                  ],
+                  opacity: [0, 0.9, 0],
+                  scale: [0.4, 1, 0.4],
+                }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  delay: particle.delay,
+                  ease: "easeOut",
+                }}
+              />
+            );
+          })}
         </div>
 
-        {/* VS Text - уменьшенный размер */}
+        {/* VS Text - responsive размер */}
         <motion.div
           className="absolute inset-0 flex items-center justify-center"
           animate={{
@@ -381,7 +384,7 @@ const VSCenter: React.FC = () => {
           }}
         >
           <div
-            className="font-display font-black tracking-[0.25em] text-3xl"
+            className="font-display font-black tracking-[0.25em] text-4xl md:text-5xl"
             style={{
               color: "transparent",
               background: "linear-gradient(135deg, #9945FF 0%, #fff 50%, #14F195 100%)",

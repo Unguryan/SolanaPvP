@@ -17,8 +17,6 @@ import { GameDemo } from "@/pages/GameDemo";
 import { CreateLobby } from "@/pages/CreateLobby";
 import { MatchPreview } from "@/pages/MatchPreview";
 import ForceRefund from "@/pages/ForceRefund";
-import { MockLoader1 } from "@/pages/MockLoader1";
-import { MockLoader5 } from "@/pages/MockLoader5";
 
 function App() {
   return (
@@ -37,8 +35,6 @@ function App() {
             <Route path="/f/:lobbyPda" element={<ForceRefund />} />
 
             <Route path="/demo" element={<GameDemo />} />
-            <Route path="/mockLoader1" element={<MockLoader1 />} />
-            <Route path="/mockLoader5" element={<MockLoader5 />} />
             <Route path={ROUTES.LEADERBOARD} element={<Leaderboard />} />
             <Route
               path={ROUTES.PROFILE}

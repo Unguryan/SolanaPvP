@@ -22,6 +22,7 @@ import {
   StarIcon,
   PencilIcon,
 } from "@heroicons/react/24/outline";
+import { AuroraBackground } from "@/components/effects/AuroraBackground";
 
 // Helper functions
 const getGameModeIcon = (gameMode: string) => {
@@ -119,7 +120,8 @@ export const Profile: React.FC = () => {
 
   if (!publicKey) {
     return (
-      <div className="min-h-screen bg-bg py-4 lg:py-8 flex items-center justify-center">
+      <div className="relative min-h-screen bg-bg py-4 lg:py-8 flex items-center justify-center overflow-hidden">
+        <AuroraBackground />
         <div className="text-center px-3">
           <h2 className="text-xl lg:text-2xl font-display font-bold text-txt-base mb-4">
             Connect Your Wallet
@@ -134,7 +136,8 @@ export const Profile: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-bg py-4 lg:py-8">
+      <div className="relative min-h-screen bg-bg py-4 lg:py-8 overflow-hidden">
+        <AuroraBackground />
         <div className="max-w-6xl mx-auto px-3 lg:px-6">
           <div className="text-center mb-8">
             <Skeleton className="h-12 w-64 mx-auto mb-4" />
@@ -155,7 +158,8 @@ export const Profile: React.FC = () => {
 
   if (error || !profile) {
     return (
-      <div className="min-h-screen bg-bg py-4 lg:py-8 flex items-center justify-center">
+      <div className="relative min-h-screen bg-bg py-4 lg:py-8 flex items-center justify-center overflow-hidden">
+        <AuroraBackground />
         <div className="text-center px-3">
           <h2 className="text-xl lg:text-2xl font-display font-bold text-red-400 mb-4">
             Error Loading Profile
@@ -170,7 +174,9 @@ export const Profile: React.FC = () => {
     profile.matchesPlayed > 0 ? profile.wins / profile.matchesPlayed : 0;
 
   return (
-    <div className="min-h-screen bg-bg py-4 lg:py-8">
+    <div className="relative min-h-screen bg-bg py-4 lg:py-8 overflow-hidden">
+      <AuroraBackground />
+      <div className="relative z-10">
       <div className="max-w-6xl mx-auto px-3 lg:px-6">
         {/* Header */}
         <div className="text-center mb-8">
@@ -583,6 +589,7 @@ export const Profile: React.FC = () => {
         onClose={() => setShowUsernameModal(false)}
         onSuccess={handleUsernameChange}
       />
+      </div>
     </div>
   );
 };

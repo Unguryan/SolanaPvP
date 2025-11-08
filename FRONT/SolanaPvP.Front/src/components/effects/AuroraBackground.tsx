@@ -3,8 +3,8 @@ import { motion } from "framer-motion";
 
 export const AuroraBackground: React.FC = () => {
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {/* Animated blobs with GPU acceleration - simplified for performance */}
+    <div className="fixed inset-0 pointer-events-none overflow-hidden">
+      {/* Animated blobs with GPU acceleration - медленные анимации */}
       <motion.div
         className="absolute -top-40 -left-40 w-[680px] h-[680px] rounded-full opacity-50 mix-blend-screen"
         style={{
@@ -12,11 +12,11 @@ export const AuroraBackground: React.FC = () => {
           willChange: "transform",
         }}
         animate={{
-          x: [0, 30, 0],
-          y: [0, 50, 0],
+          x: [0, 20, 0],
+          y: [0, 30, 0],
         }}
         transition={{
-          duration: 20,
+          duration: 35,
           repeat: Infinity,
           ease: "easeInOut",
         }}
@@ -28,11 +28,11 @@ export const AuroraBackground: React.FC = () => {
           willChange: "transform",
         }}
         animate={{
-          x: [0, -40, 0],
-          y: [0, 60, 0],
+          x: [0, -25, 0],
+          y: [0, 40, 0],
         }}
         transition={{
-          duration: 25,
+          duration: 40,
           repeat: Infinity,
           ease: "easeInOut",
         }}
@@ -44,11 +44,11 @@ export const AuroraBackground: React.FC = () => {
           willChange: "transform",
         }}
         animate={{
-          x: [0, 50, 0],
-          y: [0, -30, 0],
+          x: [0, 30, 0],
+          y: [0, -20, 0],
         }}
         transition={{
-          duration: 22,
+          duration: 30,
           repeat: Infinity,
           ease: "easeInOut",
         }}

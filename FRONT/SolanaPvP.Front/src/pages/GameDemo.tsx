@@ -12,26 +12,34 @@ import { generateDemoPlayers } from "@/lib/gameMockGenerator";
 import { getGameModeConfig } from "@/utils/gameScoreDistribution";
 import { Confetti } from "@/components/game/effects/Confetti";
 import { GameResult } from "@/types/game";
+import { AuroraBackground } from "@/components/effects/AuroraBackground";
+import { MatchLoader } from "@/components/loaders/MatchLoader";
+import { GameResultModal } from "@/components/game/GameResultModal";
+import { cn } from "@/utils/cn";
 
 type GameMode =
   | "PickThreeFromNine"
   | "PickFiveFromSixteen"
   | "PickOneFromThree";
 type MatchType = "Solo" | "Duo" | "Team";
+type GameCategory = "PickHigher" | "Plinko";
 
 export const GameDemo: React.FC = () => {
+  const [currentGame, setCurrentGame] = useState<GameCategory>("PickHigher");
   const [currentGameMode, setCurrentGameMode] =
     useState<GameMode>("PickThreeFromNine");
   const [currentMatchType, setCurrentMatchType] = useState<MatchType>("Solo");
+  const [isLoading, setIsLoading] = useState(false);
   const [isGameActive, setIsGameActive] = useState(false);
   const [gameKey, setGameKey] = useState(0);
   const [stakeAmount, setStakeAmount] = useState(0.1);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [gameResult, setGameResult] = useState<GameResult | null>(null);
 
   const gameModes: { mode: GameMode; label: string; icon: string }[] = [
-    { mode: "PickThreeFromNine", label: "3x3 Tiles", icon: "🎯" },
-    { mode: "PickFiveFromSixteen", label: "4x4 Chests", icon: "🏆" },
-    { mode: "PickOneFromThree", label: "1x3 Cards", icon: "🎴" },
+    { mode: "PickThreeFromNine", label: "3v9", icon: "🏆" }, // Сундуки (3x3)
+    { mode: "PickFiveFromSixteen", label: "5v16", icon: "🎯" }, // Плитки (4x4)
+    { mode: "PickOneFromThree", label: "1v3", icon: "🎴" }, // Карты (3 cards)
   ];
 
   const matchTypes: { type: MatchType; label: string; description: string }[] =
@@ -42,21 +50,28 @@ export const GameDemo: React.FC = () => {
     ];
 
   const handleStartGame = () => {
+    // Show loader for 5 seconds
+    setIsLoading(true);
+    
     // Generate random stake amount
     const stakes = [0.1, 0.5, 1.0];
     const randomStake = stakes[Math.floor(Math.random() * stakes.length)];
     setStakeAmount(randomStake);
-    setIsGameActive(true);
-    setGameKey((prev) => prev + 1); // Force re-render
 
-    // Scroll to top with delay to ensure state update
+    // Scroll to top immediately
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    // Start game after loader
     setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 100);
+      setIsLoading(false);
+      setIsGameActive(true);
+      setGameKey((prev) => prev + 1); // Force re-render
+    }, 5000); // 5 seconds loader
   };
 
   const handleGameComplete = (result: GameResult) => {
     console.log("Game completed:", result);
+    setGameResult(result);
     // Show confetti if player won
     const isWinner =
       result.winner === "You" ||
@@ -67,11 +82,41 @@ export const GameDemo: React.FC = () => {
   };
 
   const handleResetGame = () => {
+    setIsLoading(false);
     setIsGameActive(false);
     setGameKey((prev) => prev + 1);
   };
 
   const currentConfig = getGameModeConfig(currentGameMode);
+
+  // Show loader overlay
+  if (isLoading) {
+    const teamSize = currentMatchType === "Solo" ? 1 : currentMatchType === "Duo" ? 2 : 5;
+    const demoPlayers = [
+      ["@demo_player", "@ai_opponent", "@test_user", "@random_guy", "@mock_player"],
+      ["@bot_alpha", "@bot_beta", "@bot_gamma", "@bot_delta", "@bot_omega"]
+    ];
+
+    return (
+      <MatchLoader
+        team1={{
+          name: "Team 1",
+          players: demoPlayers[0].slice(0, teamSize).map(p => p),
+        }}
+        team2={{
+          name: "Team 2",
+          players: demoPlayers[1].slice(0, teamSize).map(p => p),
+        }}
+        statusMessages={[
+          "Connecting to Solana",
+          "Creating demo arena",
+          `Preparing ${teamSize}v${teamSize} match`,
+          "Loading game board",
+          "Match starting soon",
+        ]}
+      />
+    );
+  }
 
   return (
     <>
@@ -95,11 +140,12 @@ export const GameDemo: React.FC = () => {
         </div>
       )}
 
-      <div className="min-h-screen bg-bg">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="relative min-h-screen bg-bg overflow-hidden">
+        <AuroraBackground />
+        <div className="relative z-10 max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-8">
           {/* Header */}
           <motion.div
-            className="text-center mb-8"
+            className="text-center mb-4 md:mb-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
@@ -115,40 +161,70 @@ export const GameDemo: React.FC = () => {
 
           {!isGameActive ? (
             /* Game Setup */
-            <div className="space-y-8">
-              {/* Game Mode Selection */}
-              <GlassCard className="p-6 mt-8">
+            <div className="space-y-4 md:space-y-6">
+              {/* Game Category Selection - Horizontal Scroll */}
+              <GlassCard className="p-4 md:p-6 mt-4 md:mt-8">
                 <GlassCardHeader>
-                  <GlassCardTitle className="text-xl font-display text-sol-purple flex items-center">
-                    <span className="text-2xl mr-3">{currentConfig.icon}</span>
-                    Choose Game Mode
+                  <GlassCardTitle className="md:text-2xl text-lg font-display text-sol-purple">
+                    Game
                   </GlassCardTitle>
                 </GlassCardHeader>
-                <div className="grid grid-cols-3 gap-4 mt-4">
+                <div className="flex gap-3 md:gap-4 overflow-x-scroll pb-2 -mx-1 px-1 mt-0 game-scroll">
+                  {/* Pick Higher */}
+                  <button
+                    onClick={() => setCurrentGame("PickHigher")}
+                    className={cn(
+                      "flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px]",
+                      currentGame === "PickHigher"
+                        ? "bg-gradient-to-br from-green-500 to-emerald-600 border-green-400/50 shadow-lg"
+                        : "bg-white/5 border-white/10 hover:bg-white/10"
+                    )}
+                  >
+                    <div className="text-4xl md:text-5xl">🎴</div>
+                    <span className="text-sm font-semibold text-white">Pick Higher</span>
+                  </button>
+
+                  {/* Plinko - Coming Soon */}
+                  <button
+                    disabled
+                    className="flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 bg-white/5 border-white/10 opacity-50 cursor-not-allowed min-w-[100px]"
+                  >
+                    <div className="text-4xl md:text-5xl">🎰</div>
+                    <span className="text-sm font-semibold text-white/70">Plinko</span>
+                    <span className="text-[10px] text-white/50">Soon</span>
+                  </button>
+
+                  {/* Bomber - Future */}
+                  <button
+                    disabled
+                    className="flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 bg-white/5 border-white/10 opacity-50 cursor-not-allowed min-w-[100px]"
+                  >
+                    <div className="text-4xl md:text-5xl">💣</div>
+                    <span className="text-sm font-semibold text-white/70">Bomber</span>
+                    <span className="text-[10px] text-white/50">Soon</span>
+                  </button>
+                </div>
+              </GlassCard>
+
+              {/* Game Mode Selection - только для Pick Higher */}
+              {currentGame === "PickHigher" && (
+                <GlassCard className="p-4 md:p-6">
+                  <GlassCardHeader>
+                    <GlassCardTitle className="md:text-2xl text-lg font-display text-sol-purple">
+                      Game mode
+                    </GlassCardTitle>
+                  </GlassCardHeader>
+                <div className="grid grid-cols-3 gap-3 md:gap-4 mt-3 md:mt-4">
                   {gameModes.map(({ mode, label, icon }, index) => {
-                    const variants = [
-                      "orange",
-                      "purple",
-                      "mint",
-                      "blue",
-                      "neon",
-                    ];
+                    const variants = ["mint", "orange", "blue"] as const;
                     const selectedVariant =
                       currentGameMode === mode ? variants[index] : "ghost";
                     return (
                       <GlowButton
                         key={mode}
-                        variant={
-                          selectedVariant as
-                            | "neon"
-                            | "purple"
-                            | "mint"
-                            | "orange"
-                            | "blue"
-                            | "ghost"
-                        }
+                        variant={selectedVariant}
                         onClick={() => setCurrentGameMode(mode)}
-                        className="flex flex-col items-center space-y-2 p-3 h-16"
+                        className="flex flex-col items-center space-y-1 p-3 h-16"
                       >
                         <span className="text-2xl">{icon}</span>
                         <span className="text-sm font-medium">{label}</span>
@@ -157,33 +233,26 @@ export const GameDemo: React.FC = () => {
                   })}
                 </div>
               </GlassCard>
+              )}
 
               {/* Match Type Selection */}
-              <GlassCard className="p-6">
+              <GlassCard className="p-4 md:p-6">
                 <GlassCardHeader>
-                  <GlassCardTitle className="text-xl font-display text-sol-purple">
+                  <GlassCardTitle className="md:text-2xl text-lg font-display text-sol-purple">
                     Match Type
                   </GlassCardTitle>
                 </GlassCardHeader>
-                <div className="grid grid-cols-3 gap-4 mt-4">
+                <div className="grid grid-cols-3 gap-3 md:gap-4 mt-0 md:mt-4">
                   {matchTypes.map(({ type, label, description }, index) => {
-                    const variants = ["blue", "orange", "purple"];
+                    const variants = ["blue", "purple", "orange"] as const;
                     const selectedVariant =
                       currentMatchType === type ? variants[index] : "ghost";
                     return (
                       <GlowButton
                         key={type}
-                        variant={
-                          selectedVariant as
-                            | "neon"
-                            | "purple"
-                            | "mint"
-                            | "orange"
-                            | "blue"
-                            | "ghost"
-                        }
+                        variant={selectedVariant}
                         onClick={() => setCurrentMatchType(type)}
-                        className="flex flex-col items-center space-y-2 p-3 h-16"
+                        className="flex flex-col items-center space-y-1 p-3 h-16"
                       >
                         <span className="text-lg font-bold">{label}</span>
                         <span className="text-xs">{description}</span>
@@ -194,13 +263,13 @@ export const GameDemo: React.FC = () => {
               </GlassCard>
 
               {/* Game Info */}
-              <GlassCard className="p-6">
+              <GlassCard className="p-4 md:p-6">
                 <GlassCardHeader>
-                  <GlassCardTitle className="text-xl font-display text-sol-purple">
+                  <GlassCardTitle className="md:text-2xl text-lg font-display text-sol-purple">
                     Game Information
                   </GlassCardTitle>
                 </GlassCardHeader>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mt-0 md:mt-4">
                   <div>
                     <h3 className="font-semibold text-txt-base mb-2">
                       How to Play
@@ -289,6 +358,22 @@ export const GameDemo: React.FC = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Game Result Modal */}
+      {gameResult && (
+        <GameResultModal
+          isOpen={!!gameResult}
+          onClose={() => {
+            setGameResult(null);
+          }}
+          onPlayAgain={() => {
+            setGameResult(null);
+            handleResetGame();
+          }}
+          result={gameResult}
+          isDemoMode={true}
+        />
+      )}
     </>
   );
 };

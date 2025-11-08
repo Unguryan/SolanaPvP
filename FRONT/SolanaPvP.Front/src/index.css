@@ -192,4 +192,29 @@
   .game-grid-1x3 {
     @apply grid grid-cols-3 gap-6 max-w-sm mx-auto;
   }
+
+  /* Custom scrollbar for game switcher */
+  .game-scroll::-webkit-scrollbar {
+    height: 8px;
+  }
+  
+  .game-scroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+  }
+  
+  .game-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #9945FF, #14F195);
+    border-radius: 4px;
+  }
+  
+  .game-scroll::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #14F195, #9945FF);
+  }
+
+  /* Firefox */
+  .game-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #9945FF rgba(255, 255, 255, 0.05);
+  }
 }

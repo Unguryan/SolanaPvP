@@ -17,7 +17,10 @@ import { FunnelIcon, ClockIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { PdaUtils, LobbyAccount } from "@/services/solana/accounts";
 import { PvpAccountFetchers } from "@/services/solana/instructions";
 import { matchesApi } from "@/services/api/matches";
+import { AuroraBackground } from "@/components/effects/AuroraBackground";
+import { cn } from "@/utils/cn";
 
+type GameCategory = "all" | "PickHigher" | "Plinko";
 type GameModeFilter = "all" | "Pick3from9" | "Pick5from16" | "Pick1from3";
 type StakeFilter = "all" | "low" | "medium" | "high";
 type MatchTypeFilter = "all" | "Solo" | "Duo" | "Team";
@@ -28,6 +31,7 @@ export const Matches: React.FC = () => {
   const { matches, joinModalMatchId, setJoinModal, isLoading } =
     useArenaStore();
   const { refundLobby, isRefunding } = useLobbyOperations();
+  const [gameCategory, setGameCategory] = useState<GameCategory>("all");
   const [gameModeFilter, setGameModeFilter] = useState<GameModeFilter>("all");
   const [stakeFilter, setStakeFilter] = useState<StakeFilter>("all");
   const [matchTypeFilter, setMatchTypeFilter] =
@@ -200,6 +204,17 @@ export const Matches: React.FC = () => {
   });
 
   const filteredMatches = activeMatches.filter((match) => {
+    // Game category filter
+    if (gameCategory === "PickHigher") {
+      // Only show Pick Higher games
+      if (!["Pick3from9", "Pick5from16", "Pick1from3"].includes(match.gameMode)) {
+        return false;
+      }
+    } else if (gameCategory === "Plinko") {
+      // Only show Plinko games (when available)
+      return false; // No plinko games yet
+    }
+    
     // Game mode filter
     if (gameModeFilter !== "all" && match.gameMode !== gameModeFilter) {
       return false;
@@ -265,22 +280,11 @@ export const Matches: React.FC = () => {
     }
   };
 
-  const getGameModeIcon = (gameMode: string) => {
-    switch (gameMode) {
-      case "Pick3from9":
-        return "🎴";
-      case "Pick5from16":
-        return "🏆";
-      case "Pick1from3":
-        return "🎯";
-      default:
-        return "🎮";
-    }
-  };
 
   if (isLoading) {
   return (
-    <div className="min-h-screen bg-bg py-4 lg:py-8">
+    <div className="relative min-h-screen bg-bg py-4 lg:py-8 overflow-hidden">
+      <AuroraBackground />
       <div className="max-w-7xl mx-auto px-3 lg:px-6">
           <div className="text-center mb-8">
             <Skeleton className="h-12 w-64 mx-auto mb-4" />
@@ -297,7 +301,9 @@ export const Matches: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bg py-8 relative">
+    <div className="relative min-h-screen bg-bg py-8 overflow-hidden">
+      <AuroraBackground />
+      <div className="relative z-10">
       {/* Validation Message Toast */}
       <AnimatePresence>
         {validationMessage && (
@@ -492,40 +498,157 @@ export const Matches: React.FC = () => {
 
         {/* Filters */}
         <div className="space-y-4 mb-8">
-          {/* Game Mode Filter */}
+          {/* Game Category Filter - Horizontal Scroll */}
           <GlassCard className="p-4">
             <div className="space-y-3">
               <span className="text-txt-muted text-sm font-medium block">
                 Game
               </span>
-              <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                {(
-                  ["all", "Pick3from9", "Pick5from16", "Pick1from3"] as const
-                ).map((mode) => (
-                  <GlowButton
-                    key={mode}
-                    variant={gameModeFilter === mode ? "neon" : "ghost"}
-                    size="sm"
-                    onClick={() => setGameModeFilter(mode)}
-                    className="text-xs"
-                  >
-                    {mode === "all" ? (
-                      "All"
-                    ) : (
-                      <span className="flex items-center">
-                        <span className="mr-1">{getGameModeIcon(mode)}</span>
-                        {mode === "Pick3from9"
-                          ? "3v9"
-                          : mode === "Pick5from16"
-                          ? "5v16"
-                          : "1v3"}
-                      </span>
-                    )}
-                  </GlowButton>
-                ))}
+              <div className="flex gap-3 md:gap-4 overflow-x-scroll pb-2 -mx-1 px-1 game-scroll">
+                {/* All Games */}
+                <button
+                  onClick={() => {
+                    setGameCategory("all");
+                    setGameModeFilter("all");
+                  }}
+                  className={cn(
+                    "flex-shrink-0 flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all min-w-[90px] md:min-w-[100px]",
+                    gameCategory === "all"
+                      ? "bg-gradient-to-br from-purple-600 to-blue-600 border-purple-400/50 shadow-lg"
+                      : "bg-white/5 border-white/10 hover:bg-white/10"
+                  )}
+                >
+                  <div className="text-3xl md:text-4xl">🎮</div>
+                  <span className="text-xs md:text-sm font-semibold text-white">All</span>
+                </button>
+
+                {/* Pick Higher */}
+                <button
+                  onClick={() => {
+                    setGameCategory("PickHigher");
+                    setGameModeFilter("all");
+                  }}
+                  className={cn(
+                    "flex-shrink-0 flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all min-w-[90px] md:min-w-[100px]",
+                    gameCategory === "PickHigher"
+                      ? "bg-gradient-to-br from-green-500 to-emerald-600 border-green-400/50 shadow-lg"
+                      : "bg-white/5 border-white/10 hover:bg-white/10"
+                  )}
+                >
+                  <div className="text-3xl md:text-4xl">🎴</div>
+                  <span className="text-xs md:text-sm font-semibold text-white">Pick Higher</span>
+                </button>
+
+                {/* Plinko - Coming Soon */}
+                <button
+                  disabled
+                  className="flex-shrink-0 flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 bg-white/5 border-white/10 opacity-50 cursor-not-allowed min-w-[90px] md:min-w-[100px]"
+                >
+                  <div className="text-3xl md:text-4xl">🎰</div>
+                  <span className="text-xs md:text-sm font-semibold text-white/70">Plinko</span>
+                  <span className="text-[10px] text-white/50">Soon</span>
+                </button>
+
+                {/* Bomber - Future */}
+                <button
+                  disabled
+                  className="flex-shrink-0 flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 bg-white/5 border-white/10 opacity-50 cursor-not-allowed min-w-[90px] md:min-w-[100px]"
+                >
+                  <div className="text-3xl md:text-4xl">💣</div>
+                  <span className="text-xs md:text-sm font-semibold text-white/70">Bomber</span>
+                  <span className="text-[10px] text-white/50">Soon</span>
+                </button>
               </div>
             </div>
           </GlassCard>
+
+          {/* Game Mode Filter - только если выбрана конкретная игра */}
+          {gameCategory !== "all" && (
+            <GlassCard className="p-4">
+              <div className="space-y-3">
+                <span className="text-txt-muted text-sm font-medium block">
+                  Game mode
+                </span>
+              <div className="flex flex-wrap items-center gap-2 md:gap-4">
+                <GlowButton
+                  variant={gameModeFilter === "all" ? "purple" : "ghost"}
+                  size="sm"
+                  onClick={() => setGameModeFilter("all")}
+                  className="text-xs"
+                >
+                  All
+                </GlowButton>
+                {/* Pick Higher modes */}
+                {gameCategory === "PickHigher" && (
+                  <>
+                    <GlowButton
+                      variant={gameModeFilter === "Pick3from9" ? "mint" : "ghost"}
+                      size="sm"
+                      onClick={() => setGameModeFilter("Pick3from9")}
+                      className="text-xs"
+                    >
+                      <span className="flex items-center">
+                        <span className="mr-1">🏆</span>
+                        3v9
+                      </span>
+                    </GlowButton>
+                    <GlowButton
+                      variant={gameModeFilter === "Pick5from16" ? "orange" : "ghost"}
+                      size="sm"
+                      onClick={() => setGameModeFilter("Pick5from16")}
+                      className="text-xs"
+                    >
+                      <span className="flex items-center">
+                        <span className="mr-1">🎯</span>
+                        5v16
+                      </span>
+                    </GlowButton>
+                    <GlowButton
+                      variant={gameModeFilter === "Pick1from3" ? "blue" : "ghost"}
+                      size="sm"
+                      onClick={() => setGameModeFilter("Pick1from3")}
+                      className="text-xs"
+                    >
+                      <span className="flex items-center">
+                        <span className="mr-1">🎴</span>
+                        1v3
+                      </span>
+                    </GlowButton>
+                  </>
+                )}
+                {/* Plinko modes - только если выбран Plinko */}
+                {gameCategory === "Plinko" && (
+                  <>
+                    <GlowButton
+                      variant="ghost"
+                      size="sm"
+                      disabled
+                      className="text-xs opacity-50"
+                    >
+                      🎰 3x5
+                    </GlowButton>
+                    <GlowButton
+                      variant="ghost"
+                      size="sm"
+                      disabled
+                      className="text-xs opacity-50"
+                    >
+                      🎰 5x7
+                    </GlowButton>
+                    <GlowButton
+                      variant="ghost"
+                      size="sm"
+                      disabled
+                      className="text-xs opacity-50"
+                    >
+                      🎰 7x10
+                    </GlowButton>
+                  </>
+                )}
+              </div>
+            </div>
+          </GlassCard>
+          )}
 
           {/* Stake Filter */}
           <GlassCard className="p-4">
@@ -534,17 +657,20 @@ export const Matches: React.FC = () => {
                 Stake Range
               </span>
               <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                {(["all", "low", "medium", "high"] as const).map((stake) => (
-                  <GlowButton
-                    key={stake}
-                    variant={stakeFilter === stake ? "neon" : "ghost"}
-                    size="sm"
-                    onClick={() => setStakeFilter(stake)}
-                    className="text-xs"
-                  >
-                    {getStakeRangeLabel(stake)}
-                  </GlowButton>
-                ))}
+                {(["all", "low", "medium", "high"] as const).map((stake, idx) => {
+                  const variants = ["purple", "mint", "orange", "blue"] as const;
+                  return (
+                    <GlowButton
+                      key={stake}
+                      variant={stakeFilter === stake ? variants[idx] : "ghost"}
+                      size="sm"
+                      onClick={() => setStakeFilter(stake)}
+                      className="text-xs"
+                    >
+                      {getStakeRangeLabel(stake)}
+                    </GlowButton>
+                  );
+                })}
               </div>
             </div>
           </GlassCard>
@@ -556,17 +682,20 @@ export const Matches: React.FC = () => {
                 Mode
               </span>
               <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                {(["all", "Solo", "Duo", "Team"] as const).map((mode) => (
-                  <GlowButton
-                    key={mode}
-                    variant={matchTypeFilter === mode ? "neon" : "ghost"}
-                    size="sm"
-                    onClick={() => setMatchTypeFilter(mode)}
-                    className="text-xs"
-                  >
-                    {mode}
-                  </GlowButton>
-                ))}
+                {(["all", "Solo", "Duo", "Team"] as const).map((mode, idx) => {
+                  const variants = ["blue", "mint", "purple", "orange"] as const;
+                  return (
+                    <GlowButton
+                      key={mode}
+                      variant={matchTypeFilter === mode ? variants[idx] : "ghost"}
+                      size="sm"
+                      onClick={() => setMatchTypeFilter(mode)}
+                      className="text-xs"
+                    >
+                      {mode}
+                    </GlowButton>
+                  );
+                })}
               </div>
             </div>
           </GlassCard>
@@ -577,21 +706,24 @@ export const Matches: React.FC = () => {
                 Sort by
               </span>
               <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                {(["timeLeft", "stake", "players"] as const).map((sort) => (
-                  <GlowButton
-                    key={sort}
-                    variant={sortBy === sort ? "neon" : "ghost"}
-                    size="sm"
-                    onClick={() => setSortBy(sort)}
-                    className="text-xs capitalize"
-                  >
-                    {sort === "timeLeft"
-                      ? "Time Left"
-                      : sort === "stake"
-                      ? "Stake"
-                      : "Players"}
-                  </GlowButton>
-                ))}
+                {(["timeLeft", "stake", "players"] as const).map((sort, idx) => {
+                  const variants = ["orange", "purple", "blue"] as const;
+                  return (
+                    <GlowButton
+                      key={sort}
+                      variant={sortBy === sort ? variants[idx] : "ghost"}
+                      size="sm"
+                      onClick={() => setSortBy(sort)}
+                      className="text-xs capitalize"
+                    >
+                      {sort === "timeLeft"
+                        ? "Time Left"
+                        : sort === "stake"
+                        ? "Stake"
+                        : "Players"}
+                    </GlowButton>
+                  );
+                })}
               </div>
             </div>
           </GlassCard>
@@ -609,6 +741,7 @@ export const Matches: React.FC = () => {
           isOpen={!!joinModalMatchId}
           onClose={handleCloseJoinModal}
         />
+      </div>
       </div>
     </div>
   );

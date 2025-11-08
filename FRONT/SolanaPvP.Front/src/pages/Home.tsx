@@ -6,6 +6,7 @@ import { HeroCTA } from "@/components/arena/HeroCTA";
 import { LiveFeed } from "@/components/arena/LiveFeed";
 import { MatchesList } from "@/components/arena/MatchesList";
 import { JoinMatchSheet } from "@/components/arena/JoinMatchSheet";
+import { AuroraBackground } from "@/components/effects/AuroraBackground";
 
 export const Home: React.FC = () => {
   const { joinModalMatchId, setJoinModal } = useArenaStore();
@@ -18,9 +19,10 @@ export const Home: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="relative min-h-screen bg-bg overflow-hidden">
+      <AuroraBackground />
       {/* Main Content */}
-      <main className="relative">
+      <main className="relative z-10">
         {/* Desktop Layout (≥1024px) */}
         <div className="hidden lg:block">
           <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4 lg:py-8 space-y-4 lg:space-y-8">

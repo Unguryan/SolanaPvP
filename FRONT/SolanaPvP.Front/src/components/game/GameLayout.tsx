@@ -93,16 +93,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({
       )}
 
       {/* Game Content (specific to each game type) */}
-      <div className="flex justify-center">
-        <motion.div
-          className="glass-card p-6 rounded-xl w-fit"
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          {children}
-        </motion.div>
-      </div>
+      {children}
     </div>
   );
 };

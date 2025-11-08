@@ -166,15 +166,15 @@ export function getGameModeConfig(gameMode: string) {
       return {
         gridSize: 3,
         maxSelections: 3,
-        icon: "🎯",
-        name: "Pick 3 from 9 Tiles",
+        icon: "🏆",
+        name: "Pick 3 from 9 Chests",
       };
     case "PickFiveFromSixteen":
       return {
         gridSize: 4,
         maxSelections: 5,
-        icon: "🏆",
-        name: "Pick 5 from 16 Chests",
+        icon: "🎯",
+        name: "Pick 5 from 16 Tiles",
       };
     case "PickOneFromThree":
       return {

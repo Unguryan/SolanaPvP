@@ -154,7 +154,7 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
                     transition={{ delay: 0.5 }}
                   >
                     <div className="flex items-center justify-center space-x-2">
-                      <CurrencyDollarIcon className="w-5 h-5 text-sol-mint" />
+                      <CurrencyDollarIcon className="w-6 h-6 text-sol-mint" />
                       <span className="text-txt-muted">You won</span>
                       <span className="text-xl text-sol-mint">
                         {Number(result.winAmount).toLocaleString(undefined, {

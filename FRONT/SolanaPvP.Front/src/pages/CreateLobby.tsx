@@ -14,9 +14,12 @@ import { usePvpProgram, useLobbyOperations, useLobbyData } from "@/hooks/usePvpP
 import { useActiveLobby } from "@/hooks/useActiveLobby";
 import { PdaUtils } from "@/services/solana/accounts";
 import { MIN_STAKE_LAMPORTS } from "@/services/solana/config";
+import { AuroraBackground } from "@/components/effects/AuroraBackground";
+import { cn } from "@/utils/cn";
 
 type GameMode = "Pick3from9" | "Pick5from16" | "Pick1from3";
 type TeamSize = 1 | 2 | 5;
+type GameCategory = "PickHigher" | "Plinko";
 
 export const CreateLobby: React.FC = () => {
   const navigate = useNavigate();
@@ -29,6 +32,7 @@ export const CreateLobby: React.FC = () => {
     isLoading: isLoadingActive,
   } = useActiveLobby();
 
+  const [currentGame, setCurrentGame] = useState<GameCategory>("PickHigher");
   const [gameMode, setGameMode] = useState<GameMode>("Pick3from9");
   const [teamSize, setTeamSize] = useState<TeamSize>(1);
   const [stakeSOL, setStakeSOL] = useState(0.1);
@@ -47,9 +51,9 @@ export const CreateLobby: React.FC = () => {
   const { lobby: lobbyData } = useLobbyData(activeLobby?.lobby);
 
   const gameModes: { mode: GameMode; label: string; icon: string }[] = [
-    { mode: "Pick3from9", label:  "3 from 9", icon: "🎯" },
-    { mode: "Pick5from16", label: "5 from 16", icon: "🏆" },
-    { mode: "Pick1from3", label:  "1 from 3", icon: "🎴" },
+    { mode: "Pick3from9", label:  "3v9", icon: "🏆" }, // Сундуки (3x3)
+    { mode: "Pick5from16", label: "5v16", icon: "🎯" }, // Плитки (4x4)
+    { mode: "Pick1from3", label:  "1v3", icon: "🎴" }, // Карты (3 cards)
   ];
 
   const teamSizes: { size: TeamSize; label: string; description: string }[] = [
@@ -265,7 +269,9 @@ export const CreateLobby: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-bg py-4 lg:py-8 relative">
+    <div className="relative min-h-screen bg-bg py-4 lg:py-8 overflow-hidden">
+      <AuroraBackground />
+      <div className="relative z-10">
       {/* Validation Message Toast */}
       <AnimatePresence>
         {validationMessage && (
@@ -373,35 +379,103 @@ export const CreateLobby: React.FC = () => {
             </GlassCard>
           )}
 
-          {/* Game Mode Selection */}
+          {/* Game Category Selection - Horizontal Scroll */}
           <GlassCard className="p-4">
             <GlassCardHeader>
-              <GlassCardTitle className="text-xl font-display text-sol-purple flex items-center">
-                <span className="text-2xl mr-3">🎯</span>
-                Choose Game Mode
+              <GlassCardTitle className="text-lg font-display text-txt-base">
+                Game
               </GlassCardTitle>
             </GlassCardHeader>
-            <div className="grid grid-cols-3 gap-3 md:gap-4 mt-1">
-              {gameModes.map(({ mode, label, icon }, index) => {
-                const variants = ["neon", "purple", "mint"];
-                const selectedVariant =
-                  gameMode === mode ? variants[index] : "ghost";
-                return (
-                  <GlowButton
-                    key={mode}
-                    variant={selectedVariant as any}
-                    onClick={() => setGameMode(mode)}
-                    className="flex flex-col items-center space-y-1 p-3 h-18"
-                  >
-                    <span className="text-xl md:text-2xl">{icon}</span>
-                    <span className="text-xs md:text-sm font-medium">
-                      {label}
-                    </span>
-                  </GlowButton>
-                );
-              })}
+            <div className="flex gap-3 md:gap-4 overflow-x-scroll pb-2 -mx-1 px-1 mt-4 game-scroll">
+              {/* Pick Higher */}
+              <button
+                onClick={() => setCurrentGame("PickHigher")}
+                className={cn(
+                  "flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px]",
+                  currentGame === "PickHigher"
+                    ? "bg-gradient-to-br from-green-500 to-emerald-600 border-green-400/50 shadow-lg"
+                    : "bg-white/5 border-white/10 hover:bg-white/10"
+                )}
+              >
+                <div className="text-4xl md:text-5xl">🎴</div>
+                <span className="text-sm font-semibold text-white">Pick Higher</span>
+              </button>
+
+              {/* Plinko - Coming Soon */}
+              <button
+                disabled
+                className="flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 bg-white/5 border-white/10 opacity-50 cursor-not-allowed min-w-[100px]"
+              >
+                <div className="text-4xl md:text-5xl">🎰</div>
+                <span className="text-sm font-semibold text-white/70">Plinko</span>
+                <span className="text-[10px] text-white/50">Soon</span>
+              </button>
+
+              {/* Bomber - Future */}
+              <button
+                disabled
+                className="flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 bg-white/5 border-white/10 opacity-50 cursor-not-allowed min-w-[100px]"
+              >
+                <div className="text-4xl md:text-5xl">💣</div>
+                <span className="text-sm font-semibold text-white/70">Bomber</span>
+                <span className="text-[10px] text-white/50">Soon</span>
+              </button>
             </div>
           </GlassCard>
+
+          {/* Game Mode Selection - только если выбрана конкретная игра */}
+          {currentGame === "PickHigher" && (
+            <GlassCard className="p-4">
+              <GlassCardHeader>
+                <GlassCardTitle className="text-lg font-display text-txt-base">
+                  Game mode
+                </GlassCardTitle>
+              </GlassCardHeader>
+            <div className="grid grid-cols-3 gap-3 md:gap-4 mt-1">
+              {currentGame === "PickHigher" ? (
+                gameModes.map(({ mode, label, icon }, index) => {
+                  const variants = ["mint", "orange", "blue"];
+                  const selectedVariant =
+                    gameMode === mode ? variants[index] : "ghost";
+                  return (
+                    <GlowButton
+                      key={mode}
+                      variant={selectedVariant as any}
+                      onClick={() => setGameMode(mode)}
+                      className="flex flex-col items-center space-y-1 p-3 h-18"
+                    >
+                      <span className="text-xl md:text-2xl">{icon}</span>
+                      <span className="text-xs md:text-sm font-medium">
+                        {label}
+                      </span>
+                    </GlowButton>
+                  );
+                })
+              ) : (
+                /* Plinko modes - Coming soon */
+                <>
+                  {[
+                    { label: "3x5", icon: "🎰" },
+                    { label: "5x7", icon: "🎰" },
+                    { label: "7x10", icon: "🎰" },
+                  ].map((mode) => (
+                    <GlowButton
+                      key={mode.label}
+                      variant="ghost"
+                      disabled
+                      className="flex flex-col items-center space-y-1 p-3 h-18 opacity-50 cursor-not-allowed"
+                    >
+                      <span className="text-xl md:text-2xl">{mode.icon}</span>
+                      <span className="text-xs md:text-sm font-medium">
+                        {mode.label}
+                      </span>
+                    </GlowButton>
+                  ))}
+                </>
+              )}
+            </div>
+          </GlassCard>
+          )}
 
           {/* Team Size Selection */}
           <GlassCard className="p-4">
@@ -412,13 +486,13 @@ export const CreateLobby: React.FC = () => {
             </GlassCardHeader>
             <div className="grid grid-cols-3 gap-3 md:gap-4 mt-1">
               {teamSizes.map(({ size, label, description }, index) => {
-                const variants = ["blue", "orange", "purple"];
+                const variants = ["purple", "blue", "orange"] as const;
                 const selectedVariant =
                   teamSize === size ? variants[index] : "ghost";
                 return (
                   <GlowButton
                     key={size}
-                    variant={selectedVariant as any}
+                    variant={selectedVariant}
                     onClick={() => setTeamSize(size)}
                     className="flex flex-col items-center space-y-1 p-3 h-18"
                   >
@@ -536,6 +610,7 @@ export const CreateLobby: React.FC = () => {
             </GlowButton>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

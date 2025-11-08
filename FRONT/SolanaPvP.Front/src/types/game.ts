@@ -1,7 +1,8 @@
 // Game related types
 export enum GameType {
   PickHigher = "PickHigher",
-  // Future: Plinko = "Plinko", Dice = "Dice", CoinFlip = "CoinFlip", Minesweeper = "Minesweeper", WheelSpin = "WheelSpin"
+  Plinko = "Plinko",
+  // Future: Dice = "Dice", CoinFlip = "CoinFlip", Minesweeper = "Minesweeper", WheelSpin = "WheelSpin"
 }
 
 export enum MatchMode {

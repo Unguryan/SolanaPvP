@@ -35,7 +35,7 @@ export const generateDemoPlayers = (
   players.push({
     id: "current-user",
     username: currentUsername,
-    targetScore: Math.floor(Math.random() * 1000) + 1000, // 1000-2000
+    targetScore: Math.floor(Math.random() * 800) + 1200, // 1200-2000
     currentScore: 0,
     selections: [],
     isReady: true,
@@ -44,14 +44,17 @@ export const generateDemoPlayers = (
   // Add AI players based on match type
   const aiCount = matchType === "Solo" ? 1 : matchType === "Duo" ? 3 : 9;
 
+  // Shuffle names to avoid duplicates
+  const shuffledNames = [...AI_NAMES].sort(() => Math.random() - 0.5);
+
   for (let i = 0; i < aiCount; i++) {
-    const randomName = AI_NAMES[Math.floor(Math.random() * AI_NAMES.length)];
-    const targetScore = Math.floor(Math.random() * 1000) + 1000; // 1000-2000
-    // Give AI players random scores that will be revealed via timer
-    const aiScore = Math.floor(Math.random() * 1500) + 500; // 500-2000
+    const uniqueName = shuffledNames[i % shuffledNames.length];
+    const targetScore = Math.floor(Math.random() * 800) + 1200; // 1200-2000
+    // Give AI players balanced scores - not too high to allow player to win
+    const aiScore = Math.floor(Math.random() * 800) + 400; // 400-1200 (balanced)
     players.push({
       id: `ai-player-${i}`,
-      username: randomName,
+      username: uniqueName,
       targetScore: targetScore,
       currentScore: aiScore,
       selections: [],
@@ -185,28 +188,48 @@ export const generateWinnableTiles = (
       ? 5
       : 1;
 
-  // Generate tiles that give player a good chance to win
-  for (let i = 0; i < totalTiles; i++) {
-    let value: number;
-
-    if (i < maxSelections) {
-      // First few tiles should be high value to help player win
-      // Since player starts with 0, we need to distribute neededScore across selectable tiles
-      const baseValue = Math.floor(neededScore / maxSelections);
-      const variation = Math.floor(baseValue * 0.4); // ±40% variation for more variety
-      value = baseValue + Math.floor(Math.random() * variation * 2) - variation;
-      value = Math.max(200, value); // Minimum 200 to ensure meaningful progress
+  // Generate tiles that give player a GUARANTEED chance to win
+  // Strategy: ensure at least one tile/combination can reach neededScore
+  
+  const values: number[] = [];
+  
+  // Generate values for first maxSelections tiles (these are the "winning" tiles)
+  for (let i = 0; i < maxSelections; i++) {
+    if (i === 0) {
+      // First tile should give enough to potentially win
+      // For single selection (cards), this tile alone should be enough
+      if (maxSelections === 1) {
+        // For 1v3 cards: guarantee winning with best card
+        values.push(Math.floor(neededScore * 1.1)); // 110% of needed
+      } else {
+        // For multiple selections: distribute fairly
+        values.push(Math.floor(neededScore / maxSelections) + Math.floor(Math.random() * 200));
+      }
     } else {
-      // Remaining tiles can be lower value
-      value = Math.floor(Math.random() * 400) + 100; // 100-500
+      // Other tiles contribute to total but with variation
+      const remaining = neededScore - values.reduce((sum, v) => sum + v, 0);
+      const avgPerRemaining = Math.floor(remaining / (maxSelections - i));
+      const variation = Math.floor(avgPerRemaining * 0.5);
+      values.push(Math.max(150, avgPerRemaining + Math.floor(Math.random() * variation * 2) - variation));
     }
-
+  }
+  
+  // Add decoy tiles (lower values)
+  for (let i = maxSelections; i < totalTiles; i++) {
+    values.push(Math.floor(Math.random() * 400) + 100); // 100-500
+  }
+  
+  // Shuffle all values so the best tile isn't always first
+  const shuffledValues = values.sort(() => Math.random() - 0.5);
+  
+  // Create tiles with shuffled values
+  for (let i = 0; i < totalTiles; i++) {
     tiles.push({
       index: i,
-      value,
+      value: shuffledValues[i],
       selected: false,
       revealed: false,
-      isBonus: value > 500 && Math.random() < 0.1, // 10% chance for bonus
+      isBonus: shuffledValues[i] > 600 && Math.random() < 0.1, // 10% chance for bonus
     });
   }
 
