@@ -6,7 +6,7 @@ import { GlowButton } from "@/components/ui/GlowButton";
 import { motion } from "framer-motion";
 
 interface PlinkoGameProps {
-  gameMode: "Plinko3Balls5Rows" | "Plinko5Balls7Rows" | "Plinko7Balls9Rows";
+  gameMode: "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls";
   onBallDrop: (slotIndex: number) => void;
   disabled: boolean;
   currentPlayer: string;
@@ -230,11 +230,11 @@ PlinkoGame.displayName = 'PlinkoGame';
 
 function getConfig(gameMode: string) {
   switch (gameMode) {
-    case "Plinko3Balls5Rows":
+    case "Plinko3Balls":
       return { balls: 3, rows: 5, slots: 7 }; // 5 rows → 7 slots (нечетное!)
-    case "Plinko5Balls7Rows":
+    case "Plinko5Balls":
       return { balls: 5, rows: 7, slots: 9 }; // 7 rows → 9 slots (нечетное!)
-    case "Plinko7Balls9Rows":
+    case "Plinko7Balls":
       return { balls: 7, rows: 9, slots: 11 }; // 9 rows → 11 slots (нечетное!)
     default:
       return { balls: 3, rows: 5, slots: 7 };

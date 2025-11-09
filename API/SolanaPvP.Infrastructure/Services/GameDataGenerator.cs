@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using SolanaPvP.Application.Interfaces.Services;
 using SolanaPvP.Domain.Enums;
 using SolanaPvP.Domain.Models;
+using System.Text.Json;
 
 namespace SolanaPvP.Infrastructure.Services;
 
@@ -17,8 +18,8 @@ public class GameDataGenerator : IGameDataGenerator
 
     public async Task<GameData> GenerateGameDataAsync(Match match, int winnerSide)
     {
-        _logger.LogInformation("[GameDataGenerator] Generating game data for match {MatchPda}, GameType: {GameType}, Mode: {GameMode}, Winner side: {WinnerSide}", 
-            match.MatchPda, match.GameType, match.GameMode, winnerSide);
+        _logger.LogInformation("[GameDataGenerator] Generating game data for match {MatchPda}, GameType: {GameType}, Mode: {GameMode}, TeamSize: {TeamSize}, Winner side: {WinnerSide}", 
+            match.MatchPda, match.GameType, match.GameMode, match.TeamSize, winnerSide);
         
         // Generic game data generation based on GameType
         return match.GameType switch
@@ -60,37 +61,67 @@ public class GameDataGenerator : IGameDataGenerator
                 break;
         }
         
-        // Generate base scores within game mode range
-        var baseScore = _random.Next(minScore, maxScore);
+        // Parse team size to determine players per side
+        var teamSize = ParseTeamSize(match.TeamSize);
+        var side0Participants = match.Participants.Where(p => p.Side == 0).ToList();
+        var side1Participants = match.Participants.Where(p => p.Side == 1).ToList();
         
-        // Generate scores with winner having 5-15% advantage
-        var advantagePercent = _random.Next(5, 16) / 100.0;
-        var advantage = (int)(baseScore * advantagePercent);
+        // Generate individual scores for each player
+        var playerScores = new Dictionary<string, int>();
+        int side0Score = 0;
+        int side1Score = 0;
         
-        int side0Score, side1Score;
-        if (winnerSide == 0)
+        // Generate scores for Side 0
+        foreach (var participant in side0Participants)
         {
-            side0Score = baseScore + advantage;
-            side1Score = baseScore;
+            var score = _random.Next(minScore, maxScore);
+            playerScores[participant.Pubkey] = score;
+            side0Score += score;
         }
-        else
+        
+        // Generate scores for Side 1
+        foreach (var participant in side1Participants)
         {
-            side0Score = baseScore;
-            side1Score = baseScore + advantage;
+            var score = _random.Next(minScore, maxScore);
+            playerScores[participant.Pubkey] = score;
+            side1Score += score;
+        }
+        
+        // Ensure winner has higher score (add bonus to random player on winning side)
+        if ((winnerSide == 0 && side0Score <= side1Score) || (winnerSide == 1 && side1Score <= side0Score))
+        {
+            var winnerParticipants = winnerSide == 0 ? side0Participants : side1Participants;
+            if (winnerParticipants.Count > 0)
+            {
+                var randomWinnerPlayer = winnerParticipants[_random.Next(winnerParticipants.Count)];
+                var advantagePercent = _random.Next(5, 16) / 100.0;
+                var bonusValue = (int)(minScore * advantagePercent);
+                
+                playerScores[randomWinnerPlayer.Pubkey] += bonusValue;
+                
+                if (winnerSide == 0)
+                    side0Score += bonusValue;
+                else
+                    side1Score += bonusValue;
+                    
+                _logger.LogInformation("[GameDataGenerator] Added bonus {Bonus} to player {Pubkey} on winning side {Side}", 
+                    bonusValue, randomWinnerPlayer.Pubkey, winnerSide);
+            }
         }
 
-        // Create GameData
+        // Create GameData with individual player scores
         var gameData = new GameData
         {
             MatchPda = match.MatchPda,
             GameMode = match.GameMode,
             Side0TotalScore = side0Score,
             Side1TotalScore = side1Score,
+            PlayerScoresJson = JsonSerializer.Serialize(playerScores), // NEW!
             GeneratedAt = DateTime.UtcNow
         };
 
-        _logger.LogInformation("[GameDataGenerator] ✅ Generated PickHigher data for mode {GameMode} - Side0: {Side0Score}, Side1: {Side1Score}, Winner: Side {WinnerSide}", 
-            match.GameMode, side0Score, side1Score, winnerSide);
+        _logger.LogInformation("[GameDataGenerator] ✅ Generated PickHigher data for mode {GameMode} ({TeamSize}) - Side0: {Side0Score}, Side1: {Side1Score}, Winner: Side {WinnerSide}, Players: {PlayerCount}", 
+            match.GameMode, match.TeamSize, side0Score, side1Score, winnerSide, playerScores.Count);
 
         return Task.FromResult(gameData);
     }
@@ -103,17 +134,17 @@ public class GameDataGenerator : IGameDataGenerator
         
         switch (match.GameMode)
         {
-            case "Plinko3Balls5Rows":
+            case "Plinko3Balls":
                 // 3 balls, 7 slots: [100, 50, 10, 1, 10, 50, 100]
                 slotValues = new[] { 100, 50, 10, 1, 10, 50, 100 };
                 ballCount = 3;
                 break;
-            case "Plinko5Balls7Rows":
+            case "Plinko5Balls":
                 // 5 balls, 9 slots: [200, 100, 50, 20, 5, 20, 50, 100, 200]
                 slotValues = new[] { 200, 100, 50, 20, 5, 20, 50, 100, 200 };
                 ballCount = 5;
                 break;
-            case "Plinko7Balls9Rows":
+            case "Plinko7Balls":
                 // 7 balls, 11 slots: [500, 250, 150, 75, 20, 5, 20, 75, 150, 250, 500]
                 slotValues = new[] { 500, 250, 150, 75, 20, 5, 20, 75, 150, 250, 500 };
                 ballCount = 7;
@@ -125,35 +156,67 @@ public class GameDataGenerator : IGameDataGenerator
                 break;
         }
         
-        // Generate realistic score by summing random slot values
-        int side0Score = GenerateRealisticPlinkoScore(slotValues, ballCount);
-        int side1Score = GenerateRealisticPlinkoScore(slotValues, ballCount);
+        // Parse team size to determine players per side
+        var teamSize = ParseTeamSize(match.TeamSize);
+        var side0Participants = match.Participants.Where(p => p.Side == 0).ToList();
+        var side1Participants = match.Participants.Where(p => p.Side == 1).ToList();
         
-        // Ensure winner has higher score (add one more high-value slot if needed)
-        if ((winnerSide == 0 && side0Score <= side1Score) || (winnerSide == 1 && side1Score <= side0Score))
+        // Generate individual scores for each player
+        var playerScores = new Dictionary<string, int>();
+        int side0Score = 0;
+        int side1Score = 0;
+        
+        // Generate scores for Side 0
+        foreach (var participant in side0Participants)
         {
-            // Winner needs advantage - add a high-value slot
-            var highValues = slotValues.Where(v => v >= slotValues.Max() * 0.5).ToArray();
-            var bonusValue = highValues[_random.Next(highValues.Length)];
-            
-            if (winnerSide == 0)
-                side0Score += bonusValue;
-            else
-                side1Score += bonusValue;
+            var score = GenerateRealisticPlinkoScore(slotValues, ballCount);
+            playerScores[participant.Pubkey] = score;
+            side0Score += score;
         }
         
-        // Create GameData
+        // Generate scores for Side 1
+        foreach (var participant in side1Participants)
+        {
+            var score = GenerateRealisticPlinkoScore(slotValues, ballCount);
+            playerScores[participant.Pubkey] = score;
+            side1Score += score;
+        }
+        
+        // Ensure winner has higher score (add bonus to random player on winning side)
+        if ((winnerSide == 0 && side0Score <= side1Score) || (winnerSide == 1 && side1Score <= side0Score))
+        {
+            var winnerParticipants = winnerSide == 0 ? side0Participants : side1Participants;
+            if (winnerParticipants.Count > 0)
+            {
+                var randomWinnerPlayer = winnerParticipants[_random.Next(winnerParticipants.Count)];
+                var highValues = slotValues.Where(v => v >= slotValues.Max() * 0.5).ToArray();
+                var bonusValue = highValues[_random.Next(highValues.Length)];
+                
+                playerScores[randomWinnerPlayer.Pubkey] += bonusValue;
+                
+                if (winnerSide == 0)
+                    side0Score += bonusValue;
+                else
+                    side1Score += bonusValue;
+                    
+                _logger.LogInformation("[GameDataGenerator] Added bonus {Bonus} to player {Pubkey} on winning side {Side}", 
+                    bonusValue, randomWinnerPlayer.Pubkey, winnerSide);
+            }
+        }
+        
+        // Create GameData with individual player scores
         var gameData = new GameData
         {
             MatchPda = match.MatchPda,
             GameMode = match.GameMode,
             Side0TotalScore = side0Score,
             Side1TotalScore = side1Score,
+            PlayerScoresJson = JsonSerializer.Serialize(playerScores), // NEW!
             GeneratedAt = DateTime.UtcNow
         };
 
-        _logger.LogInformation("[GameDataGenerator] ✅ Generated Plinko data for mode {GameMode} ({BallCount} balls) - Side0: {Side0Score}, Side1: {Side1Score}, Winner: Side {WinnerSide}", 
-            match.GameMode, ballCount, side0Score, side1Score, winnerSide);
+        _logger.LogInformation("[GameDataGenerator] ✅ Generated Plinko data for mode {GameMode} ({BallCount} balls, {TeamSize}) - Side0: {Side0Score}, Side1: {Side1Score}, Winner: Side {WinnerSide}, Players: {PlayerCount}", 
+            match.GameMode, ballCount, match.TeamSize, side0Score, side1Score, winnerSide, playerScores.Count);
 
         return Task.FromResult(gameData);
     }
@@ -171,5 +234,20 @@ public class GameDataGenerator : IGameDataGenerator
         }
         
         return totalScore;
+    }
+    
+    private int ParseTeamSize(string teamSize)
+    {
+        // TeamSize format: "1v1", "2v2", "5v5", etc.
+        // Returns number of players per side
+        if (string.IsNullOrEmpty(teamSize)) return 1;
+        
+        var parts = teamSize.Split('v');
+        if (parts.Length == 2 && int.TryParse(parts[0], out var size))
+        {
+            return size;
+        }
+        
+        return 1; // Default to 1v1
     }
 }

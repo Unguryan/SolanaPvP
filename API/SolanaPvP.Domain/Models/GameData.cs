@@ -8,6 +8,10 @@ public class GameData
     public int Side0TotalScore { get; set; } // суммарное число для Side 0
     public int Side1TotalScore { get; set; } // суммарное число для Side 1
     public DateTime GeneratedAt { get; set; }
+    
+    // NEW: Individual player scores for team modes (JSON)
+    // Format: { "pubkey1": 150, "pubkey2": 185, ... }
+    public string? PlayerScoresJson { get; set; }
 
     // Navigation properties
     public Match Match { get; set; } = null!;

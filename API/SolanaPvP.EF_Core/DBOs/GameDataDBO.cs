@@ -11,6 +11,9 @@ public class GameDataDBO
     public int Side0TotalScore { get; set; }
     public int Side1TotalScore { get; set; }
     public DateTime GeneratedAt { get; set; }
+    
+    // NEW: Individual player scores for team modes (JSON)
+    public string? PlayerScoresJson { get; set; }
 
     // Navigation properties
     public MatchDBO Match { get; set; } = null!;

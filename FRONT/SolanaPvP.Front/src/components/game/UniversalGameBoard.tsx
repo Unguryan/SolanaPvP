@@ -688,7 +688,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
         {isPlinkoGame ? (
           <PlinkoGame
             ref={plinkoGameRef}
-            gameMode={gameMode as "Plinko3Balls5Rows" | "Plinko5Balls7Rows" | "Plinko7Balls9Rows"}
+            gameMode={gameMode as "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls"}
             onBallDrop={handleBallDrop}
             disabled={gameState.status !== "playing"}
             currentPlayer={currentPlayer}

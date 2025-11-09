@@ -23,6 +23,7 @@ export interface GameData {
   gameMode: string;
   side0TotalScore: number;
   side1TotalScore: number;
+  playerScoresJson?: string; // NEW: Individual player scores for team modes
 }
 
 export interface Match {

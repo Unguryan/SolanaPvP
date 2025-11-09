@@ -188,7 +188,7 @@ export function getGameModeConfig(gameMode: string) {
         icon: "🎴",
         name: "Pick 1 from 3 Cards",
       };
-    case "Plinko3Balls5Rows":
+    case "Plinko3Balls":
       return {
         gridSize: 5,
         maxSelections: 3,
@@ -197,7 +197,7 @@ export function getGameModeConfig(gameMode: string) {
         rows: 5,
         slots: 7, // 5 rows → 7 slots (нечетное!)
       };
-    case "Plinko5Balls7Rows":
+    case "Plinko5Balls":
       return {
         gridSize: 7,
         maxSelections: 5,
@@ -206,7 +206,7 @@ export function getGameModeConfig(gameMode: string) {
         rows: 7,
         slots: 9, // 7 rows → 9 slots (нечетное!)
       };
-    case "Plinko7Balls9Rows":
+    case "Plinko7Balls":
       return {
         gridSize: 9,
         maxSelections: 7,

@@ -59,8 +59,8 @@ export const generateDemoPlayers = (
   
   if (isPlinko) {
     // Generate REALISTIC Plinko scores based on actual slot values
-    const ballCount = gameMode === "Plinko3Balls5Rows" ? 3 : gameMode === "Plinko5Balls7Rows" ? 5 : 7;
-    const slotCount = gameMode === "Plinko3Balls5Rows" ? 6 : gameMode === "Plinko5Balls7Rows" ? 8 : 10;
+    const ballCount = gameMode === "Plinko3Balls" ? 3 : gameMode === "Plinko5Balls" ? 5 : 7;
+    const slotCount = gameMode === "Plinko3Balls" ? 7 : gameMode === "Plinko5Balls" ? 9 : 11;
     playerTargetScore = generateRealisticPlinkoScore(ballCount, slotCount);
   } else {
     // PickHigher - old logic
@@ -90,8 +90,8 @@ export const generateDemoPlayers = (
     
     if (isPlinko) {
       // Generate realistic Plinko score for AI
-      const ballCount = gameMode === "Plinko3Balls5Rows" ? 3 : gameMode === "Plinko5Balls7Rows" ? 5 : 7;
-      const slotCount = gameMode === "Plinko3Balls5Rows" ? 6 : gameMode === "Plinko5Balls7Rows" ? 8 : 10;
+      const ballCount = gameMode === "Plinko3Balls" ? 3 : gameMode === "Plinko5Balls" ? 5 : 7;
+      const slotCount = gameMode === "Plinko3Balls" ? 7 : gameMode === "Plinko5Balls" ? 9 : 11;
       aiTargetScore = generateRealisticPlinkoScore(ballCount, slotCount);
     } else {
       // PickHigher - old logic
