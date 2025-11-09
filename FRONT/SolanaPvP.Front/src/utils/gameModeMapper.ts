@@ -1,14 +1,21 @@
 // Helper to map backend game mode strings to frontend game mode format
-// Backend sends: "1x3", "3x9", "5x16"
-// Frontend UniversalGameBoard expects: "PickOneFromThree", "PickThreeFromNine", "PickFiveFromSixteen"
+// Backend sends: "1x3", "3x9", "5x16", "Plinko3Balls", "Plinko5Balls", "Plinko7Balls"
+// Frontend UniversalGameBoard expects: "PickOneFromThree", "PickThreeFromNine", "PickFiveFromSixteen", "Plinko3Balls", etc.
 
-export const mapGameModeToFrontend = (gameMode: string): "PickOneFromThree" | "PickThreeFromNine" | "PickFiveFromSixteen" => {
+export const mapGameModeToFrontend = (
+  gameMode: string
+): "PickOneFromThree" | "PickThreeFromNine" | "PickFiveFromSixteen" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls" => {
   console.log("[gameModeMapper] Input gameMode:", gameMode);
   
-  const mapping: Record<string, "PickOneFromThree" | "PickThreeFromNine" | "PickFiveFromSixteen"> = {
+  const mapping: Record<string, "PickOneFromThree" | "PickThreeFromNine" | "PickFiveFromSixteen" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls"> = {
+    // PickHigher modes
     "1x3": "PickOneFromThree",
     "3x9": "PickThreeFromNine",
     "5x16": "PickFiveFromSixteen",
+    // Plinko modes (backend sends same as frontend)
+    "Plinko3Balls": "Plinko3Balls",
+    "Plinko5Balls": "Plinko5Balls",
+    "Plinko7Balls": "Plinko7Balls",
   };
 
   const result = mapping[gameMode] || "PickThreeFromNine"; // Default to 3x9
@@ -59,8 +66,14 @@ export const getPlayersMaxFromTeamSize = (teamSize: string): number => {
 };
 
 export const formatGameDisplay = (gameType: string, gameMode: string, teamSize: string): string => {
-  // Format: "Pick Higher • 3x9 • 1v1"
-  const gameTypeDisplay = gameType === "PickHigher" ? "Pick Higher" : gameType;
+  // Format: "Pick Higher • 3x9 • 1v1" or "Plinko • 5 balls • 1v1"
+  const gameTypeDisplay = gameType === "PickHigher" ? "Pick Higher" : gameType === "Plinko" ? "Plinko" : gameType;
+  
+  // Format game mode nicely
+  let gameModeDisplay = gameMode;
+  if (gameMode === "Plinko3Balls") gameModeDisplay = "3 balls";
+  else if (gameMode === "Plinko5Balls") gameModeDisplay = "5 balls";
+  else if (gameMode === "Plinko7Balls") gameModeDisplay = "7 balls";
   
   // TeamSize can be either "1v1" (new format) or "OneVOne" (old format)
   let teamSizeDisplay = teamSize;
@@ -79,6 +92,6 @@ export const formatGameDisplay = (gameType: string, gameMode: string, teamSize: 
                               .replace("Five", "5");
   }
   
-  return `${gameTypeDisplay} • ${gameMode} • ${teamSizeDisplay}`;
+  return `${gameTypeDisplay} • ${gameModeDisplay} • ${teamSizeDisplay}`;
 };
 

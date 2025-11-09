@@ -684,28 +684,41 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
         shouldHideScores={shouldHideScores}
         hideTeamScores={shouldHideTeamScores}
       >
-        {/* Game Board - Plinko or PickHigher */}
-        {isPlinkoGame ? (
-          <PlinkoGame
-            ref={plinkoGameRef}
-            gameMode={gameMode as "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls"}
-            onBallDrop={handleBallDrop}
-            disabled={gameState.status !== "playing"}
-            currentPlayer={currentPlayer}
-            players={gameState.players}
-            currentBallIndex={currentBallIndex}
-            targetSlotIndex={plinkoSlots[currentBallIndex]}
-            allTargetSlots={plinkoSlots}
-          />
+        {/* Game Board - Plinko or PickHigher (hidden for spectators) */}
+        {currentPlayer !== "" && currentPlayerPubkey !== undefined ? (
+          isPlinkoGame ? (
+            <PlinkoGame
+              ref={plinkoGameRef}
+              gameMode={gameMode as "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls"}
+              onBallDrop={handleBallDrop}
+              disabled={gameState.status !== "playing"}
+              currentPlayer={currentPlayer}
+              players={gameState.players}
+              currentBallIndex={currentBallIndex}
+              targetSlotIndex={plinkoSlots[currentBallIndex]}
+              allTargetSlots={plinkoSlots}
+            />
+          ) : (
+            <PickHigherGame
+              gameMode={gameMode as "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree"}
+              tiles={gameState.tiles}
+              onTileClick={handleTileClick}
+              disabled={gameState.status !== "playing"}
+              currentPlayer={currentPlayer}
+              players={gameState.players}
+            />
+          )
         ) : (
-          <PickHigherGame
-            gameMode={gameMode as "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree"}
-            tiles={gameState.tiles}
-            onTileClick={handleTileClick}
-            disabled={gameState.status !== "playing"}
-            currentPlayer={currentPlayer}
-            players={gameState.players}
-          />
+          <div className="text-center py-12">
+            <div className="glass-card p-8 max-w-md mx-auto">
+              <h3 className="text-2xl font-bold text-sol-purple mb-4">
+                👁️ Spectator Mode
+              </h3>
+              <p className="text-txt-muted">
+                You are watching this match as a spectator. The game board is hidden, but you can see all player scores and team progress above.
+              </p>
+            </div>
+          </div>
         )}
       </GameLayout>
     </>

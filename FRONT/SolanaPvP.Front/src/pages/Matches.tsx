@@ -21,7 +21,7 @@ import { AuroraBackground } from "@/components/effects/AuroraBackground";
 import { cn } from "@/utils/cn";
 
 type GameCategory = "all" | "PickHigher" | "Plinko";
-type GameModeFilter = "all" | "Pick3from9" | "Pick5from16" | "Pick1from3";
+type GameModeFilter = "all" | "Pick3from9" | "Pick5from16" | "Pick1from3" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls";
 type StakeFilter = "all" | "low" | "medium" | "high";
 type MatchTypeFilter = "all" | "Solo" | "Duo" | "Team";
 
@@ -207,12 +207,14 @@ export const Matches: React.FC = () => {
     // Game category filter
     if (gameCategory === "PickHigher") {
       // Only show Pick Higher games
-      if (!["Pick3from9", "Pick5from16", "Pick1from3"].includes(match.gameMode)) {
+      if (!["Pick3from9", "Pick5from16", "Pick1from3", "3x9", "5x16", "1x3"].includes(match.gameMode)) {
         return false;
       }
     } else if (gameCategory === "Plinko") {
-      // Only show Plinko games (when available)
-      return false; // No plinko games yet
+      // Only show Plinko games
+      if (!["Plinko3Balls", "Plinko5Balls", "Plinko7Balls"].includes(match.gameMode)) {
+        return false;
+      }
     }
     
     // Game mode filter
@@ -539,14 +541,21 @@ export const Matches: React.FC = () => {
                   <span className="text-xs md:text-sm font-semibold text-white">Pick Higher</span>
                 </button>
 
-                {/* Plinko - Coming Soon */}
+                {/* Plinko - ACTIVE! */}
                 <button
-                  disabled
-                  className="flex-shrink-0 flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 bg-white/5 border-white/10 opacity-50 cursor-not-allowed min-w-[90px] md:min-w-[100px]"
+                  onClick={() => {
+                    setGameCategory("Plinko");
+                    setGameModeFilter("all");
+                  }}
+                  className={cn(
+                    "flex-shrink-0 flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all min-w-[90px] md:min-w-[100px]",
+                    gameCategory === "Plinko"
+                      ? "bg-gradient-to-br from-purple-500 to-pink-600 border-purple-400/50 shadow-lg"
+                      : "bg-white/5 border-white/10 hover:bg-white/10"
+                  )}
                 >
                   <div className="text-3xl md:text-4xl">🎰</div>
-                  <span className="text-xs md:text-sm font-semibold text-white/70">Plinko</span>
-                  <span className="text-[10px] text-white/50">Soon</span>
+                  <span className="text-xs md:text-sm font-semibold text-white">Plinko</span>
                 </button>
 
                 {/* Bomber - Future */}
@@ -620,28 +629,37 @@ export const Matches: React.FC = () => {
                 {gameCategory === "Plinko" && (
                   <>
                     <GlowButton
-                      variant="ghost"
+                      variant={gameModeFilter === "Plinko3Balls" ? "mint" : "ghost"}
                       size="sm"
-                      disabled
-                      className="text-xs opacity-50"
+                      onClick={() => setGameModeFilter("Plinko3Balls")}
+                      className="text-xs"
                     >
-                      🎰 3x5
+                      <span className="flex items-center">
+                        <span className="mr-1">🎱</span>
+                        3 Balls
+                      </span>
                     </GlowButton>
                     <GlowButton
-                      variant="ghost"
+                      variant={gameModeFilter === "Plinko5Balls" ? "orange" : "ghost"}
                       size="sm"
-                      disabled
-                      className="text-xs opacity-50"
+                      onClick={() => setGameModeFilter("Plinko5Balls")}
+                      className="text-xs"
                     >
-                      🎰 5x7
+                      <span className="flex items-center">
+                        <span className="mr-1">🎱</span>
+                        5 Balls
+                      </span>
                     </GlowButton>
                     <GlowButton
-                      variant="ghost"
+                      variant={gameModeFilter === "Plinko7Balls" ? "blue" : "ghost"}
                       size="sm"
-                      disabled
-                      className="text-xs opacity-50"
+                      onClick={() => setGameModeFilter("Plinko7Balls")}
+                      className="text-xs"
                     >
-                      🎰 7x10
+                      <span className="flex items-center">
+                        <span className="mr-1">🎱</span>
+                        7 Balls
+                      </span>
                     </GlowButton>
                   </>
                 )}

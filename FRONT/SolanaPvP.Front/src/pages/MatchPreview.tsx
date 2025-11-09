@@ -68,7 +68,7 @@ export const MatchPreview: React.FC = () => {
   const [pageMode, setPageMode] = useState<PageMode>("preview");
   const [gameData, setGameData] = useState<{
     players: Player[];
-    gameMode: "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree";
+    gameMode: "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls";
   } | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [userBalance, setUserBalance] = useState<number>(0);
@@ -153,14 +153,14 @@ export const MatchPreview: React.FC = () => {
           pollCount++;
           try {
             const latestMatch = await matchesApi.getMatch(matchPda!);
-            console.log(`[MatchPreview] Poll ${pollCount}/30 - Status: ${latestMatch.status}`);
+            console.log(`[MatchPreview] Poll ${pollCount}/60 - Status: ${latestMatch.status}`);
             
             if (latestMatch.status === "InProgress" || latestMatch.status === "Resolved") {
               console.log("✅ [MatchPreview] Match became InProgress! Updating...");
               clearInterval(pollForInProgress);
               setMatchFromBackend(latestMatch);
-            } else if (pollCount >= 30) {
-              console.log("⏱️ [MatchPreview] Polling timeout (30 attempts)");
+            } else if (pollCount >= 60) {
+              console.log("⏱️ [MatchPreview] Polling timeout (60 attempts)");
               clearInterval(pollForInProgress);
             }
           } catch (error) {
@@ -481,9 +481,9 @@ export const MatchPreview: React.FC = () => {
       // Fetch backend data with polling - match will transition to Pending -> InProgress
       console.log("[MatchPreview] Starting to poll for match status updates...");
       
-      // Poll backend every second for up to 30 seconds to catch status change
+      // Poll backend every second for up to 60 seconds to catch status change
       let pollAttempts = 0;
-      const maxPollAttempts = 30;
+      const maxPollAttempts = 60;
       
       const pollInterval = setInterval(async () => {
         pollAttempts++;
@@ -789,58 +789,8 @@ export const MatchPreview: React.FC = () => {
 
   // Render game mode
   if (pageMode === "game" && gameData) {
-    if (isViewer) {
-      // Spectators only see stats, not the game board
-      return (
-        <div className="relative min-h-screen bg-bg py-4 lg:py-8 overflow-hidden">
-          <AuroraBackground />
-          <div className="max-w-4xl mx-auto px-3 lg:px-6">
-            <motion.div
-              className="text-center mb-4 lg:mb-8"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <h1 className="text-2xl lg:text-4xl font-display font-bold text-txt-base mb-2">
-                {getArenaTypeDisplay()} #{lobby.lobbyId.toString()}
-              </h1>
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-base lg:text-lg text-blue-400">{lobby.status}</span>
-                <span className="text-txt-muted">•</span>
-                <span className="text-txt-muted text-sm lg:text-base">{stakeSOL} SOL stake</span>
-              </div>
-            </motion.div>
-
-            <GlassCard className="p-4 lg:p-8 text-center">
-              <h2 className="text-2xl font-bold text-sol-purple mb-4">
-                Watching Match
-              </h2>
-              <p className="text-txt-muted mb-6">
-                You are viewing this match as a spectator. Only participants can
-                see the game board.
-              </p>
-
-              <div className="mt-8">
-                <h3 className="text-xl font-semibold text-txt-base mb-4">
-                  Match Status
-                </h3>
-                <div className="space-y-2 text-txt-muted">
-                  <p>Teams are currently playing...</p>
-                  <p>Results will be available when the match completes.</p>
-                </div>
-              </div>
-            </GlassCard>
-
-            <div className="mt-8 flex justify-center">
-              <GlowButton variant="ghost" onClick={() => navigate("/matches")}>
-                Back to Matches
-              </GlowButton>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Participants see the full game
+    // For spectators: show full game UI but mark as viewer (no interactive controls)
+    // All players appear as AI for spectators
     return (
       <div className="relative min-h-screen bg-bg py-4 lg:py-8 overflow-hidden">
         <AuroraBackground />
@@ -856,14 +806,14 @@ export const MatchPreview: React.FC = () => {
           </motion.div>
 
           <UniversalGameBoard
-            gameType={GameType.PickHigher}
+            gameType={matchFromBackend?.gameType === "Plinko" ? GameType.Plinko : GameType.PickHigher}
             gameMode={gameData.gameMode}
             matchMode={MatchMode.Team}
             teamSize={mapTeamSizeToMatchType(matchFromBackend?.teamSize || "OneVOne") as "Solo" | "Duo" | "Team"}
             stakeSol={stakeSOL}
             players={gameData.players}
-            currentPlayer="You"
-            currentPlayerPubkey={publicKey?.toBase58()}
+            currentPlayer={isViewer ? "" : "You"} // Spectators have no current player
+            currentPlayerPubkey={isViewer ? undefined : publicKey?.toBase58()} // No pubkey for spectators
             matchFromBackend={matchFromBackend}
             timeLimit={gameTimeRemaining}
             onGameComplete={handleGameComplete}
@@ -985,13 +935,25 @@ export const MatchPreview: React.FC = () => {
             <div>
               <p className="text-xs lg:text-sm text-txt-muted mb-1">Game</p>
               <p className="text-sm lg:text-lg font-semibold text-txt-base">
-                {(lobby as any)?.game === "PickHigher" ? "Pick Higher" : (lobby as any)?.game || matchFromBackend?.gameType || "Pick Higher"}
+                {(() => {
+                  const game = (lobby as any)?.game || matchFromBackend?.gameType || "PickHigher";
+                  if (game === "PickHigher") return "Pick Higher";
+                  if (game === "Plinko") return "🎱 Plinko";
+                  return game;
+                })()}
               </p>
             </div>
             <div>
               <p className="text-xs lg:text-sm text-txt-muted mb-1">Game Mode</p>
               <p className="text-sm lg:text-lg font-semibold text-txt-base">
-                {(lobby as any)?.gameMode || matchFromBackend?.gameMode || "3x9"}
+                {(() => {
+                  const mode = (lobby as any)?.gameMode || matchFromBackend?.gameMode || "3x9";
+                  // Format Plinko modes nicely
+                  if (mode === "Plinko3Balls") return "🎱 3 balls";
+                  if (mode === "Plinko5Balls") return "🎱 5 balls";
+                  if (mode === "Plinko7Balls") return "🎱 7 balls";
+                  return mode;
+                })()}
               </p>
             </div>
             <div>

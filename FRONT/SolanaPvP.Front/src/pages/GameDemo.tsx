@@ -9,7 +9,6 @@ import {
   GlassCardTitle,
 } from "@/components/ui/GlassCard";
 import { generateDemoPlayers } from "@/lib/gameMockGenerator";
-import { getGameModeConfig } from "@/utils/gameScoreDistribution";
 import { Confetti } from "@/components/game/effects/Confetti";
 import { GameResult, GameType } from "@/types/game";
 import { AuroraBackground } from "@/components/effects/AuroraBackground";
@@ -21,9 +20,9 @@ type GameMode =
   | "PickThreeFromNine"
   | "PickFiveFromSixteen"
   | "PickOneFromThree"
-  | "Plinko3Balls5Rows"
-  | "Plinko5Balls7Rows"
-  | "Plinko7Balls9Rows";
+  | "Plinko3Balls"
+  | "Plinko5Balls"
+  | "Plinko7Balls";
 type MatchType = "Solo" | "Duo" | "Team";
 type GameCategory = "PickHigher" | "Plinko";
 
@@ -48,9 +47,9 @@ export const GameDemo: React.FC = () => {
 
   // Plinko game modes
   const plinkoModes: { mode: GameMode; label: string; icon: string }[] = [
-    { mode: "Plinko3Balls5Rows", label: "3 Balls", icon: "🎱" },
-    { mode: "Plinko5Balls7Rows", label: "5 Balls", icon: "🎱" },
-    { mode: "Plinko7Balls9Rows", label: "7 Balls", icon: "🎱" },
+    { mode: "Plinko3Balls", label: "3 Balls", icon: "🎱" },
+    { mode: "Plinko5Balls", label: "5 Balls", icon: "🎱" },
+    { mode: "Plinko7Balls", label: "7 Balls", icon: "🎱" },
   ];
 
   const gameModes = currentGame === "Plinko" ? plinkoModes : pickHigherModes;
@@ -101,8 +100,6 @@ export const GameDemo: React.FC = () => {
     setIsGameActive(false);
     setGameKey((prev) => prev + 1);
   };
-
-  const currentConfig = getGameModeConfig(currentGameMode);
 
   // Show loader overlay
   if (isLoading) {
@@ -206,7 +203,7 @@ export const GameDemo: React.FC = () => {
                   <button
                     onClick={() => {
                       setCurrentGame("Plinko");
-                      setCurrentGameMode("Plinko3Balls5Rows");
+                      setCurrentGameMode("Plinko3Balls");
                     }}
                     className={cn(
                       "flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px]",
@@ -298,13 +295,25 @@ export const GameDemo: React.FC = () => {
                       How to Play
                     </h3>
                     <ul className="text-sm text-txt-muted space-y-1">
-                      <li>
-                        • Select {currentConfig.maxSelections}{" "}
-                        {currentConfig.name.toLowerCase()}
-                      </li>
-                      <li>• Each selection reveals a point value</li>
-                      <li>• Reach your target score to win</li>
-                      <li>• Higher values give you better chances</li>
+                      {currentGame === "Plinko" ? (
+                        <>
+                          <li>• Drop {currentGameMode === "Plinko3Balls" ? "3" : currentGameMode === "Plinko5Balls" ? "5" : "7"} balls down the board</li>
+                          <li>• Each ball bounces off pins and lands in a slot</li>
+                          <li>• Reach your target score to win</li>
+                          <li>• Edge slots give higher scores</li>
+                        </>
+                      ) : (
+                        <>
+                          <li>
+                            • {currentGameMode === "PickThreeFromNine" ? "Pick 3 from 9 tiles" 
+                              : currentGameMode === "PickFiveFromSixteen" ? "Pick 5 from 16 tiles"
+                              : "Pick 1 from 3 cards"}
+                          </li>
+                          <li>• Each selection reveals a point value</li>
+                          <li>• Reach your target score to win</li>
+                          <li>• Higher values give you better chances</li>
+                        </>
+                      )}
                     </ul>
                   </div>
                   <div>

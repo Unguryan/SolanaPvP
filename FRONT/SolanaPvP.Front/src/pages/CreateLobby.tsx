@@ -17,7 +17,7 @@ import { MIN_STAKE_LAMPORTS } from "@/services/solana/config";
 import { AuroraBackground } from "@/components/effects/AuroraBackground";
 import { cn } from "@/utils/cn";
 
-type GameMode = "Pick3from9" | "Pick5from16" | "Pick1from3";
+type GameMode = "Pick3from9" | "Pick5from16" | "Pick1from3" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls";
 type TeamSize = 1 | 2 | 5;
 type GameCategory = "PickHigher" | "Plinko";
 
@@ -38,6 +38,15 @@ export const CreateLobby: React.FC = () => {
   const [stakeSOL, setStakeSOL] = useState(0.1);
   const [side, setSide] = useState<0 | 1>(0);
   const [lobbyId] = useState(Date.now());
+  
+  // Reset gameMode when switching games
+  useEffect(() => {
+    if (currentGame === "PickHigher") {
+      setGameMode("Pick3from9");
+    } else if (currentGame === "Plinko") {
+      setGameMode("Plinko3Balls");
+    }
+  }, [currentGame]);
   const [stakeError, setStakeError] = useState<string | null>(null);
   const [validationMessage, setValidationMessage] = useState<string | null>(
     null
@@ -50,10 +59,16 @@ export const CreateLobby: React.FC = () => {
   // Fetch full lobby data from blockchain if user has active lobby
   const { lobby: lobbyData } = useLobbyData(activeLobby?.lobby);
 
-  const gameModes: { mode: GameMode; label: string; icon: string }[] = [
+  const pickHigherModes: { mode: GameMode; label: string; icon: string }[] = [
     { mode: "Pick3from9", label:  "3v9", icon: "🏆" }, // Сундуки (3x3)
     { mode: "Pick5from16", label: "5v16", icon: "🎯" }, // Плитки (4x4)
     { mode: "Pick1from3", label:  "1v3", icon: "🎴" }, // Карты (3 cards)
+  ];
+
+  const plinkoModes: { mode: GameMode; label: string; icon: string }[] = [
+    { mode: "Plinko3Balls", label: "3 Balls", icon: "🎱" },
+    { mode: "Plinko5Balls", label: "5 Balls", icon: "🎱" },
+    { mode: "Plinko7Balls", label: "7 Balls", icon: "🎱" },
   ];
 
   const teamSizes: { size: TeamSize; label: string; description: string }[] = [
@@ -138,6 +153,9 @@ export const CreateLobby: React.FC = () => {
         "Pick3from9": "3x9",
         "Pick5from16": "5x16",
         "Pick1from3": "1x3",
+        "Plinko3Balls": "Plinko3Balls",
+        "Plinko5Balls": "Plinko5Balls",
+        "Plinko7Balls": "Plinko7Balls",
       };
       
       // Map teamSize to string format
@@ -153,7 +171,7 @@ export const CreateLobby: React.FC = () => {
         stakeLamports,
         side,
         creator: publicKey.toString(),
-        game: "PickHigher",
+        game: currentGame, // Use selected game type!
         gameMode: gameModeMapping[gameMode],
         arenaType: "SingleBattle",
         teamSizeStr: teamSizeMapping[teamSize],
@@ -164,7 +182,7 @@ export const CreateLobby: React.FC = () => {
         teamSize,
         stakeLamports,
         side,
-        game: "PickHigher",
+        game: currentGame, // Use selected game type!
         gameMode: gameModeMapping[gameMode],
         arenaType: "SingleBattle",
         teamSizeStr: teamSizeMapping[teamSize],
@@ -401,14 +419,18 @@ export const CreateLobby: React.FC = () => {
                 <span className="text-sm font-semibold text-white">Pick Higher</span>
               </button>
 
-              {/* Plinko - Coming Soon */}
+              {/* Plinko - ACTIVE! */}
               <button
-                disabled
-                className="flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 bg-white/5 border-white/10 opacity-50 cursor-not-allowed min-w-[100px]"
+                onClick={() => setCurrentGame("Plinko")}
+                className={cn(
+                  "flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px]",
+                  currentGame === "Plinko"
+                    ? "bg-gradient-to-br from-purple-500 to-pink-600 border-purple-400/50 shadow-lg"
+                    : "bg-white/5 border-white/10 hover:bg-white/10"
+                )}
               >
                 <div className="text-4xl md:text-5xl">🎰</div>
-                <span className="text-sm font-semibold text-white/70">Plinko</span>
-                <span className="text-[10px] text-white/50">Soon</span>
+                <span className="text-sm font-semibold text-white">Plinko</span>
               </button>
 
               {/* Bomber - Future */}
@@ -424,7 +446,7 @@ export const CreateLobby: React.FC = () => {
           </GlassCard>
 
           {/* Game Mode Selection - только если выбрана конкретная игра */}
-          {currentGame === "PickHigher" && (
+          {(currentGame === "PickHigher" || currentGame === "Plinko") && (
             <GlassCard className="p-4">
               <GlassCardHeader>
                 <GlassCardTitle className="text-lg font-display text-txt-base">
@@ -433,7 +455,26 @@ export const CreateLobby: React.FC = () => {
               </GlassCardHeader>
             <div className="grid grid-cols-3 gap-3 md:gap-4 mt-1">
               {currentGame === "PickHigher" ? (
-                gameModes.map(({ mode, label, icon }, index) => {
+                pickHigherModes.map(({ mode, label, icon }, index) => {
+                  const variants = ["mint", "orange", "blue"];
+                  const selectedVariant =
+                    gameMode === mode ? variants[index] : "ghost";
+                  return (
+                    <GlowButton
+                      key={mode}
+                      variant={selectedVariant as any}
+                      onClick={() => setGameMode(mode)}
+                      className="flex flex-col items-center space-y-1 p-3 h-18"
+                    >
+                      <span className="text-xl md:text-2xl">{icon}</span>
+                      <span className="text-xs md:text-sm font-medium">
+                        {label}
+                      </span>
+                    </GlowButton>
+                  );
+                })
+              ) : currentGame === "Plinko" ? (
+                plinkoModes.map(({ mode, label, icon }, index) => {
                   const variants = ["mint", "orange", "blue"];
                   const selectedVariant =
                     gameMode === mode ? variants[index] : "ghost";
@@ -452,7 +493,7 @@ export const CreateLobby: React.FC = () => {
                   );
                 })
               ) : (
-                /* Plinko modes - Coming soon */
+                /* Future games */
                 <>
                   {[
                     { label: "3x5", icon: "🎰" },

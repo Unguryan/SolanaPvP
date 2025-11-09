@@ -225,15 +225,44 @@ public class GameDataGenerator : IGameDataGenerator
     {
         int totalScore = 0;
         
-        // Generate realistic score by picking random slots
+        // Generate realistic score using WEIGHTED distribution (physics-based!)
+        // Slots closer to center have HIGHER probability (like real Plinko)
         for (int i = 0; i < ballCount; i++)
         {
-            // Pick random slot (weighted slightly toward middle for realism)
-            int randomIndex = _random.Next(slotValues.Length);
-            totalScore += slotValues[randomIndex];
+            int slotIndex = GenerateWeightedSlotIndex(slotValues.Length);
+            totalScore += slotValues[slotIndex];
         }
         
         return totalScore;
+    }
+    
+    private int GenerateWeightedSlotIndex(int slotCount)
+    {
+        // Generate slot index with binomial-like distribution
+        // Center slots (low values) have HIGHER probability
+        // Edge slots (high values) have LOWER probability
+        
+        // Use binomial distribution approximation
+        // For odd slotCount (7, 9, 11), center is at (slotCount - 1) / 2
+        int center = (slotCount - 1) / 2;
+        
+        // Generate weighted random index using normal distribution approximation
+        // Standard deviation controls spread (smaller = more centered)
+        double stdDev = slotCount / 4.0; // ~25% of slots as std dev
+        
+        // Box-Muller transform for normal distribution
+        double u1 = 1.0 - _random.NextDouble(); // Uniform(0,1]
+        double u2 = 1.0 - _random.NextDouble();
+        double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
+        
+        // Scale and shift to center
+        double randomValue = center + stdDev * randStdNormal;
+        
+        // Clamp to valid range [0, slotCount - 1]
+        int slotIndex = (int)Math.Round(randomValue);
+        slotIndex = Math.Max(0, Math.Min(slotCount - 1, slotIndex));
+        
+        return slotIndex;
     }
     
     private int ParseTeamSize(string teamSize)
