@@ -48,7 +48,8 @@ export const PlinkoGame = forwardRef<PlinkoGameHandle, PlinkoGameProps>(({
     setBallDropCount(0);
     setIsDropping(false);
     autoDropTriggeredRef.current = false; // Сбрасываем флаг автоброса
-  }, [gameMode, config.balls]);
+    console.log(`🎰 [PlinkoGame] Initialized! Mode: ${gameMode}, Balls: ${config.balls}, Target slots:`, allTargetSlots);
+  }, [gameMode, config.balls, allTargetSlots]);
 
   const handleDropBall = () => {
     if (disabled || ballDropCount >= config.balls || allTargetSlots.length < config.balls || isDropping) {
@@ -172,7 +173,7 @@ export const PlinkoGame = forwardRef<PlinkoGameHandle, PlinkoGameProps>(({
         </div>
         
         {/* Ball wins history - ВСЕ выигрыши ОДИНАКОВОГО размера */}
-        <div className="flex items-center gap-0.5 md:gap-1 justify-end flex-1">
+        <div className="flex items-center gap-0.5 md:gap-1 justify-end flex-1 overflow-x-auto scrollbar-hide max-w-[60%] md:max-w-none">
           {ballWins.map((win, index) => {
             const colors = getSlotColor(win);
             return (

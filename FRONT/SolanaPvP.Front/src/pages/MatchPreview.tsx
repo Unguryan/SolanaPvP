@@ -224,8 +224,16 @@ export const MatchPreview: React.FC = () => {
 
   // Determine if user is a viewer (not participant and not connected)
   useEffect(() => {
+    // WAIT for data to load before determining viewer status
     if (!publicKey || !connected) {
-      setIsViewer(true);
+      // Don't set isViewer yet - wallet might still be connecting
+      console.log("👀 [MatchPreview] Wallet not connected yet, waiting...");
+      return;
+    }
+    
+    // If no match data yet, wait for it to load
+    if (!lobby && !matchFromBackend) {
+      console.log("👀 [MatchPreview] Match data not loaded yet, waiting...");
       return;
     }
 

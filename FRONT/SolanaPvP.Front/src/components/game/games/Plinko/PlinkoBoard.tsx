@@ -1,15 +1,23 @@
-// Plinko board with REAL PHYSICS using Matter.js
-import React, { useEffect, useRef, useState } from "react";
+// Plinko board with REAL PHYSICS using Matter.js + GUIDED PATH
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import Matter from "matter-js";
 import { motion } from "framer-motion";
-import { getSlotValues } from "@/utils/plinkoScoreBreakdown";
+import { getSlotValues, calculateBallPath } from "@/utils/plinkoScoreBreakdown";
 
 interface PlinkoBoardProps {
-  rows: number; // 5, 7, or 9
-  slots: number; // 6, 8, or 10
+  rows: number;
+  slots: number;
   onBallLand: (slotIndex: number, value: number) => void;
-  allTargetSlots: number[]; // ВСЕ слоты для всех шариков!
-  ballDropCount?: number; // Сколько шариков бросили
+  allTargetSlots: number[];
+  ballDropCount?: number;
+}
+
+interface BallData {
+  body: Matter.Body;
+  targetSlot: number;
+  path: number[];
+  currentRow: number;
+  hasLanded: boolean;
 }
 
 export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
@@ -19,34 +27,29 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
   allTargetSlots,
   ballDropCount = 0,
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null); // Контейнер вместо canvas!
+  const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
-  const ballsRef = useRef<Matter.Body[]>([]);
+  const ballsDataRef = useRef<Map<number, BallData>>(new Map());
+  const pinPositionsRef = useRef<{ y: number }[]>([]);
   const onBallLandRef = useRef(onBallLand);
+  const lastDropCountRef = useRef(0);
   
-  // Calculate slot values ONCE and memoize
   const slotValuesRef = useRef<number[]>([]);
   if (slotValuesRef.current.length === 0) {
     slotValuesRef.current = getSlotValues(slots);
   }
   const slotValues = slotValuesRef.current;
   
-  // Адаптивное количество rows для маленьких экранов
   const isVerySmallScreen = typeof window !== 'undefined' && window.innerWidth < 400;
-  const rows = isVerySmallScreen ? Math.min(propsRows, 7) : propsRows; // Макс 7 rows на маленьких!
+  const rows = isVerySmallScreen ? Math.min(propsRows, 7) : propsRows;
   
-  // Removed spark/pin animations - они убивают FPS!
-  
-  // Slot bounce animations
   const [bouncingSlots, setBouncingSlots] = useState<Set<number>>(new Set());
   
-  // Keep onBallLand ref updated (use useEffect to avoid re-render loops!)
   useEffect(() => {
     onBallLandRef.current = onBallLand;
   }, [onBallLand]);
   
-  // Adaptive sizes - MEMOIZE to prevent engine recreation!
   const sizeConfig = useRef<{
     isMobile: boolean;
     isVerySmall: boolean;
@@ -64,52 +67,49 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
       isMobile,
       isVerySmall,
       WIDTH: isVerySmall 
-        ? window.innerWidth - 10 
+        ? Math.min(window.innerWidth - 20, 380)
         : isMobile 
-        ? Math.min(window.innerWidth - 30, 600) 
+        ? Math.min(window.innerWidth - 40, 600) 
         : 800,
-      HEIGHT: isVerySmall ? 300 : isMobile ? 400 : 600,
+      HEIGHT: isVerySmall ? 360 : isMobile ? 480 : 600,
       PIN_RADIUS: isVerySmall ? 3 : isMobile ? 5 : 8,
-      BALL_RADIUS: isVerySmall ? 4 : isMobile ? 6 : 10, // Увеличил на 1-2px
-      SLOT_HEIGHT: isVerySmall ? 40 : isMobile ? 50 : 80,
+      BALL_RADIUS: isVerySmall ? 5 : isMobile ? 7 : 10,
+      SLOT_HEIGHT: isVerySmall ? 48 : isMobile ? 56 : 80,
     };
   }
   
-  const { isMobile, isVerySmall, WIDTH, HEIGHT, PIN_RADIUS, BALL_RADIUS, SLOT_HEIGHT } = sizeConfig.current || {
+  const { isVerySmall, WIDTH, HEIGHT, PIN_RADIUS, BALL_RADIUS, SLOT_HEIGHT } = sizeConfig.current || {
     isMobile: false,
     isVerySmall: false,
     WIDTH: 800,
     HEIGHT: 600,
     PIN_RADIUS: 8,
-    BALL_RADIUS: 10, // Увеличил на 1px
+    BALL_RADIUS: 10,
     SLOT_HEIGHT: 80,
   };
 
-  // Initialize Matter.js physics engine ONCE
+  // Initialize Matter.js physics engine
   useEffect(() => {
     if (!containerRef.current) return;
     
-    // Creating Matter.js engine
+    const ballsData = ballsDataRef.current;
+    const { Engine, Render, World, Bodies, Runner, Events, Body } = Matter;
 
-    const { Engine, Render, World, Bodies, Runner, Events } = Matter;
-
-    // Create engine with optimized settings
     const engine = Engine.create({
-      gravity: { x: 0, y: 1, scale: 0.0012 }, // Замедлил (было 0.0015)
-      enableSleeping: false, // Disable sleeping для более плавной анимации
+      gravity: { x: 0, y: 1, scale: 0.0008 }, // ✅ SLOWER gravity for controlled bounces!
+      enableSleeping: false,
     });
     engineRef.current = engine;
 
-    // Create renderer - Matter.js создаст canvas сам!
     const render = Render.create({
-      element: containerRef.current, // Передаем контейнер!
+      element: containerRef.current,
       engine: engine,
       options: {
         width: WIDTH,
         height: HEIGHT,
-        wireframes: false, // Красивая графика!
-        background: "#1a1a2e", // Темный фон
-        pixelRatio: 1, // Убрал retina для FPS
+        wireframes: false,
+        background: "#1a1a2e",
+        pixelRatio: window.devicePixelRatio || 1,
         hasBounds: false,
         showAngleIndicator: false,
         showCollisions: false,
@@ -117,79 +117,98 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
       },
     });
     renderRef.current = render;
-    
-    // Renderer ready
 
-    // Create walls - ТОНКИЕ и НЕВИДИМЫЕ!
+    // Create walls
     const wallOptions = {
       isStatic: true,
       render: { 
-        fillStyle: "transparent", // НЕВИДИМЫЕ стены!
+        fillStyle: "transparent",
         strokeStyle: "transparent",
         lineWidth: 0
       },
+      friction: 0.1,
+      restitution: 0.5,
     };
     
-    const leftWall = Bodies.rectangle(-5, HEIGHT / 2, 10, HEIGHT, wallOptions); // За краем
-    const rightWall = Bodies.rectangle(WIDTH + 5, HEIGHT / 2, 10, HEIGHT, wallOptions); // За краем
-    const bottom = Bodies.rectangle(WIDTH / 2, HEIGHT + 5, WIDTH, 10, wallOptions);
+    const leftWall = Bodies.rectangle(-5, HEIGHT / 2, 10, HEIGHT, wallOptions);
+    const rightWall = Bodies.rectangle(WIDTH + 5, HEIGHT / 2, 10, HEIGHT, wallOptions);
+    
+    // Bottom - make it a sensor so balls don't bounce
+    const bottom = Bodies.rectangle(WIDTH / 2, HEIGHT + 50, WIDTH, 100, {
+      isStatic: true,
+      isSensor: true, // Don't bounce balls!
+      render: { 
+        fillStyle: "transparent",
+        strokeStyle: "transparent",
+        lineWidth: 0
+      },
+    });
     
     World.add(engine.world, [leftWall, rightWall, bottom]);
 
     // Create pins in pyramid formation
     const pins: Matter.Body[] = [];
+    const pinYPositions: number[] = [];
     const actualSlots = slotValuesRef.current.length;
     const pinSpacingX = WIDTH / (actualSlots + 1);
-    const topMargin = 50; // Меньше отступ сверху - пирамида выше!
-    const pinSpacingY = (HEIGHT - SLOT_HEIGHT - topMargin - 20) / (rows + 1); // Больше места для пинов
-
+    const topMargin = 50;
+    const pinSpacingY = (HEIGHT - SLOT_HEIGHT - topMargin - 40) / (rows + 1);
+    
     for (let row = 0; row < rows; row++) {
       const pinsInRow = row + 2;
       const rowY = topMargin + pinSpacingY * (row + 1);
+      pinYPositions.push(rowY);
+      
       const startX = WIDTH / 2 - (pinSpacingX * (pinsInRow - 1)) / 2;
-
+      
       for (let col = 0; col < pinsInRow; col++) {
         const pinX = startX + col * pinSpacingX;
         const pin = Bodies.circle(pinX, rowY, PIN_RADIUS, {
           isStatic: true,
-          restitution: 0.7, // Bounciness
+          restitution: 0.6,
+          friction: 0.1,
           render: {
-            fillStyle: "#c084fc", // Более яркий фиолетовый
+            fillStyle: "#c084fc",
             strokeStyle: "#e9d5ff",
             lineWidth: 2,
           },
           label: `pin-${row}-${col}`,
-          collisionFilter: {
-            category: 0x0001, // Pin category
-          },
         });
         pins.push(pin);
       }
     }
+    
+    pinPositionsRef.current = pinYPositions.map(y => ({ y }));
     World.add(engine.world, pins);
-    // Pins added
 
-    // Create slot dividers - ОЧЕНЬ ТОНКИЕ!
+    // Create invisible slot sensors at bottom
     const slotWidth = WIDTH / actualSlots;
-    for (let i = 0; i <= actualSlots; i++) {
-      const divider = Bodies.rectangle(
-        i * slotWidth,
+    const slotSensors: Matter.Body[] = [];
+    
+    for (let i = 0; i < actualSlots; i++) {
+      const sensor = Bodies.rectangle(
+        (i + 0.5) * slotWidth,
         HEIGHT - SLOT_HEIGHT / 2,
-        1, // ТОНКИЕ разделители (было 3!)
+        slotWidth - 2,
         SLOT_HEIGHT,
         {
           isStatic: true,
-          render: { 
-            fillStyle: "rgba(168, 85, 247, 0.2)", // Менее яркие
-            strokeStyle: "transparent"
+          isSensor: true, // Sensor doesn't affect physics but detects collisions
+          render: {
+            fillStyle: "transparent",
+          },
+          label: `slot-sensor-${i}`,
+          collisionFilter: {
+            category: 0x0001, // Same as pins
+            mask: 0xFFFFFFFF, // Collides with everything
           },
         }
       );
-      World.add(engine.world, divider);
+      slotSensors.push(sensor);
     }
-    // Slots created
+    World.add(engine.world, slotSensors);
 
-    // Collision detection - visual feedback through Matter.js renderer
+    // Collision detection + DETERMINISTIC BOUNCE based on path!
     Events.on(engine, "collisionStart", (event) => {
       event.pairs.forEach((pair) => {
         const { bodyA, bodyB } = pair;
@@ -197,58 +216,153 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
         const ball = [bodyA, bodyB].find((b) => b.label?.startsWith("ball-"));
         
         if (pin && ball) {
-          // Flash pin color (native Matter.js - no React re-render!)
+          // Flash pin color on collision
           const originalFill = pin.render.fillStyle;
-          pin.render.fillStyle = "#ffffff"; // White flash
+          pin.render.fillStyle = "#ffffff";
           setTimeout(() => {
             if (pin.render) pin.render.fillStyle = originalFill;
-          }, 50);
+          }, 100);
+          
+          // Impulses are now applied in afterUpdate when crossing rows!
+        }
+        
+        // Check slot sensor collision
+        const slotSensor = [bodyA, bodyB].find((b) => b.label?.startsWith("slot-sensor-"));
+        const landingBall = [bodyA, bodyB].find((b) => b.label?.startsWith("ball-"));
+        
+        if (slotSensor && landingBall) {
+          const ballId = parseInt(landingBall.label!.split("-")[1]);
+          const ballData = ballsDataRef.current.get(ballId);
+          
+          if (ballData && !ballData.hasLanded) {
+            ballData.hasLanded = true;
+            
+            const slotIndex = parseInt(slotSensor.label!.split("-")[2]);
+            const value = slotValuesRef.current[slotIndex];
+            
+            console.log(`🎯 Ball #${ballId} landed in slot ${slotIndex} (target: ${ballData.targetSlot}) Value: ${value}`);
+            
+            // Trigger slot bounce animation
+            setBouncingSlots((prev) => new Set(prev).add(slotIndex));
+    setTimeout(() => {
+              setBouncingSlots((prev) => {
+        const newSet = new Set(prev);
+                newSet.delete(slotIndex);
+        return newSet;
+              });
+            }, 300);
+            
+            // Remove ball after short delay
+            setTimeout(() => {
+              World.remove(engine.world, landingBall);
+              ballsData.delete(ballId);
+            }, 300);
+            
+            onBallLandRef.current(slotIndex, value);
+          }
         }
       });
     });
 
-    // Check when balls land in slots
+    // ✅ MAIN GUIDANCE SYSTEM - Apply steering forces continuously!
     Events.on(engine, "afterUpdate", () => {
-      const actualSlots = slotValuesRef.current.length;
-      const slotWidth = WIDTH / actualSlots;
-      
-      ballsRef.current.forEach((ball, index) => {
-        if (ball.position.y > HEIGHT - SLOT_HEIGHT - 20 && ball.velocity.y < 0.5) {
-          // Ball has landed
-          const slotIndex = Math.floor(ball.position.x / slotWidth);
+      ballsData.forEach((ballData) => {
+        if (ballData.hasLanded) return;
+        
+        const ball = ballData.body;
+        const ballY = ball.position.y;
+        const ballX = ball.position.x;
+        
+        // Calculate target X position for this ball
+        const targetX = (ballData.targetSlot + 0.5) * slotWidth;
+        const deltaX = targetX - ballX;
+        
+        // Determine current row based on Y position
+        let currentRow = -1;
+        for (let i = 0; i < pinPositionsRef.current.length; i++) {
+          if (ballY > pinPositionsRef.current[i].y) {
+            currentRow = i;
+          }
+        }
+        
+        // Update current row (for tracking only)
+        if (currentRow > ballData.currentRow && currentRow >= 0) {
+          ballData.currentRow = currentRow;
+        }
+        
+        // ✅ CONSTANT gentle pull toward target - simple and effective!
+        const towardTarget = Math.sign(deltaX);
+        const pullStrength = 0.0002; // Very gentle constant pull
+        
+        if (Math.abs(deltaX) > 10 && ball.velocity.y > 1) { // Only if off-target and falling
+          Body.applyForce(ball, ball.position, {
+            x: towardTarget * pullStrength,
+            y: 0,
+          });
+        }
+        
+        // ✅ Limit X velocity STRICTLY!
+        const maxVelocityX = 3; // Lower limit (was 5)
+        if (Math.abs(ball.velocity.x) > maxVelocityX) {
+          Body.setVelocity(ball, {
+            x: Math.sign(ball.velocity.x) * maxVelocityX,
+            y: ball.velocity.y
+          });
+        }
+        
+        // ✅ PRIMARY LANDING DETECTION - Check if ball reached slot zone
+        const slotZoneY = HEIGHT - SLOT_HEIGHT - 20; // 20px buffer above slots
+        
+        if (ballY >= slotZoneY && !ballData.hasLanded) { // Remove velocity check - just detect when reaching zone
+          const slotIndex = Math.floor(ballX / slotWidth);
           const finalSlot = Math.max(0, Math.min(actualSlots - 1, slotIndex));
+          const value = slotValuesRef.current[finalSlot];
           
-          // Ball landed - no console.log to reduce spam
+          console.log(`🎯 Ball #${ballData.targetSlot} landed in slot ${finalSlot}! (target was ${ballData.targetSlot}) | X: ${ballX.toFixed(1)} → ${targetX.toFixed(1)}`);
+          
+          ballData.hasLanded = true;
+          
+          // ✅ REMOVE BALL IMMEDIATELY!
+          World.remove(engine.world, ball);
+          ballsData.delete(parseInt(ball.label!.split("-")[1]));
           
           // Trigger slot bounce animation
           setBouncingSlots((prev) => new Set(prev).add(finalSlot));
-          setTimeout(() => {
+    setTimeout(() => {
             setBouncingSlots((prev) => {
-              const newSet = new Set(prev);
+        const newSet = new Set(prev);
               newSet.delete(finalSlot);
-              return newSet;
-            });
-          }, 300);
-          
-          // Remove ball and notify
-          World.remove(engine.world, ball);
-          ballsRef.current.splice(index, 1);
-          onBallLandRef.current(finalSlot, slotValuesRef.current[finalSlot]);
+        return newSet;
+      });
+    }, 300);
+    
+          // Notify immediately
+          onBallLandRef.current(finalSlot, value);
+          return; // Stop processing this ball
+        }
+        
+        // Safety check: remove out-of-bounds balls
+        if (ball.position.x < -50 || ball.position.x > WIDTH + 50 || ball.position.y < -50) {
+          if (!ballData.hasLanded) { // ✅ PREVENT INFINITE LOOP!
+            ballData.hasLanded = true;
+            console.log(`⚠️ Ball #${ballData.targetSlot} out of bounds at (${ballX.toFixed(1)}, ${ballY.toFixed(1)})`);
+            
+            World.remove(engine.world, ball);
+            ballsData.delete(parseInt(ball.label!.split("-")[1]));
+            
+            // Still trigger callback with closest slot
+            const slotIndex = Math.max(0, Math.min(actualSlots - 1, Math.floor(ball.position.x / slotWidth)));
+            onBallLandRef.current(slotIndex, slotValuesRef.current[slotIndex]);
+          }
         }
       });
     });
 
-    // No need to draw on canvas - using React overlay blocks now
-    
-    // Run engine with 60 FPS target
     const runner = Runner.create();
     Runner.run(runner, engine);
     Render.run(render);
-    
-    // Engine running
 
     return () => {
-      // Cleanup engine
       Render.stop(render);
       Runner.stop(runner);
       World.clear(engine.world, false);
@@ -256,22 +370,19 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
       if (render.canvas && render.canvas.parentElement) {
         render.canvas.remove();
       }
+      ballsData.clear();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, slots]); // ТОЛЬКО rows/slots! WIDTH/HEIGHT фиксированы в ref!
+  }, [rows, slots, WIDTH, HEIGHT, PIN_RADIUS, BALL_RADIUS, SLOT_HEIGHT]);
 
   // Drop ball when ballDropCount changes
-  const lastDropCountRef = useRef(0);
-  
-  // Reset lastDropCount when rows/slots change (new game)
   useEffect(() => {
     lastDropCountRef.current = 0;
+    ballsDataRef.current.clear();
   }, [rows, slots]);
   
-  useEffect(() => {
+  const dropBall = useCallback(() => {
     if (!engineRef.current || ballDropCount <= lastDropCountRef.current || allTargetSlots.length === 0) return;
     
-    // Получаем targetSlotIndex для ЭТОГО шарика (ballDropCount - 1)
     const currentBallIndex = ballDropCount - 1;
     const targetSlotIndex = allTargetSlots[currentBallIndex];
     
@@ -280,73 +391,90 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
       return;
     }
     
-    console.log(`🎲 Dropping ball #${ballDropCount} to slot ${targetSlotIndex}`);
+    console.log(`🎲 Dropping ball #${ballDropCount} → target slot ${targetSlotIndex}`);
     lastDropCountRef.current = ballDropCount;
     
-    const { Bodies, World } = Matter;
+    const { Bodies, World, Body } = Matter;
     
-    // Calculate starting X position with slight randomness
     const actualSlots = slotValuesRef.current.length;
     const slotWidth = WIDTH / actualSlots;
+    
+    // ✅ START POSITION based on target slot!
     const targetX = (targetSlotIndex + 0.5) * slotWidth;
+    const centerX = WIDTH / 2;
     
-    // Add randomness to starting position (±10% of slot width)
-    const randomOffset = (Math.random() - 0.5) * slotWidth * 0.2;
-    const startX = WIDTH / 2 + randomOffset;
+    // Offset from center proportional to target
+    const offsetRatio = (targetX - centerX) / centerX; // -1 to +1
+    const startX = centerX + offsetRatio * 40; // Start closer to target side!
     
-      // Create ball with physics + NO ball-to-ball collisions!
-      const ball = Bodies.circle(startX, 30, BALL_RADIUS, {
-        restitution: 0.6,
-        friction: 0.01,
-        density: 0.002,
-        render: {
-          fillStyle: "#fbbf24", // Золотой
-          strokeStyle: "#ffffff", // Белая обводка
-          lineWidth: 3,
-        },
-        label: `ball-${Date.now()}`,
-        collisionFilter: {
-          group: -1, // Negative group = не сталкиваются друг с другом!
-          category: 0x0002, // Ball category
-          mask: 0x0001, // Collides only with pins/walls (category 0x0001)
-        },
-      });
-
-    // Apply slight horizontal force to guide toward target
-    const forceDirection = targetX > startX ? 1 : -1;
-    const forceMagnitude = 0.00003;
-    Matter.Body.applyForce(ball, ball.position, {
-      x: forceDirection * forceMagnitude,
-      y: 0,
+    // Create ball with SLOW physics
+    const ballId = Date.now() + Math.random();
+    const ball = Bodies.circle(startX, 20, BALL_RADIUS, {
+      restitution: 0.5, // ✅ More bouncy (was 0.4)
+      friction: 0.1, // ✅ More friction to slow down (was 0.05)
+      frictionAir: 0.02, // ✅ More air resistance (was 0.01)
+      density: 0.0005, // ✅ Lighter ball (was 0.001)
+      render: {
+        fillStyle: "#fbbf24",
+        strokeStyle: "#ffffff",
+        lineWidth: 3,
+      },
+      label: `ball-${ballId}`,
+      collisionFilter: {
+        category: 0x0002, // Ball category
+        mask: 0x0001 | 0x0002, // Collides with pins (0x0001) and other balls (0x0002) for sensors
+        group: -1, // Negative group so balls pass through each other
+      },
     });
-
-    World.add(engineRef.current.world, ball);
-    ballsRef.current.push(ball);
     
-      // Ball added
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ballDropCount]); // allTargetSlots не меняется в игре
-
+    // Calculate path for this ball
+    const path = calculateBallPath(targetSlotIndex, rows, actualSlots);
+    console.log(`🎲 Ball #${ballDropCount} created:
+  - Target Slot: ${targetSlotIndex}
+  - Target X: ${targetX.toFixed(1)} (start: ${startX.toFixed(1)})
+  - Path (${path.length} rows): [${path.join(', ')}]
+  - Path summary: ${path.filter(d => d > 0).length}R, ${path.filter(d => d < 0).length}L`);
+    
+    // Store ball data
+    const ballData: BallData = {
+      body: ball,
+      targetSlot: targetSlotIndex,
+      path: path,
+      currentRow: -1,
+      hasLanded: false,
+    };
+    
+    ballsDataRef.current.set(ballId, ballData);
+    
+    // ✅ Give STRONG initial velocity toward target!
+    const initialVelocityX = (targetX - startX) / 50; // Velocity proportional to distance
+    Body.setVelocity(ball, {
+      x: initialVelocityX, // Direct velocity toward target
+      y: 1, // Start falling immediately
+    });
+    
+    World.add(engineRef.current.world, ball);
+  }, [ballDropCount, allTargetSlots, rows, WIDTH, BALL_RADIUS]);
+  
+  useEffect(() => {
+    dropBall();
+  }, [dropBall]);
+  
   return (
     <div className="relative w-full mx-auto" style={{ maxWidth: WIDTH + 'px' }}>
-      {/* Matter.js контейнер */}
       <div 
         ref={containerRef}
-        className={`relative overflow-hidden ${
-          isVerySmall 
-            ? 'rounded-lg' // Маленькие округления на мобильных
-            : 'rounded-xl'
-        }`}
+        className={`relative overflow-hidden ${isVerySmall ? 'rounded-lg' : 'rounded-xl'}`}
         style={{ 
           width: WIDTH + 'px',
           height: HEIGHT + 'px',
           margin: '0 auto',
-          border: isVerySmall ? 'none' : '1px solid rgba(168, 85, 247, 0.2)', // БЕЗ border на маленьких!
+          border: isVerySmall ? 'none' : '1px solid rgba(168, 85, 247, 0.2)',
         }}
       >
-        {/* Matter.js создаст canvas внутри этого div */}
+        {/* Matter.js canvas will be inserted here */}
         
-        {/* Slot blocks - анимация отскока вниз при ударе */}
+        {/* Slot value overlays */}
         <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{ height: SLOT_HEIGHT + 'px' }}>
           {slotValues.map((value, index) => {
             const actualSlots = slotValues.length;
@@ -355,15 +483,16 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
             
             return (
               <motion.div
-                key={`slot-block-${index}`}
-                className="absolute bottom-0 flex items-center justify-center m-1"
+                key={`slot-${index}`}
+                className="absolute bottom-0 flex items-center justify-center"
                 style={{
-                  left: index * slotWidth + 'px',
-                  width: slotWidth - 8 + 'px', // -8 для mx-1 (4px с каждой стороны)
-                  height: '100%',
+                  left: index * slotWidth + 4 + 'px',
+                  width: slotWidth - 8 + 'px',
+                  height: SLOT_HEIGHT - 4 + 'px',
+                  bottom: '2px',
                 }}
                 animate={{
-                  y: isBouncing ? 8 : 0, // Отскок вниз на 8px
+                  y: isBouncing ? 8 : 0,
                 }}
                 transition={{
                   type: "spring",
@@ -371,7 +500,6 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
                   damping: 10,
                 }}
               >
-                {/* Slot block background - ГРАДИЕНТЫ + border-radius! */}
                 <div 
                   className={`absolute inset-0 rounded-md ${
                     value === 1
@@ -391,10 +519,9 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
                   }}
                 />
                 
-                {/* Value text - БОЛЬШЕ и ярче! */}
                 <span 
                   className={`relative z-10 font-bold leading-none drop-shadow-lg ${
-                    isVerySmall ? 'text-[10px]' : isMobile ? 'text-xs' : 'text-sm'
+                    isVerySmall ? 'text-[11px]' : 'text-sm md:text-base'
                   } ${
                     value === 1
                       ? "text-red-300"

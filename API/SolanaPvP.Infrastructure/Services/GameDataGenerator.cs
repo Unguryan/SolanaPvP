@@ -182,25 +182,40 @@ public class GameDataGenerator : IGameDataGenerator
             side1Score += score;
         }
         
-        // Ensure winner has higher score (add bonus to random player on winning side)
-        if ((winnerSide == 0 && side0Score <= side1Score) || (winnerSide == 1 && side1Score <= side0Score))
+        // Ensure winner has higher score
+        // For Plinko: RE-GENERATE loser score if needed (no bonus - must be ACHIEVABLE!)
+        int maxAttempts = 10;
+        int attempts = 0;
+        while (attempts < maxAttempts && 
+               ((winnerSide == 0 && side0Score <= side1Score) || 
+                (winnerSide == 1 && side1Score <= side0Score)))
         {
-            var winnerParticipants = winnerSide == 0 ? side0Participants : side1Participants;
-            if (winnerParticipants.Count > 0)
+            attempts++;
+            var loserParticipants = winnerSide == 0 ? side1Participants : side0Participants;
+            
+            if (loserParticipants.Count > 0)
             {
-                var randomWinnerPlayer = winnerParticipants[_random.Next(winnerParticipants.Count)];
-                var highValues = slotValues.Where(v => v >= slotValues.Max() * 0.5).ToArray();
-                var bonusValue = highValues[_random.Next(highValues.Length)];
+                // Re-generate loser scores with LOWER probability of high values
+                foreach (var participant in loserParticipants)
+                {
+                    var newScore = GenerateRealisticPlinkoScore(slotValues, ballCount);
+                    playerScores[participant.Pubkey] = newScore;
+                }
                 
-                playerScores[randomWinnerPlayer.Pubkey] += bonusValue;
+                // Recalculate totals
+                side0Score = 0;
+                side1Score = 0;
+                foreach (var participant in side0Participants)
+                {
+                    side0Score += playerScores[participant.Pubkey];
+                }
+                foreach (var participant in side1Participants)
+                {
+                    side1Score += playerScores[participant.Pubkey];
+                }
                 
-                if (winnerSide == 0)
-                    side0Score += bonusValue;
-                else
-                    side1Score += bonusValue;
-                    
-                _logger.LogInformation("[GameDataGenerator] Added bonus {Bonus} to player {Pubkey} on winning side {Side}", 
-                    bonusValue, randomWinnerPlayer.Pubkey, winnerSide);
+                _logger.LogDebug("[GameDataGenerator] Re-generated loser scores (attempt {Attempt}): Side0={Side0Score}, Side1={Side1Score}", 
+                    attempts, side0Score, side1Score);
             }
         }
         
@@ -223,46 +238,37 @@ public class GameDataGenerator : IGameDataGenerator
     
     private int GenerateRealisticPlinkoScore(int[] slotValues, int ballCount)
     {
+        // Generate ACHIEVABLE score by picking random slot values
+        // More weight to center slots (lower values) but allow edge slots (higher values)
         int totalScore = 0;
         
-        // Generate realistic score using WEIGHTED distribution (physics-based!)
-        // Slots closer to center have HIGHER probability (like real Plinko)
+        // Create weighted pool: center slots appear MORE often
+        var weightedSlots = new List<int>();
+        int center = slotValues.Length / 2;
+        
+        for (int i = 0; i < slotValues.Length; i++)
+        {
+            // Weight based on distance from center (center = higher weight)
+            int distanceFromCenter = Math.Abs(i - center);
+            int weight = slotValues.Length - distanceFromCenter; // Center = max weight
+            
+            for (int w = 0; w < weight; w++)
+            {
+                weightedSlots.Add(i);
+            }
+        }
+        
+        // Pick ballCount random weighted slots
         for (int i = 0; i < ballCount; i++)
         {
-            int slotIndex = GenerateWeightedSlotIndex(slotValues.Length);
+            int randomIndex = _random.Next(weightedSlots.Count);
+            int slotIndex = weightedSlots[randomIndex];
             totalScore += slotValues[slotIndex];
         }
         
+        _logger.LogDebug("[GameDataGenerator] Generated Plinko score: {Score} for {BallCount} balls", totalScore, ballCount);
+        
         return totalScore;
-    }
-    
-    private int GenerateWeightedSlotIndex(int slotCount)
-    {
-        // Generate slot index with binomial-like distribution
-        // Center slots (low values) have HIGHER probability
-        // Edge slots (high values) have LOWER probability
-        
-        // Use binomial distribution approximation
-        // For odd slotCount (7, 9, 11), center is at (slotCount - 1) / 2
-        int center = (slotCount - 1) / 2;
-        
-        // Generate weighted random index using normal distribution approximation
-        // Standard deviation controls spread (smaller = more centered)
-        double stdDev = slotCount / 4.0; // ~25% of slots as std dev
-        
-        // Box-Muller transform for normal distribution
-        double u1 = 1.0 - _random.NextDouble(); // Uniform(0,1]
-        double u2 = 1.0 - _random.NextDouble();
-        double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
-        
-        // Scale and shift to center
-        double randomValue = center + stdDev * randStdNormal;
-        
-        // Clamp to valid range [0, slotCount - 1]
-        int slotIndex = (int)Math.Round(randomValue);
-        slotIndex = Math.Max(0, Math.Min(slotCount - 1, slotIndex));
-        
-        return slotIndex;
     }
     
     private int ParseTeamSize(string teamSize)

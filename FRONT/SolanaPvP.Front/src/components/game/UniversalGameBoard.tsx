@@ -684,8 +684,8 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
         shouldHideScores={shouldHideScores}
         hideTeamScores={shouldHideTeamScores}
       >
-        {/* Game Board - Plinko or PickHigher (hidden for spectators) */}
-        {currentPlayer !== "" && currentPlayerPubkey !== undefined ? (
+        {/* Game Board - Plinko or PickHigher (hidden for real spectators only) */}
+        {currentPlayer !== "" || isDemoMode ? (
           isPlinkoGame ? (
             <PlinkoGame
               ref={plinkoGameRef}
