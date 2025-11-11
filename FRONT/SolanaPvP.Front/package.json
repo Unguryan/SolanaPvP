@@ -10,7 +10,9 @@
     "devBuild": "node -e \"const fs = require('fs'); const path = require('path'); const dir = path.join(__dirname, '../../API/SolanaPvP.API_Project/wwwroot'); if (fs.existsSync(dir)) { fs.rmSync(dir, { recursive: true, force: true }); console.log('wwwroot cleaned'); }\" && tsc -b && vite build --mode development --outDir ../../API/SolanaPvP.API_Project/wwwroot",
     "relBuild": "node -e \"const fs = require('fs'); const path = require('path'); const dir = path.join(__dirname, '../../API/SolanaPvP.API_Project/wwwroot'); if (fs.existsSync(dir)) { fs.rmSync(dir, { recursive: true, force: true }); console.log('wwwroot cleaned'); }\" && tsc -b && vite build --mode production --outDir ../../API/SolanaPvP.API_Project/wwwroot",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.31.1",
@@ -53,6 +55,9 @@
     "tailwindcss": "^3.4.18",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.45.0",
-    "vite": "^7.1.7"
+    "vite": "^7.1.7",
+    "vitest": "^2.1.8",
+    "@vitest/ui": "^2.1.8",
+    "jsdom": "^25.0.1"
   }
 }

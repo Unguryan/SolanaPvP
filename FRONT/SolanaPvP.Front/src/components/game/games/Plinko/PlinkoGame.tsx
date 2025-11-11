@@ -232,13 +232,13 @@ PlinkoGame.displayName = 'PlinkoGame';
 function getConfig(gameMode: string) {
   switch (gameMode) {
     case "Plinko3Balls":
-      return { balls: 3, rows: 5, slots: 7 }; // 5 rows → 7 slots (нечетное!)
+      return { balls: 3, rows: 5, slots: 5 }; // 5 rows → 5 slots (между 6 пинами последнего ряда)
     case "Plinko5Balls":
-      return { balls: 5, rows: 7, slots: 9 }; // 7 rows → 9 slots (нечетное!)
+      return { balls: 5, rows: 7, slots: 7 }; // 7 rows → 7 slots (между 8 пинами последнего ряда)
     case "Plinko7Balls":
-      return { balls: 7, rows: 9, slots: 11 }; // 9 rows → 11 slots (нечетное!)
+      return { balls: 7, rows: 9, slots: 9 }; // 9 rows → 9 slots (между 10 пинами последнего ряда)
     default:
-      return { balls: 3, rows: 5, slots: 7 };
+      return { balls: 3, rows: 5, slots: 5 };
   }
 }
 
