@@ -12,7 +12,9 @@
 export function getSlotValues(slotCount: number): number[] {
   // Symmetric distribution with CENTER = lowest (нечетное количество!)
   
-  if (slotCount === 7) {
+  if (slotCount === 5) {
+    return [50, 10, 5, 10, 50];
+  } else if (slotCount === 7) {
     return [100, 50, 10, 1, 10, 50, 100];
   } else if (slotCount === 9) {
     return [200, 100, 50, 20, 5, 20, 50, 100, 200];
@@ -21,7 +23,7 @@ export function getSlotValues(slotCount: number): number[] {
   }
   
   // Default fallback
-  return [100, 50, 10, 1, 10, 50, 100];
+  return [50, 10, 5, 10, 50];
 }
 
 /**

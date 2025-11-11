@@ -135,8 +135,8 @@ public class GameDataGenerator : IGameDataGenerator
         switch (match.GameMode)
         {
             case "Plinko3Balls":
-                // 3 balls, 7 slots: [100, 50, 10, 1, 10, 50, 100]
-                slotValues = new[] { 100, 50, 10, 1, 10, 50, 100 };
+                // 3 balls, 5 slots: [50, 10, 5, 10, 50]
+                slotValues = new[] { 50, 10, 5, 10, 50 };
                 ballCount = 3;
                 break;
             case "Plinko5Balls":
