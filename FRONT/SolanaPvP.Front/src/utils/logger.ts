@@ -106,7 +106,7 @@ export function makeLogger(opts: LoggerOptions = {}): Logger {
     buffer.push(entry);
 
     // Console output for important channels
-    if (channel === 'LAND' || channel === 'INIT' || channel === 'ERROR' || channel === 'ROW' || channel === 'HIT') {
+    if (channel === 'LAND' || channel === 'INIT' || channel === 'ROW' || channel === 'HIT') {
       const prefix = `[${channel}]`;
       const ballPrefix = ballId !== undefined ? `[Ball#${ballId}]` : '';
       console.log(`${prefix}${ballPrefix} ${message}`, data ?? '');

@@ -25,7 +25,7 @@ export function simulateToLanding(
   seed?: number
 ): SimulationResult {
   const path = computeDeterministicPath(cfg, targetSlot, seed);
-  const ball = initBall(cfg, targetSlot, 0);
+  const ball = initBall(cfg, targetSlot, 0, path);
   const logger = makeLogger({ bufferSize: 10000 });
 
   logger.info('INIT', `Starting simulation for target slot ${targetSlot}`, {

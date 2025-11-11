@@ -1,0 +1,1283 @@
+{
+  "address": "F2LhVGUa9yLbYVYujYMPyckqWmsokHE9wym7ceGHWUMZ",
+  "metadata": {
+    "name": "pvp_program",
+    "version": "1.0.0",
+    "spec": "0.1.0",
+    "description": "Solana PvP Game Program with Orao VRF"
+  },
+  "instructions": [
+    {
+      "name": "create_lobby",
+      "discriminator": [
+        116,
+        55,
+        74,
+        48,
+        40,
+        51,
+        135,
+        155
+      ],
+      "accounts": [
+        {
+          "name": "lobby",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  98,
+                  98,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "arg",
+                "path": "lobby_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "active",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "lobby_id",
+          "type": "u64"
+        },
+        {
+          "name": "team_size",
+          "type": "u8"
+        },
+        {
+          "name": "stake_lamports",
+          "type": "u64"
+        },
+        {
+          "name": "side",
+          "type": "u8"
+        },
+        {
+          "name": "game",
+          "type": "string"
+        },
+        {
+          "name": "game_mode",
+          "type": "string"
+        },
+        {
+          "name": "arena_type",
+          "type": "string"
+        },
+        {
+          "name": "team_size_str",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "force_refund",
+      "discriminator": [
+        127,
+        173,
+        30,
+        92,
+        164,
+        123,
+        109,
+        177
+      ],
+      "accounts": [
+        {
+          "name": "lobby",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  98,
+                  98,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "Lobby"
+              },
+              {
+                "kind": "account",
+                "path": "lobby.lobby_id",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true
+        },
+        {
+          "name": "requester",
+          "signer": true
+        },
+        {
+          "name": "active",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "join_side",
+      "discriminator": [
+        72,
+        81,
+        137,
+        98,
+        213,
+        63,
+        154,
+        117
+      ],
+      "accounts": [
+        {
+          "name": "lobby",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  98,
+                  98,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "account",
+                "path": "lobby.lobby_id",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "relations": [
+            "lobby"
+          ]
+        },
+        {
+          "name": "player",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "active",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "side",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "join_side_final",
+      "discriminator": [
+        145,
+        130,
+        102,
+        65,
+        104,
+        78,
+        171,
+        113
+      ],
+      "accounts": [
+        {
+          "name": "lobby",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  98,
+                  98,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "account",
+                "path": "lobby.lobby_id",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "relations": [
+            "lobby"
+          ]
+        },
+        {
+          "name": "player",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "active",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vrf_request",
+          "docs": [
+            "Orao VRF randomness request account (PDA derived from seed)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  111,
+                  45,
+                  118,
+                  114,
+                  102,
+                  45,
+                  114,
+                  97,
+                  110,
+                  100,
+                  111,
+                  109,
+                  110,
+                  101,
+                  115,
+                  115,
+                  45,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "vrf_seed"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                7,
+                71,
+                177,
+                26,
+                250,
+                145,
+                180,
+                209,
+                249,
+                34,
+                242,
+                123,
+                14,
+                186,
+                193,
+                218,
+                178,
+                59,
+                33,
+                41,
+                164,
+                190,
+                243,
+                79,
+                50,
+                164,
+                123,
+                88,
+                245,
+                206,
+                252,
+                120
+              ]
+            }
+          }
+        },
+        {
+          "name": "vrf_config",
+          "docs": [
+            "Orao VRF network configuration"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  111,
+                  45,
+                  118,
+                  114,
+                  102,
+                  45,
+                  110,
+                  101,
+                  116,
+                  119,
+                  111,
+                  114,
+                  107,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                7,
+                71,
+                177,
+                26,
+                250,
+                145,
+                180,
+                209,
+                249,
+                34,
+                242,
+                123,
+                14,
+                186,
+                193,
+                218,
+                178,
+                59,
+                33,
+                41,
+                164,
+                190,
+                243,
+                79,
+                50,
+                164,
+                123,
+                88,
+                245,
+                206,
+                252,
+                120
+              ]
+            }
+          }
+        },
+        {
+          "name": "vrf_treasury",
+          "docs": [
+            "Orao VRF treasury (fee collector)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "vrf_program",
+          "docs": [
+            "Orao VRF program"
+          ],
+          "address": "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "side",
+          "type": "u8"
+        },
+        {
+          "name": "vrf_seed",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refund",
+      "discriminator": [
+        2,
+        96,
+        183,
+        251,
+        63,
+        208,
+        46,
+        46
+      ],
+      "accounts": [
+        {
+          "name": "lobby",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  98,
+                  98,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "Lobby"
+              },
+              {
+                "kind": "account",
+                "path": "lobby.lobby_id",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true
+        },
+        {
+          "name": "requester",
+          "signer": true
+        },
+        {
+          "name": "active",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resolve_match",
+      "discriminator": [
+        73,
+        0,
+        15,
+        197,
+        178,
+        47,
+        21,
+        193
+      ],
+      "accounts": [
+        {
+          "name": "lobby",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  98,
+                  98,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "Lobby"
+              },
+              {
+                "kind": "account",
+                "path": "lobby.lobby_id",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true
+        },
+        {
+          "name": "active",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lobby.creator",
+                "account": "Lobby"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vrf_request",
+          "docs": [
+            "Orao VRF randomness request account",
+            "CRITICAL: Must be owned by Orao VRF and match the saved account",
+            "This ensures randomness is provably fair and cannot be manipulated"
+          ],
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "ActiveLobby",
+      "discriminator": [
+        32,
+        130,
+        43,
+        176,
+        36,
+        236,
+        20,
+        114
+      ]
+    },
+    {
+      "name": "Lobby",
+      "discriminator": [
+        167,
+        194,
+        217,
+        163,
+        92,
+        92,
+        103,
+        49
+      ]
+    },
+    {
+      "name": "NetworkState",
+      "discriminator": [
+        212,
+        237,
+        148,
+        56,
+        97,
+        245,
+        51,
+        169
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "LobbyCreated",
+      "discriminator": [
+        109,
+        169,
+        16,
+        50,
+        169,
+        242,
+        237,
+        65
+      ]
+    },
+    {
+      "name": "LobbyRefunded",
+      "discriminator": [
+        37,
+        99,
+        34,
+        76,
+        175,
+        241,
+        3,
+        174
+      ]
+    },
+    {
+      "name": "LobbyResolved",
+      "discriminator": [
+        155,
+        179,
+        219,
+        168,
+        63,
+        242,
+        104,
+        137
+      ]
+    },
+    {
+      "name": "PlayerJoined",
+      "discriminator": [
+        39,
+        144,
+        49,
+        106,
+        108,
+        210,
+        183,
+        38
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidSide",
+      "msg": "Invalid side (must be 0 or 1)"
+    },
+    {
+      "code": 6001,
+      "name": "LobbyNotOpen",
+      "msg": "Lobby is not open"
+    },
+    {
+      "code": 6002,
+      "name": "LobbyNotOpenForJoin",
+      "msg": "Lobby already pending/resolved/refunded"
+    },
+    {
+      "code": 6003,
+      "name": "SideFull",
+      "msg": "Side is full"
+    },
+    {
+      "code": 6004,
+      "name": "AlreadyJoined",
+      "msg": "Player already joined"
+    },
+    {
+      "code": 6005,
+      "name": "NotEnoughPlayers",
+      "msg": "Not enough players"
+    },
+    {
+      "code": 6006,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6007,
+      "name": "StakeTooSmall",
+      "msg": "Stake is below minimum"
+    },
+    {
+      "code": 6008,
+      "name": "TooSoonToRefund",
+      "msg": "Too soon to refund"
+    },
+    {
+      "code": 6009,
+      "name": "AlreadyFinalized",
+      "msg": "Already finalized"
+    },
+    {
+      "code": 6010,
+      "name": "BadRemainingAccounts",
+      "msg": "Bad remaining accounts length"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidTeamSize",
+      "msg": "Invalid team size (allowed: 1, 2, 5)"
+    },
+    {
+      "code": 6012,
+      "name": "RemainingAccountsMismatch",
+      "msg": "Remaining accounts mismatch with team lists"
+    },
+    {
+      "code": 6013,
+      "name": "NotPending",
+      "msg": "Lobby not pending"
+    },
+    {
+      "code": 6014,
+      "name": "MustUseFinalJoin",
+      "msg": "Lobby is full - must use join_side_final instruction"
+    },
+    {
+      "code": 6015,
+      "name": "WrongRandomnessAccount",
+      "msg": "Wrong VRF request account provided"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidRandomnessData",
+      "msg": "Invalid randomness data"
+    },
+    {
+      "code": 6017,
+      "name": "RandomnessNotFulfilled",
+      "msg": "Randomness not yet fulfilled by Orao VRF"
+    },
+    {
+      "code": 6018,
+      "name": "WrongVrfTreasury",
+      "msg": "Wrong VRF treasury"
+    },
+    {
+      "code": 6019,
+      "name": "InvalidVrfSeed",
+      "msg": "Invalid VRF seed (cannot be zero)"
+    }
+  ],
+  "types": [
+    {
+      "name": "ActiveLobby",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Lobby",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "lobby_id",
+            "type": "u64"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "LobbyStatus"
+              }
+            }
+          },
+          {
+            "name": "team_size",
+            "type": "u8"
+          },
+          {
+            "name": "stake_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "finalized",
+            "type": "bool"
+          },
+          {
+            "name": "vrf_seed",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "vrf_request",
+            "type": "pubkey"
+          },
+          {
+            "name": "winner_side",
+            "type": "u8"
+          },
+          {
+            "name": "team1",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "team2",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "game",
+            "type": "string"
+          },
+          {
+            "name": "game_mode",
+            "type": "string"
+          },
+          {
+            "name": "arena_type",
+            "type": "string"
+          },
+          {
+            "name": "team_size_str",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LobbyCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "lobby_id",
+            "type": "u64"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "stake_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "team_size",
+            "type": "u8"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "game",
+            "type": "string"
+          },
+          {
+            "name": "game_mode",
+            "type": "string"
+          },
+          {
+            "name": "arena_type",
+            "type": "string"
+          },
+          {
+            "name": "team_size_str",
+            "type": "string"
+          },
+          {
+            "name": "creator_side",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LobbyRefunded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "refunded_count",
+            "type": "u8"
+          },
+          {
+            "name": "total_refunded",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LobbyResolved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "winner_side",
+            "type": "u8"
+          },
+          {
+            "name": "randomness_value",
+            "type": "u64"
+          },
+          {
+            "name": "total_pot",
+            "type": "u64"
+          },
+          {
+            "name": "platform_fee",
+            "type": "u64"
+          },
+          {
+            "name": "payout_per_winner",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LobbyStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "Resolved"
+          },
+          {
+            "name": "Refunded"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NetworkConfiguration",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "request_fee",
+            "type": "u64"
+          },
+          {
+            "name": "fulfillment_authorities",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "token_fee_config",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "OraoTokenFeeConfig"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "NetworkState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "config",
+            "type": {
+              "defined": {
+                "name": "NetworkConfiguration"
+              }
+            }
+          },
+          {
+            "name": "num_received",
+            "docs": [
+              "Total number of received requests."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OraoTokenFeeConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "docs": [
+              "ORAO token mint address."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "docs": [
+              "ORAO token treasury account."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "fee",
+            "docs": [
+              "Fee in ORAO SPL token smallest units."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlayerJoined",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lobby",
+            "type": "pubkey"
+          },
+          {
+            "name": "player",
+            "type": "pubkey"
+          },
+          {
+            "name": "side",
+            "type": "u8"
+          },
+          {
+            "name": "team1_count",
+            "type": "u8"
+          },
+          {
+            "name": "team2_count",
+            "type": "u8"
+          },
+          {
+            "name": "is_full",
+            "type": "bool"
+          },
+          {
+            "name": "vrf_request",
+            "type": "pubkey"
+          }
+        ]
+      }
+    }
+  ]
+}
