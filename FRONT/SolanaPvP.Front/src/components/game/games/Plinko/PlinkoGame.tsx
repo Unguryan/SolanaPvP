@@ -4,6 +4,7 @@ import { GamePlayer } from "@/types/game";
 import { PlinkoBoard } from "./PlinkoBoard";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { motion } from "framer-motion";
+import { getSlotValues } from "@/utils/plinkoScoreBreakdown";
 
 interface PlinkoGameProps {
   gameMode: "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls";
@@ -48,8 +49,32 @@ export const PlinkoGame = forwardRef<PlinkoGameHandle, PlinkoGameProps>(({
     setBallDropCount(0);
     setIsDropping(false);
     autoDropTriggeredRef.current = false; // Сбрасываем флаг автоброса
-    console.log(`🎰 [PlinkoGame] Initialized! Mode: ${gameMode}, Balls: ${config.balls}, Target slots:`, allTargetSlots);
-  }, [gameMode, config.balls, allTargetSlots]);
+    
+    // Calculate expected total score and combinations
+    if (allTargetSlots.length > 0) {
+      const slotValues = getSlotValues(config.slots);
+      const expectedScores = allTargetSlots.map(slotIndex => slotValues[slotIndex]);
+      const expectedTotal = expectedScores.reduce((sum, score) => sum + score, 0);
+      
+      // Build combination string
+      const combinations = allTargetSlots.map((slotIndex, ballIndex) => {
+        const value = slotValues[slotIndex];
+        return `Ball ${ballIndex + 1}: Slot ${slotIndex} → +${value}`;
+      }).join('\n  ');
+      
+      console.log(`🎰 [PlinkoGame] Initialized!`);
+      console.log(`  Mode: ${gameMode}`);
+      console.log(`  Balls: ${config.balls}`);
+      console.log(`  Slots: ${config.slots}`);
+      console.log(`\n📊 [EXPECTED RESULTS]`);
+      console.log(`  Target Total Score: ${expectedTotal}`);
+      console.log(`  Combinations:`);
+      console.log(`  ${combinations}`);
+      console.log(`\n🎯 Target slots: [${allTargetSlots.join(', ')}]`);
+    } else {
+      console.log(`🎰 [PlinkoGame] Initialized! Mode: ${gameMode}, Balls: ${config.balls}, Target slots: []`);
+    }
+  }, [gameMode, config.balls, config.slots, allTargetSlots]);
 
   const handleDropBall = () => {
     if (disabled || ballDropCount >= config.balls || allTargetSlots.length < config.balls || isDropping) {
@@ -147,17 +172,36 @@ export const PlinkoGame = forwardRef<PlinkoGameHandle, PlinkoGameProps>(({
   };
 
   const handleBallLand = (slotIndex: number, value: number) => {
-    console.log('🎯 Ball landed! Slot:', slotIndex, 'Value:', value, 'Total wins before:', ballWins.length);
+    const ballNumber = ballWins.length + 1;
+    console.log(`🎯 Ball #${ballNumber} landed! Slot: ${slotIndex}, Value: +${value}`);
     
     // Шарик коснулся поля! Добавляем результат!
     setBallWins((prev) => {
       const newWins = [...prev, value];
-      console.log('💰 Updated wins:', newWins, 'Total:', newWins.length);
+      const currentTotal = newWins.reduce((sum, score) => sum + score, 0);
+      
+      // Calculate expected total for comparison
+      const slotValues = getSlotValues(config.slots);
+      const expectedScores = allTargetSlots.map(slotIdx => slotValues[slotIdx]);
+      const expectedTotal = expectedScores.reduce((sum, score) => sum + score, 0);
+      
+      console.log(`💰 Progress: ${ballNumber}/${config.balls} balls`);
+      console.log(`   Current Total: ${currentTotal}`);
+      console.log(`   Expected Total: ${expectedTotal}`);
+      console.log(`   Remaining: ${expectedTotal - currentTotal}`);
+      console.log(`   Wins so far: [${newWins.join(', ')}]`);
+      
+      if (ballNumber === config.balls) {
+        console.log(`\n🏁 [GAME COMPLETE]`);
+        console.log(`   Final Score: ${currentTotal}`);
+        console.log(`   Expected Score: ${expectedTotal}`);
+        console.log(`   Match: ${currentTotal === expectedTotal ? '✅ PERFECT!' : '❌ Mismatch'}`);
+      }
+      
       return newWins;
     });
     
     // Обновляем реальный slot в UniversalGameBoard
-    console.log('📤 Calling onBallDrop with slot:', slotIndex);
     onBallDropRef.current(slotIndex);
   };
 

@@ -195,7 +195,7 @@ export function getGameModeConfig(gameMode: string) {
         icon: "🎰",
         name: "Plinko: 3 Balls",
         rows: 5,
-        slots: 7, // 5 rows → 7 slots (нечетное!)
+        slots: 5, // 5 rows → 5 slots (между 6 пинами последнего ряда)
       };
     case "Plinko5Balls":
       return {
@@ -204,7 +204,7 @@ export function getGameModeConfig(gameMode: string) {
         icon: "🎰",
         name: "Plinko: 5 Balls",
         rows: 7,
-        slots: 9, // 7 rows → 9 slots (нечетное!)
+        slots: 7, // 7 rows → 7 slots (между 8 пинами последнего ряда)
       };
     case "Plinko7Balls":
       return {
@@ -213,7 +213,7 @@ export function getGameModeConfig(gameMode: string) {
         icon: "🎰",
         name: "Plinko: 7 Balls",
         rows: 9,
-        slots: 11, // 9 rows → 11 slots (нечетное!)
+        slots: 9, // 9 rows → 9 slots (между 10 пинами последнего ряда)
       };
     default:
       return {
