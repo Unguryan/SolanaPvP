@@ -71,6 +71,41 @@ export function computeDeterministicPath(
     finalDecisions = rng.shuffle([...decisions]);
   }
 
+  // For center slot: alternate direction (left-right vs right-left) for variety
+  // This ensures balls don't always take the same path to center
+  const isCenterSlot = targetSlot === centerSlot;
+  if (isCenterSlot && cfg.rows > 0) {
+    // Use seed (ballId) to determine direction alternation for each ball
+    // This ensures each ball takes a different path to center
+    const directionSeed = seed !== undefined ? Math.floor(seed) : 0;
+    const shouldStartRight = directionSeed % 2 === 0;
+
+    // If we need to alternate, flip the first decision
+    if (shouldStartRight && finalDecisions[0] === -1) {
+      // Find a Right decision to swap with
+      for (let i = 1; i < finalDecisions.length; i++) {
+        if (finalDecisions[i] === 1) {
+          [finalDecisions[0], finalDecisions[i]] = [
+            finalDecisions[i],
+            finalDecisions[0],
+          ];
+          break;
+        }
+      }
+    } else if (!shouldStartRight && finalDecisions[0] === 1) {
+      // Find a Left decision to swap with
+      for (let i = 1; i < finalDecisions.length; i++) {
+        if (finalDecisions[i] === -1) {
+          [finalDecisions[0], finalDecisions[i]] = [
+            finalDecisions[i],
+            finalDecisions[0],
+          ];
+          break;
+        }
+      }
+    }
+  }
+
   // Compute target HOLE (дырка между пинами) X positions for each row
   // ВАЖНО: шарик должен попадать только в СОСЕДНИЕ дырки между рядами!
   // Считаем по дыркам/слотам, а не по пинам!

@@ -285,9 +285,20 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
       // Get the value from the slot
       const slotCount = (gameConfig as any).slots || 6;
       const slotValues = getSlotValues(slotCount);
-      const ballValue = slotValues[slotIndex];
       
-      console.log('✅ Ball value:', ballValue, 'Adding to score...');
+      // Ensure slotIndex is within bounds
+      const clampedSlotIndex = Math.max(0, Math.min(slotCount - 1, slotIndex));
+      const ballValue = slotValues[clampedSlotIndex];
+      
+      if (slotIndex !== clampedSlotIndex) {
+        console.warn(
+          `⚠️ Slot index clamped: ${slotIndex} → ${clampedSlotIndex} (slotCount: ${slotCount}, slotValues length: ${slotValues.length})`
+        );
+      }
+      
+      console.log(
+        `✅ Ball landed in slot ${clampedSlotIndex} (was ${slotIndex}), value: ${ballValue}, slotCount: ${slotCount}, slotValues: [${slotValues.join(', ')}]`
+      );
 
       setGameState((prev) => {
         // Update players with ball value
@@ -552,12 +563,13 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
 
       // УМНАЯ ЗАДЕРЖКА для Plinko!
       const showResults = () => {
+        // В демо режиме используем реальные currentScore, в реальной игре - targetScore
         const result = calculateGameResult(
           gameState.players,
           stakeSol,
           matchType,
           currentPlayer,
-          true // useFinalScores = true (используем targetScore!)
+          !isDemoMode // useFinalScores = true только для реальной игры (используем targetScore)
         );
         
         // Determine if current player won from backend data

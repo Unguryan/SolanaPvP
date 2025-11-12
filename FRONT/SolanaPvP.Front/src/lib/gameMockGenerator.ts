@@ -28,18 +28,34 @@ const AI_NAMES = [
 
 /**
  * Generate realistic Plinko score from actual slot values
+ * Uses weighted selection (center slots appear more often) - same logic as backend
  * @param ballCount - Number of balls (3, 5, or 7)
- * @param slotCount - Number of slots (6, 8, or 10 -> returns 7, 9, or 11)
+ * @param slotCount - Number of slots (5, 7, or 9)
  * @returns Realistic score that can be achieved
  */
 function generateRealisticPlinkoScore(ballCount: number, slotCount: number): number {
   const slotValues = getSlotValues(slotCount);
   let totalScore = 0;
   
+  // Create weighted pool: center slots appear MORE often (same as backend)
+  const weightedSlots: number[] = [];
+  const center = Math.floor(slotValues.length / 2);
+  
+  for (let i = 0; i < slotValues.length; i++) {
+    // Weight based on distance from center (center = higher weight)
+    const distanceFromCenter = Math.abs(i - center);
+    const weight = slotValues.length - distanceFromCenter; // Center = max weight
+    
+    for (let w = 0; w < weight; w++) {
+      weightedSlots.push(i);
+    }
+  }
+  
+  // Pick ballCount random weighted slots
   for (let i = 0; i < ballCount; i++) {
-    // Pick random slot value (weighted toward middle for realism)
-    const randomIndex = Math.floor(Math.random() * slotValues.length);
-    totalScore += slotValues[randomIndex];
+    const randomIndex = Math.floor(Math.random() * weightedSlots.length);
+    const slotIndex = weightedSlots[randomIndex];
+    totalScore += slotValues[slotIndex];
   }
   
   return totalScore;
@@ -60,7 +76,7 @@ export const generateDemoPlayers = (
   if (isPlinko) {
     // Generate REALISTIC Plinko scores based on actual slot values
     const ballCount = gameMode === "Plinko3Balls" ? 3 : gameMode === "Plinko5Balls" ? 5 : 7;
-    const slotCount = gameMode === "Plinko3Balls" ? 7 : gameMode === "Plinko5Balls" ? 9 : 11;
+    const slotCount = gameMode === "Plinko3Balls" ? 5 : gameMode === "Plinko5Balls" ? 7 : 9;
     playerTargetScore = generateRealisticPlinkoScore(ballCount, slotCount);
   } else {
     // PickHigher - old logic
@@ -91,7 +107,7 @@ export const generateDemoPlayers = (
     if (isPlinko) {
       // Generate realistic Plinko score for AI
       const ballCount = gameMode === "Plinko3Balls" ? 3 : gameMode === "Plinko5Balls" ? 5 : 7;
-      const slotCount = gameMode === "Plinko3Balls" ? 7 : gameMode === "Plinko5Balls" ? 9 : 11;
+      const slotCount = gameMode === "Plinko3Balls" ? 5 : gameMode === "Plinko5Balls" ? 7 : 9;
       aiTargetScore = generateRealisticPlinkoScore(ballCount, slotCount);
     } else {
       // PickHigher - old logic

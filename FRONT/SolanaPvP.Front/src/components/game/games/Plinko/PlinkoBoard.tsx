@@ -1,5 +1,11 @@
 // Deterministic Plinko board with Canvas2D rendering
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import { getSlotValues } from "@/utils/plinkoScoreBreakdown";
 import type { BoardConfig, BallState, DeterministicPath } from "@/utils/types";
 import {
@@ -90,15 +96,11 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
   const lastDropCountRef = useRef(0);
   const loggerRef = useRef(makeLogger({ bufferSize: 5000 }));
 
-  const slotValuesRef = useRef<number[]>([]);
-  if (slotValuesRef.current.length === 0) {
-    slotValuesRef.current = getSlotValues(slots);
-  }
-  const slotValues = slotValuesRef.current;
+  // Recalculate slot values when slots prop changes
+  const slotValues = useMemo(() => getSlotValues(slots), [slots]);
 
-  const isVerySmallScreen =
-    typeof window !== "undefined" && window.innerWidth < 400;
-  const rows = isVerySmallScreen ? Math.min(propsRows, 7) : propsRows;
+  // Always use all rows, don't limit on mobile
+  const rows = propsRows;
 
   const [bouncingSlots, setBouncingSlots] = useState<
     Map<number, { startTime: number; duration: number }>
@@ -127,6 +129,18 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
   if (!sizeConfig.current && typeof window !== "undefined") {
     const isMobile = window.innerWidth < 768;
     const isVerySmall = window.innerWidth < 400;
+    const isPlinko7Balls = propsRows === 9; // Plinko7Balls has 9 rows
+
+    // For Plinko7Balls on mobile, use smaller ball radius to fit better
+    let ballRadius: number;
+    if (isVerySmall) {
+      ballRadius = isPlinko7Balls ? 6 : 8;
+    } else if (isMobile) {
+      ballRadius = isPlinko7Balls ? 8 : 10;
+    } else {
+      ballRadius = 12;
+    }
+
     sizeConfig.current = {
       isMobile,
       isVerySmall,
@@ -136,8 +150,8 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
         ? Math.min(window.innerWidth - 40, 600)
         : 800,
       HEIGHT: isVerySmall ? 360 : isMobile ? 480 : 600,
-      PIN_RADIUS: isVerySmall ? 3 : isMobile ? 5 : 8,
-      BALL_RADIUS: isVerySmall ? 5 : isMobile ? 7 : 10,
+      PIN_RADIUS: isVerySmall ? 4 : isMobile ? 6 : 8,
+      BALL_RADIUS: ballRadius,
       SLOT_HEIGHT: isVerySmall ? 48 : isMobile ? 56 : 80,
     };
   }
@@ -149,7 +163,7 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
       WIDTH: 800,
       HEIGHT: 600,
       PIN_RADIUS: 8,
-      BALL_RADIUS: 10,
+      BALL_RADIUS: 12,
       SLOT_HEIGHT: 80,
     };
 
@@ -651,28 +665,39 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
           // Check landing
           if (ball.hasLanded) {
             const finalSlot = slotIndexFromX(cfg, ball.p.x);
-            const value = slotValues[finalSlot];
+            // Ensure slot index is within bounds
+            const clampedSlot = Math.max(
+              0,
+              Math.min(slotValues.length - 1, finalSlot)
+            );
+            const value = slotValues[clampedSlot];
+
+            if (finalSlot !== clampedSlot) {
+              console.warn(
+                `⚠️ Ball #${ballId} slot clamped: ${finalSlot} → ${clampedSlot} (slots: ${slots}, slotValues length: ${slotValues.length})`
+              );
+            }
 
             console.log(
-              `🎯 Ball #${ballId} landed in slot ${finalSlot} (target: ${ball.targetSlot}) Value: ${value}`
+              `🎯 Ball #${ballId} landed in slot ${clampedSlot} (target: ${ball.targetSlot}) Value: ${value}`
             );
 
             // Trigger smooth bounce animation
             setBouncingSlots((prev) => {
               const newMap = new Map(prev);
-              newMap.set(finalSlot, { startTime: Date.now(), duration: 600 });
+              newMap.set(clampedSlot, { startTime: Date.now(), duration: 600 });
               return newMap;
             });
             setTimeout(() => {
               setBouncingSlots((prev) => {
                 const newMap = new Map(prev);
-                newMap.delete(finalSlot);
+                newMap.delete(clampedSlot);
                 return newMap;
               });
             }, 600);
 
             // Notify parent
-            onBallLandRef.current(finalSlot, value);
+            onBallLandRef.current(clampedSlot, value);
 
             // Remove ball after delay
             setTimeout(() => {
@@ -700,7 +725,7 @@ export const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [cfg, render, slotValues]);
+  }, [cfg, render, slotValues, slots]);
 
   // Initialize canvas
   useEffect(() => {

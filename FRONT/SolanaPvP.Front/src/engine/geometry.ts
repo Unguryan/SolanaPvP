@@ -11,7 +11,6 @@ export function buildPins(cfg: BoardConfig): Pin[] {
   for (let row = 0; row < cfg.rows; row++) {
     const pinsInRow = row + 2;
     const rowY = rowYPosition(cfg, row);
-    const startX = pinStartX(cfg, row);
 
     for (let col = 0; col < pinsInRow; col++) {
       const pinX = pinXPosition(cfg, row, col);
@@ -127,7 +126,7 @@ export function createDefaultConfig(
 ): BoardConfig {
   const topMargin = 48;
   const slotHeight = 64;
-  const pinRadius = 7;
+  const pinRadius = 8;
   const ballRadius = 12;
   const gravity = 50; // Увеличена гравитация для более быстрого движения
   const rowSpacingY = (height - slotHeight - topMargin - 40) / (rows + 1);

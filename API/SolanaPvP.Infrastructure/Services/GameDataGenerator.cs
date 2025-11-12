@@ -140,18 +140,18 @@ public class GameDataGenerator : IGameDataGenerator
                 ballCount = 3;
                 break;
             case "Plinko5Balls":
-                // 5 balls, 9 slots: [200, 100, 50, 20, 5, 20, 50, 100, 200]
-                slotValues = new[] { 200, 100, 50, 20, 5, 20, 50, 100, 200 };
+                // 5 balls, 7 slots: [100, 50, 10, 5, 10, 50, 100]
+                slotValues = new[] { 100, 50, 10, 5, 10, 50, 100 };
                 ballCount = 5;
                 break;
             case "Plinko7Balls":
-                // 7 balls, 11 slots: [500, 250, 150, 75, 20, 5, 20, 75, 150, 250, 500]
-                slotValues = new[] { 500, 250, 150, 75, 20, 5, 20, 75, 150, 250, 500 };
+                // 7 balls, 9 slots: [200, 100, 50, 20, 5, 20, 50, 100, 200]
+                slotValues = new[] { 200, 100, 50, 20, 5, 20, 50, 100, 200 };
                 ballCount = 7;
                 break;
             default:
                 // Default to 5 balls mode
-                slotValues = new[] { 200, 100, 50, 20, 5, 20, 50, 100, 200 };
+                slotValues = new[] { 100, 50, 10, 5, 10, 50, 100 };
                 ballCount = 5;
                 break;
         }
