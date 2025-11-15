@@ -107,8 +107,12 @@ module.exports = {
         'breathe': 'breathe 2.2s ease-in-out infinite',
         'progress-slide': 'progressSlide 1.4s ease-in-out infinite',
         'blink-caret': 'blinkCaret 0.9s steps(1) infinite',
+        // Miner game animations
+        'tile-fade-in': 'tileFadeIn 0.5s ease-out',
+        'prize-pulse-bounce': 'prizePulseBounce 1.2s ease-in-out 2',
+        'bomb-bounce-pulse': 'bombBouncePulse 1s ease-in-out 2',
       },
-             keyframes: {
+      keyframes: {
                cardFlip: {
                  '0%': { transform: 'rotateY(0deg) scale(1)' },
                  '25%': { transform: 'rotateY(-45deg) scale(0.95)' },
@@ -186,6 +190,24 @@ module.exports = {
         },
         blinkCaret: {
           '50%': { opacity: '0' },
+        },
+        // Miner game keyframes
+        tileFadeIn: {
+          '0%': { opacity: '0', transform: 'scale(0.9)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        prizePulseBounce: {
+          '0%, 100%': { transform: 'scale(1) translateY(0)', filter: 'brightness(1)' },
+          '25%': { transform: 'scale(1.15) translateY(-5px)', filter: 'brightness(1.3)' },
+          '50%': { transform: 'scale(1) translateY(0)', filter: 'brightness(1)' },
+          '75%': { transform: 'scale(1.12) translateY(-3px)', filter: 'brightness(1.2)' },
+        },
+        bombBouncePulse: {
+          '0%, 100%': { transform: 'scale(1) translateY(0) rotate(0deg)' },
+          '20%': { transform: 'scale(1.1) translateY(-8px) rotate(-5deg)' },
+          '40%': { transform: 'scale(1.05) translateY(0) rotate(5deg)' },
+          '60%': { transform: 'scale(1.08) translateY(-4px) rotate(-3deg)' },
+          '80%': { transform: 'scale(1.02) translateY(0) rotate(2deg)' },
         },
       },
       fontFamily: {

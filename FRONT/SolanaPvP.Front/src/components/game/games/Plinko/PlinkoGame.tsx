@@ -217,13 +217,13 @@ export const PlinkoGame = forwardRef<PlinkoGameHandle, PlinkoGameProps>(({
         </div>
         
         {/* Ball wins history - ВСЕ выигрыши ОДИНАКОВОГО размера */}
-        <div className="flex items-center gap-0.5 md:gap-1 justify-end flex-1 overflow-x-auto scrollbar-hide max-w-[60%] md:max-w-none">
+        <div className="flex items-center gap-0.5 md:gap-1 justify-end flex-1 overflow-x-auto max-w-[60%] md:max-w-none scrollbar-hide">
           {ballWins.map((win, index) => {
             const colors = getSlotColor(win);
             return (
               <motion.div
                 key={`win-${index}-${win}`}
-                className={`px-2 md:px-3 py-1 md:py-1.5 rounded ${colors.bg} border ${colors.border} shadow-lg ${colors.shadow} min-w-[32px] md:min-w-[42px] flex items-center justify-center`}
+                className={`px-2 md:px-3 py-1 md:py-1.5 rounded ${colors.bg} border ${colors.border} shadow-lg ${colors.shadow} min-w-[32px] md:min-w-[42px] flex items-center justify-center flex-shrink-0`}
                 initial={{ scale: 0, x: 20 }}
                 animate={{ scale: 1, x: 0 }}
                 transition={{ duration: 0.3 }}

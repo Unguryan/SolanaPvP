@@ -26,6 +26,7 @@ public class GameDataGenerator : IGameDataGenerator
         {
             "PickHigher" => await GeneratePickHigherScores(match, winnerSide),
             "Plinko" => await GeneratePlinkoScores(match, winnerSide),
+            "Miner" => await GenerateMinerScores(match, winnerSide),
             // Future games:
             // "Dice" => await GenerateDiceScores(match, winnerSide),
             _ => throw new NotSupportedException($"Game type {match.GameType} not supported")
@@ -269,6 +270,97 @@ public class GameDataGenerator : IGameDataGenerator
         _logger.LogDebug("[GameDataGenerator] Generated Plinko score: {Score} for {BallCount} balls", totalScore, ballCount);
         
         return totalScore;
+    }
+
+    private Task<GameData> GenerateMinerScores(Match match, int winnerSide)
+    {
+        // Determine tile count based on game mode
+        int tileCount;
+        switch (match.GameMode)
+        {
+            case "Miner1v9":
+                tileCount = 9; // 3x3 grid
+                break;
+            case "Miner3v16":
+                tileCount = 16; // 4x4 grid
+                break;
+            case "Miner5v25":
+                tileCount = 25; // 5x5 grid
+                break;
+            default:
+                tileCount = 9; // Default to 1v9
+                break;
+        }
+
+        var side0Participants = match.Participants.Where(p => p.Side == 0).ToList();
+        var side1Participants = match.Participants.Where(p => p.Side == 1).ToList();
+        
+        // Generate boolean results for each player
+        // true = will find prize, false = will hit bomb
+        var playerResults = new Dictionary<string, bool>();
+        
+        // First, assign results based on winner side
+        // Winner side gets more players with true (prize)
+        var winnerParticipants = winnerSide == 0 ? side0Participants : side1Participants;
+        var loserParticipants = winnerSide == 0 ? side1Participants : side0Participants;
+        
+        // Calculate how many players should find prize on each side
+        // Ensure no tie: winner side must have more players with prize
+        int totalPlayers = side0Participants.Count + side1Participants.Count;
+        int winnerSidePrizeCount = (totalPlayers / 2) + 1; // At least one more than half
+        int loserSidePrizeCount = totalPlayers - winnerSidePrizeCount;
+        
+        // Ensure we don't exceed team size
+        winnerSidePrizeCount = Math.Min(winnerSidePrizeCount, winnerParticipants.Count);
+        loserSidePrizeCount = Math.Min(loserSidePrizeCount, loserParticipants.Count);
+        
+        // Assign prizes to winner side players
+        var shuffledWinners = winnerParticipants.OrderBy(x => _random.Next()).ToList();
+        for (int i = 0; i < winnerSidePrizeCount; i++)
+        {
+            playerResults[shuffledWinners[i].Pubkey] = true;
+        }
+        for (int i = winnerSidePrizeCount; i < winnerParticipants.Count; i++)
+        {
+            playerResults[shuffledWinners[i].Pubkey] = false;
+        }
+        
+        // Assign prizes to loser side players (fewer prizes)
+        var shuffledLosers = loserParticipants.OrderBy(x => _random.Next()).ToList();
+        for (int i = 0; i < loserSidePrizeCount; i++)
+        {
+            playerResults[shuffledLosers[i].Pubkey] = true;
+        }
+        for (int i = loserSidePrizeCount; i < loserParticipants.Count; i++)
+        {
+            playerResults[shuffledLosers[i].Pubkey] = false;
+        }
+        
+        // Update IsWinner for each participant
+        foreach (var participant in match.Participants)
+        {
+            participant.IsWinner = playerResults[participant.Pubkey];
+        }
+        
+        // Calculate side scores (count of players with prize)
+        int side0PrizeCount = side0Participants.Count(p => playerResults[p.Pubkey]);
+        int side1PrizeCount = side1Participants.Count(p => playerResults[p.Pubkey]);
+        
+        // Create GameData with boolean results
+        var gameData = new GameData
+        {
+            MatchPda = match.MatchPda,
+            GameMode = match.GameMode,
+            Side0TotalScore = side0PrizeCount, // Count of players who found prize
+            Side1TotalScore = side1PrizeCount, // Count of players who found prize
+            PlayerScoresJson = JsonSerializer.Serialize(playerResults), // {"pubkey1": true, "pubkey2": false}
+            GeneratedAt = DateTime.UtcNow
+        };
+
+        _logger.LogInformation("[GameDataGenerator] ✅ Generated Miner data for mode {GameMode} ({TileCount} tiles, {TeamSize}) - Side0 prizes: {Side0PrizeCount}, Side1 prizes: {Side1PrizeCount}, Winner: Side {WinnerSide}, Players: {PlayerCount}", 
+            match.GameMode, tileCount, match.TeamSize, side0PrizeCount, side1PrizeCount, winnerSide, playerResults.Count);
+
+        return Task.FromResult(gameData);
     }
     
     private int ParseTeamSize(string teamSize)

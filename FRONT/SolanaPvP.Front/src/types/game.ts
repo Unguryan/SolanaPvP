@@ -2,7 +2,8 @@
 export enum GameType {
   PickHigher = "PickHigher",
   Plinko = "Plinko",
-  // Future: Dice = "Dice", CoinFlip = "CoinFlip", Minesweeper = "Minesweeper", WheelSpin = "WheelSpin"
+  Miner = "Miner",
+  // Future: Dice = "Dice", CoinFlip = "CoinFlip", WheelSpin = "WheelSpin"
 }
 
 export enum MatchMode {
@@ -23,6 +24,13 @@ export interface GameTile {
   isBonus?: boolean; // x2, x3 multiplier
 }
 
+export interface MinerTile {
+  index: number;
+  type: "prize" | "bomb" | "empty";
+  selected: boolean;
+  revealed: boolean;
+}
+
 export interface GamePlayer {
   id: string;
   username: string;
@@ -33,6 +41,10 @@ export interface GamePlayer {
   isReady: boolean;
   isWinner?: boolean;
   isScoreRevealed?: boolean;
+  // Miner-specific fields
+  willWin?: boolean; // Result from backend (true = will find prize/Alive, false = will hit bomb/Bombed)
+  isAlive?: boolean; // Is player alive (based on willWin from backend)
+  openedTileCount?: number; // Counter for opened tiles (to determine when player finds result)
 }
 
 export interface GameState {
@@ -52,6 +64,8 @@ export interface GameResult {
   isTeamBattle?: boolean;
   teamScores?: Record<string, number>; // Team A: 1500, Team B: 1200
   isCurrentPlayerWinner?: boolean; // NEW: explicit flag from backend
+  gameType?: GameType; // NEW: game type for display customization
+  playerResults?: Record<string, boolean>; // NEW: for Miner - true = Win, false = Bombed
 }
 
 export interface GameTeam {
@@ -67,6 +81,11 @@ export interface Player {
   currentScore: number; // Current accumulated score
   selections: number[]; // Selected indices
   isReady: boolean;
+  // Miner-specific fields (optional)
+  willWin?: boolean; // Result from backend (true = will find prize/Alive, false = will hit bomb/Bombed)
+  isAlive?: boolean; // Is player alive (based on willWin from backend)
+  openedTileCount?: number; // Counter for opened tiles (to determine when player finds result)
+  pubkey?: string; // Player's public key (for identifying real player vs AI)
 }
 
 export interface UniversalGameBoardProps {

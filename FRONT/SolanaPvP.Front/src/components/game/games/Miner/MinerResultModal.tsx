@@ -1,15 +1,14 @@
-// Game result modal component
+// Miner game result modal component - completely rewritten
 import React, { useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GameResult } from "@/types/game";
+import { MinerGameResult } from "@/types/miner";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { GlassCard, GlassCardContent } from "@/components/ui/GlassCard";
-import { ScoreCounter } from "./effects/ScoreCounter";
 import { TrophyIcon, CurrencyDollarIcon } from "@heroicons/react/24/outline";
 
-interface GameResultModalProps {
+interface MinerResultModalProps {
   isOpen: boolean;
-  result: GameResult | null;
+  result: MinerGameResult | null;
   onClose: () => void;
   onPlayAgain?: () => void;
   onViewLeaderboard?: () => void;
@@ -17,7 +16,7 @@ interface GameResultModalProps {
   isDemoMode?: boolean;
 }
 
-export const GameResultModal: React.FC<GameResultModalProps> = ({
+export const MinerResultModal: React.FC<MinerResultModalProps> = ({
   isOpen,
   result,
   onClose,
@@ -26,19 +25,14 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
   onBackToLobby,
   isDemoMode = false,
 }) => {
-  // Memoize isWinner calculation to prevent unnecessary recalculations
+  // Memoize isWinner calculation based on willWin from playerResults
   const isWinner = useMemo(() => {
-    if (!result) return false;
+    if (!result || !result.playerResults) return false;
     
-    // Use explicit flag from backend if available
-    if (result.isCurrentPlayerWinner !== undefined) {
-      return result.isCurrentPlayerWinner;
-    }
-    
-    // Fallback logic for demo mode or when flag is not set
-    return result.isTeamBattle
-      ? result.winner === "Team A" // Player is always in Team A in demo mode
-      : result.winner === "You";
+    // Check if current player has willWin === true
+    // Try "You" first, then winner username
+    const currentPlayerResult = result.playerResults["You"] ?? result.playerResults[result.winner] ?? false;
+    return currentPlayerResult === true;
   }, [result]);
 
   // Prevent body scroll when modal is open
@@ -54,10 +48,29 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
     };
   }, [isOpen]);
 
-  if (!result) return null;
+  // Debug logging
+  useEffect(() => {
+    if (isOpen) {
+      console.log(`[MinerResultModal] Modal opened, result=`, result);
+      if (result && result.playerResults) {
+        console.log(`[MinerResultModal] playerResults=`, result.playerResults);
+        console.log(`[MinerResultModal] isWinner=`, isWinner);
+      }
+    }
+  }, [isOpen, result, isWinner]);
 
-  // Note: This modal is only for non-Miner games (PickHigher, Plinko, etc.)
-  // Miner games use MinerResultModal instead
+  // Check if result exists and playerResults is not empty
+  if (!result || !result.playerResults || Object.keys(result.playerResults).length === 0) {
+    console.log(`[MinerResultModal] Returning null - result=`, result);
+    console.log(`[MinerResultModal] playerResults=`, result?.playerResults);
+    console.log(`[MinerResultModal] playerResults keys=`, result?.playerResults ? Object.keys(result.playerResults) : 'none');
+    return null;
+  }
+
+  // Sort players by willWin (true = Alive/Winner first, false = Bombed/Loser last)
+  const sortedPlayers = Object.entries(result.playerResults).sort(
+    ([, a], [, b]) => (b ? 1 : 0) - (a ? 1 : 0)
+  );
 
   return (
     <AnimatePresence>
@@ -69,7 +82,7 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/70 backdrop-blur-md"
-            style={{ zIndex: 1000, top: "-10%" }}
+            style={{ zIndex: 9999, top: 0 }}
             onClick={onClose}
           />
 
@@ -79,10 +92,10 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-0 flex items-center justify-center p-4"
-            style={{ zIndex: 1001 }}
+            className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none"
+            style={{ zIndex: 10000 }}
           >
-            <GlassCard className="w-full max-w-md mx-auto">
+            <GlassCard className="w-full max-w-md mx-auto pointer-events-auto">
               <GlassCardContent className="p-6">
                 {/* Header */}
                 <div className="text-center mb-4">
@@ -96,22 +109,18 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
                       stiffness: 200,
                     }}
                   >
-                    {isWinner ? "🏆" : result.winner === "Tie" ? "🤝" : "😔"}
+                    {isWinner ? "🏆" : "💣"}
                   </motion.div>
 
                   <motion.h2
                     className={`text-3xl font-display font-bold mb-2 ${
-                      isWinner ? "text-sol-mint" : "text-txt-base"
+                      isWinner ? "text-sol-mint" : "text-red-500"
                     }`}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
                   >
-                    {isWinner
-                      ? "Victory!"
-                      : result.winner === "Tie"
-                      ? "Tie Game!"
-                      : "Defeat"}
+                    {isWinner ? "Alive!" : "Bombed!"}
                   </motion.h2>
 
                   <motion.p
@@ -120,21 +129,9 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
                   >
-                    {result.isTeamBattle ? (
-                      <>
-                        {result.winner === "Team A" ? "Team A" : "Team B"} won!
-                        <br />
-                        {isWinner
-                          ? "Congratulations! Your team won!"
-                          : "Your team lost this time."}
-                      </>
-                    ) : isWinner ? (
-                      "Congratulations! You won the match!"
-                    ) : result.winner === "Tie" ? (
-                      "It's a tie! No winner this time."
-                    ) : (
-                      "Better luck next time!"
-                    )}
+                    {isWinner
+                      ? "Congratulations! You found the prize!"
+                      : "Better luck next time!"}
                   </motion.p>
                 </div>
 
@@ -160,7 +157,7 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
                   </motion.div>
                 )}
 
-                {/* Scoreboard */}
+                {/* Results */}
                 <motion.div
                   className="mb-4"
                   initial={{ opacity: 0, y: 20 }}
@@ -169,46 +166,32 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
                 >
                   <h3 className="text-lg font-semibold text-txt-base mb-3 flex items-center">
                     <TrophyIcon className="w-5 h-5 mr-2 text-sol-purple" />
-                    {result.isTeamBattle ? "Team Results" : "Final Scores"}
+                    {result.isTeamBattle ? "Team Results" : "Results"}
                   </h3>
 
-                  {result.isTeamBattle ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-4 rounded-lg bg-sol-purple/10 border border-sol-purple/20">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-2xl">🏆</span>
-                          <span className="font-medium text-txt-base">
-                            Team A
-                          </span>
-                        </div>
-                        <ScoreCounter
-                          value={result.teamScores?.["Team A"] || 0}
-                          className="text-xl font-bold"
-                        />
+                  {/* For team battles: show only Team A and Team B */}
+                  {result.isTeamBattle && result.teamScores ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-sol-purple/10 border border-sol-purple/20">
+                        <span className="font-medium text-txt-base">Team A</span>
+                        <span className="text-lg font-bold text-sol-mint">
+                          {result.teamScores["Team A"] || 0}
+                        </span>
                       </div>
-                      <div className="flex items-center justify-between p-4 rounded-lg bg-sol-mint/10 border border-sol-mint/20">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-2xl">🥈</span>
-                          <span className="font-medium text-txt-base">
-                            Team B
-                          </span>
-                        </div>
-                        <ScoreCounter
-                          value={result.teamScores?.["Team B"] || 0}
-                          className="text-xl font-bold"
-                        />
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-sol-mint/10 border border-sol-mint/20">
+                        <span className="font-medium text-txt-base">Team B</span>
+                        <span className="text-lg font-bold text-sol-mint">
+                          {result.teamScores["Team B"] || 0}
+                        </span>
                       </div>
                     </div>
                   ) : (
+                    /* For 1v1: show only players */
                     <div className="space-y-2">
-                      {(() => {
-                        // Note: Miner games use MinerResultModal, not GameResultModal
-                        // This modal is only for non-Miner games (PickHigher, Plinko, etc.)
-                        const sortedScores = Object.entries(result.scores).sort(
-                          ([, a], [, b]) => b - a
-                        );
+                      {sortedPlayers.map(([username, willWin], index) => {
+                        const displayValue = willWin ? "Alive" : "Bombed";
                         
-                        return sortedScores.map(([username, score], index) => (
+                        return (
                           <div
                             key={username}
                             className={`flex items-center justify-between p-3 rounded-lg ${
@@ -231,10 +214,16 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
                                 {username}
                               </span>
                             </div>
-                            <ScoreCounter value={score} className="text-lg" />
+                            <span className={`text-lg font-bold ${
+                              displayValue === "Alive" 
+                                ? "text-sol-mint" 
+                                : "text-red-500"
+                            }`}>
+                              {displayValue}
+                            </span>
                           </div>
-                        ));
-                      })()}
+                        );
+                      })}
                     </div>
                   )}
                 </motion.div>
@@ -299,3 +288,4 @@ export const GameResultModal: React.FC<GameResultModalProps> = ({
     </AnimatePresence>
   );
 };
+

@@ -1,5 +1,5 @@
 // Game score distribution utilities
-import { GamePlayer, GameResult } from "@/types/game";
+import { GamePlayer, GameResult, GameType } from "@/types/game";
 
 export function distributeScore(
   targetScore: number,
@@ -83,6 +83,212 @@ export function generateRandomValues(
   return values;
 }
 
+export function calculateMinerGameResult(
+  players: GamePlayer[],
+  stakeSol: number,
+  matchType?: "Solo" | "Duo" | "Team",
+  currentPlayer?: string,
+  currentPlayerPubkey?: string,
+  matchFromBackend?: any
+): GameResult {
+  const isTeamBattle = matchType === "Duo" || matchType === "Team";
+
+  if (isTeamBattle) {
+    // Team battle logic: winner = team with more players who willWin
+    const teamSize = matchType === "Duo" ? 2 : 5;
+    const teamA = players.slice(0, teamSize);
+    const teamB = players.slice(teamSize, teamSize * 2);
+
+    // Count players who willWin (from backend)
+    const teamAPrizeCount = teamA.filter((p) => p.willWin === true).length;
+    const teamBPrizeCount = teamB.filter((p) => p.willWin === true).length;
+
+    const winningTeamName =
+      teamAPrizeCount > teamBPrizeCount ? "Team A" : "Team B";
+    const isTeamAWinner = teamAPrizeCount > teamBPrizeCount;
+
+    // Determine if current player won
+    let isCurrentPlayerWinner = false;
+    if (currentPlayerPubkey && matchFromBackend) {
+      const myParticipant = matchFromBackend.participants?.find(
+        (p: any) => p.pubkey === currentPlayerPubkey
+      );
+      if (myParticipant) {
+        isCurrentPlayerWinner = myParticipant.isWinner ?? false;
+      }
+    } else {
+      // Fallback: check if current player's team won
+      const currentPlayerData = players.find(
+        (p) => p.username === currentPlayer || p.pubkey === currentPlayerPubkey
+      );
+      if (currentPlayerData) {
+        const isInTeamA = teamA.some(
+          (p) =>
+            p.username === currentPlayerData.username ||
+            p.pubkey === currentPlayerData.pubkey
+        );
+        isCurrentPlayerWinner = isInTeamA ? isTeamAWinner : !isTeamAWinner;
+      }
+    }
+
+    // Calculate win amount
+    const totalParticipants =
+      matchFromBackend?.participants?.length || players.length;
+    const totalPot = stakeSol * totalParticipants;
+    const winAmount = isCurrentPlayerWinner ? totalPot : 0;
+
+    // Create scores record (based on willWin from backend)
+    const scores: Record<string, number> = {};
+    players.forEach((player) => {
+      scores[player.username] = player.willWin === true ? 1 : 0;
+    });
+
+    const teamScores: Record<string, number> = {
+      "Team A": teamAPrizeCount,
+      "Team B": teamBPrizeCount,
+    };
+
+    // Create playerResults for Miner display (true = Alive, false = Bombed)
+    // Based on willWin from backend
+    const playerResults: Record<string, boolean> = {};
+    players.forEach((player) => {
+      playerResults[player.username] = player.willWin === true;
+    });
+
+    return {
+      winner: winningTeamName,
+      scores,
+      winAmount,
+      duration: 0,
+      isTeamBattle: true,
+      teamScores,
+      isCurrentPlayerWinner,
+      gameType: GameType.Miner,
+      playerResults,
+    };
+  } else {
+    // Solo battle logic (1v1)
+    // Winner is determined by willWin flag from backend
+    // In 1v1: exactly ONE player should have willWin === true (the winner)
+    // If both have willWin === true, prioritize current player (backend should handle this correctly)
+    // If both have willWin === false, current player loses (fallback)
+    const playersWithWillWin = players.filter((p) => p.willWin === true);
+
+    // Find current player
+    const currentPlayerData = players.find(
+      (p) => p.username === currentPlayer || p.pubkey === currentPlayerPubkey
+    );
+
+    // In 1v1, exactly ONE player must win
+    // If both have willWin === true, current player wins (prioritize current player)
+    // If both have willWin === false, current player loses (opponent wins)
+    // If one has willWin === true, that player wins
+    let winner;
+    if (players.length !== 2) {
+      // Fallback for non-1v1 (shouldn't happen in Solo mode)
+      winner = playersWithWillWin[0] || players[0];
+    } else {
+      // 1v1 logic: exactly one winner
+      if (playersWithWillWin.length === 1) {
+        // Exactly one winner - use that player
+        winner = playersWithWillWin[0];
+      } else if (playersWithWillWin.length === 2) {
+        // Both have willWin === true - current player wins (prioritize current player)
+        winner = currentPlayerData || playersWithWillWin[0];
+        console.log(
+          `[calculateMinerGameResult] Both players have willWin=true, current player wins: ${winner.username}`
+        );
+      } else {
+        // No one has willWin === true - opponent wins (current player loses)
+        const opponent = players.find(
+          (p) =>
+            p.username !== currentPlayer && p.pubkey !== currentPlayerPubkey
+        );
+        winner = opponent || players[0];
+        console.log(
+          `[calculateMinerGameResult] No players have willWin=true, opponent wins: ${winner.username}`
+        );
+      }
+    }
+
+    // Determine if current player won
+    let isCurrentPlayerWinner = false;
+    if (currentPlayerPubkey && matchFromBackend) {
+      const myParticipant = matchFromBackend.participants?.find(
+        (p: any) => p.pubkey === currentPlayerPubkey
+      );
+      if (myParticipant) {
+        isCurrentPlayerWinner = myParticipant.isWinner ?? false;
+      }
+    } else {
+      // Check if current player has willWin === true (from backend)
+      const currentPlayerData = players.find(
+        (p) => p.username === currentPlayer || p.pubkey === currentPlayerPubkey
+      );
+      isCurrentPlayerWinner = currentPlayerData?.willWin === true;
+    }
+
+    // Calculate win amount
+    const totalPot = stakeSol * 2;
+    const winAmount = isCurrentPlayerWinner ? totalPot : 0;
+
+    // Create scores record (based on willWin from backend)
+    const scores: Record<string, number> = {};
+    players.forEach((player) => {
+      scores[player.username] = player.willWin === true ? 1 : 0;
+    });
+
+    // Create playerResults for Miner display (true = Alive, false = Bombed)
+    // Based ONLY on willWin from backend (game is just visualization)
+    // IMPORTANT: In 1v1, if both have willWin=true, we keep both as true in playerResults
+    // but only one can be the winner
+    const playerResults: Record<string, boolean> = {};
+    players.forEach((player) => {
+      // willWin should be boolean (true/false) from backend
+      // If willWin is undefined or null, default to false (Bombed)
+      // This ensures playerResults always has a boolean value
+      const willWinValue = player.willWin === true;
+      playerResults[player.username] = willWinValue;
+
+      // Debug logging
+      console.log(
+        `[calculateMinerGameResult] Player ${player.username}: willWin=${player.willWin}, playerResults=${willWinValue}`
+      );
+      if (player.willWin === undefined || player.willWin === null) {
+        console.warn(
+          `[calculateMinerGameResult] Player ${player.username} has undefined willWin, defaulting to false`
+        );
+      }
+    });
+
+    // In 1v1, if both players have willWin=true, ensure playerResults reflects this correctly
+    // but winner is still only one (current player)
+    if (players.length === 2 && playersWithWillWin.length === 2) {
+      console.log(
+        `[calculateMinerGameResult] Both players have willWin=true in 1v1 - keeping both as Alive in playerResults`
+      );
+    }
+
+    console.log(
+      `[calculateMinerGameResult] Final playerResults:`,
+      playerResults
+    );
+    console.log(`[calculateMinerGameResult] Final scores:`, scores);
+    console.log(`[calculateMinerGameResult] Winner: ${winner.username}`);
+
+    return {
+      winner: winner.username,
+      scores,
+      winAmount,
+      duration: 0,
+      isTeamBattle: false,
+      isCurrentPlayerWinner,
+      gameType: GameType.Miner,
+      playerResults,
+    };
+  }
+}
+
 export function calculateGameResult(
   players: GamePlayer[],
   stakeSol: number,
@@ -93,7 +299,7 @@ export function calculateGameResult(
   const isTeamBattle = matchType === "Duo" || matchType === "Team";
 
   // Для финального результата используем targetScore
-  const getPlayerScore = (player: GamePlayer) => 
+  const getPlayerScore = (player: GamePlayer) =>
     useFinalScores ? player.targetScore : player.currentScore;
 
   if (isTeamBattle) {
@@ -214,6 +420,30 @@ export function getGameModeConfig(gameMode: string) {
         name: "Plinko: 7 Balls",
         rows: 9,
         slots: 9, // 9 rows → 9 slots (между 10 пинами последнего ряда)
+      };
+    case "Miner1v9":
+      return {
+        gridSize: 3,
+        maxSelections: 8, // Can open up to 8 tiles
+        icon: "💣",
+        name: "Miner: 1v9",
+        tileCount: 9,
+      };
+    case "Miner3v16":
+      return {
+        gridSize: 4,
+        maxSelections: 13, // Can open up to 13 tiles
+        icon: "💣",
+        name: "Miner: 3v16",
+        tileCount: 16,
+      };
+    case "Miner5v25":
+      return {
+        gridSize: 5,
+        maxSelections: 20, // Can open up to 20 tiles
+        icon: "💣",
+        name: "Miner: 5v25",
+        tileCount: 25,
       };
     default:
       return {

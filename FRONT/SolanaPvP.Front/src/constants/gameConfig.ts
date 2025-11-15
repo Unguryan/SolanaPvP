@@ -24,6 +24,30 @@ export const GAME_MODES = {
     timeLimit: 45, // seconds
     icon: "🏆",
   },
+  "Miner1v9": {
+    name: "Miner 1v9",
+    description: "Open tiles until you find prize or bomb (3x3 grid)",
+    maxSelections: 8, // Can open up to 8 tiles (1 prize, 1 bomb, 7 empty)
+    gridSize: { rows: 3, cols: 3 },
+    timeLimit: 30, // seconds
+    icon: "💣",
+  },
+  "Miner3v16": {
+    name: "Miner 3v16",
+    description: "Open tiles until you find prize or bomb (4x4 grid)",
+    maxSelections: 13, // Can open up to 13 tiles (3 prizes, 3 bombs, 10 empty)
+    gridSize: { rows: 4, cols: 4 },
+    timeLimit: 45, // seconds
+    icon: "💣",
+  },
+  "Miner5v25": {
+    name: "Miner 5v25",
+    description: "Open tiles until you find prize or bomb (5x5 grid)",
+    maxSelections: 20, // Can open up to 20 tiles (5 prizes, 5 bombs, 15 empty)
+    gridSize: { rows: 5, cols: 5 },
+    timeLimit: 60, // seconds
+    icon: "💣",
+  },
 } as const;
 
 export const TEAM_SIZES = {

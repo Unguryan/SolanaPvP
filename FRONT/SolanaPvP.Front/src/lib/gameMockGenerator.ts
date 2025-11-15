@@ -33,31 +33,34 @@ const AI_NAMES = [
  * @param slotCount - Number of slots (5, 7, or 9)
  * @returns Realistic score that can be achieved
  */
-function generateRealisticPlinkoScore(ballCount: number, slotCount: number): number {
+function generateRealisticPlinkoScore(
+  ballCount: number,
+  slotCount: number
+): number {
   const slotValues = getSlotValues(slotCount);
   let totalScore = 0;
-  
+
   // Create weighted pool: center slots appear MORE often (same as backend)
   const weightedSlots: number[] = [];
   const center = Math.floor(slotValues.length / 2);
-  
+
   for (let i = 0; i < slotValues.length; i++) {
     // Weight based on distance from center (center = higher weight)
     const distanceFromCenter = Math.abs(i - center);
     const weight = slotValues.length - distanceFromCenter; // Center = max weight
-    
+
     for (let w = 0; w < weight; w++) {
       weightedSlots.push(i);
     }
   }
-  
+
   // Pick ballCount random weighted slots
   for (let i = 0; i < ballCount; i++) {
     const randomIndex = Math.floor(Math.random() * weightedSlots.length);
     const slotIndex = weightedSlots[randomIndex];
     totalScore += slotValues[slotIndex];
   }
-  
+
   return totalScore;
 }
 
@@ -67,62 +70,195 @@ export const generateDemoPlayers = (
   gameMode?: string
 ): GamePlayer[] => {
   const players: GamePlayer[] = [];
-  
-  // Check if this is Plinko game
+
+  // Check game type
   const isPlinko = gameMode?.startsWith("Plinko");
-  
-  let playerTargetScore: number;
-  
-  if (isPlinko) {
-    // Generate REALISTIC Plinko scores based on actual slot values
-    const ballCount = gameMode === "Plinko3Balls" ? 3 : gameMode === "Plinko5Balls" ? 5 : 7;
-    const slotCount = gameMode === "Plinko3Balls" ? 5 : gameMode === "Plinko5Balls" ? 7 : 9;
-    playerTargetScore = generateRealisticPlinkoScore(ballCount, slotCount);
-  } else {
-    // PickHigher - old logic
-    playerTargetScore = Math.floor(Math.random() * 400) + 400; // 400-800
-  }
+  const isMiner = gameMode?.startsWith("Miner");
 
   // Add current user
-  players.push({
-    id: "current-user",
-    username: currentUsername,
-    targetScore: playerTargetScore,
-    currentScore: 0,
-    selections: [],
-    isReady: true,
-  });
+  if (isMiner) {
+    // Miner: use willWin instead of targetScore
+    // Current player can win or lose randomly, but there's always a winner (no ties)
+    // Determine if current player will win (70% chance to win for demo)
+    const currentPlayerWillWin = Math.random() > 0.3; // 70% chance to win
+
+    players.push({
+      id: "current-user",
+      username: currentUsername,
+      targetScore: 0, // Not used for Miner
+      currentScore: 0,
+      selections: [],
+      isReady: true,
+      willWin: currentPlayerWillWin,
+      openedTileCount: 0,
+      isAlive: true,
+    });
+
+    // Store current player's willWin for later use
+    (players as any).__currentPlayerWillWin = currentPlayerWillWin;
+  } else {
+    // PickHigher or Plinko: use targetScore
+    let playerTargetScore: number;
+
+    if (isPlinko) {
+      // Generate REALISTIC Plinko scores based on actual slot values
+      const ballCount =
+        gameMode === "Plinko3Balls" ? 3 : gameMode === "Plinko5Balls" ? 5 : 7;
+      const slotCount =
+        gameMode === "Plinko3Balls" ? 5 : gameMode === "Plinko5Balls" ? 7 : 9;
+      playerTargetScore = generateRealisticPlinkoScore(ballCount, slotCount);
+    } else {
+      // PickHigher - old logic
+      playerTargetScore = Math.floor(Math.random() * 400) + 400; // 400-800
+    }
+
+    players.push({
+      id: "current-user",
+      username: currentUsername,
+      targetScore: playerTargetScore,
+      currentScore: 0,
+      selections: [],
+      isReady: true,
+    });
+  }
 
   // Add AI players based on match type
+  // Solo: 1 opponent (total: 2 players = 1v1)
+  // Duo: 3 AI (1 teammate + 2 opponents) (total: 4 players = 2v2)
+  // Team: 9 AI (4 teammates + 5 opponents) (total: 10 players = 5v5)
   const aiCount = matchType === "Solo" ? 1 : matchType === "Duo" ? 3 : 9;
 
   // Shuffle names to avoid duplicates
   const shuffledNames = [...AI_NAMES].sort(() => Math.random() - 0.5);
 
-  for (let i = 0; i < aiCount; i++) {
-    const uniqueName = shuffledNames[i % shuffledNames.length];
-    
-    let aiTargetScore: number;
-    
-    if (isPlinko) {
-      // Generate realistic Plinko score for AI
-      const ballCount = gameMode === "Plinko3Balls" ? 3 : gameMode === "Plinko5Balls" ? 5 : 7;
-      const slotCount = gameMode === "Plinko3Balls" ? 5 : gameMode === "Plinko5Balls" ? 7 : 9;
-      aiTargetScore = generateRealisticPlinkoScore(ballCount, slotCount);
-    } else {
-      // PickHigher - old logic
-      const variance = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
-      aiTargetScore = Math.floor(playerTargetScore * variance);
+  if (isMiner) {
+    // Miner: ensure guaranteed winner (no ties)
+    // Current player can win or lose, but someone always wins
+    const currentPlayerWillWin =
+      (players as any).__currentPlayerWillWin ?? true;
+
+    let teamAWinners = currentPlayerWillWin ? 1 : 0; // Current player on Team A
+    let teamBWinners = 0;
+
+    if (matchType === "Solo") {
+      // 1v1: If current player wins, opponent loses. If current loses, opponent wins.
+      if (currentPlayerWillWin) {
+        teamAWinners = 1; // Current player wins
+        teamBWinners = 0; // Opponent loses
+      } else {
+        teamAWinners = 0; // Current player loses
+        teamBWinners = 1; // Opponent wins
+      }
+    } else if (matchType === "Duo") {
+      // 2v2: Ensure one team has more winners
+      if (currentPlayerWillWin) {
+        // Current player wins -> Team A should win (need at least 2 winners on Team A)
+        teamAWinners = 2; // Current player + 1 teammate = 2 winners
+        teamBWinners = Math.random() > 0.7 ? 1 : 0; // 0-1 winners on Team B
+      } else {
+        // Current player loses -> Team B should win (need at least 2 winners on Team B)
+        teamAWinners = Math.random() > 0.7 ? 1 : 0; // 0-1 winners on Team A
+        teamBWinners = 2; // Both opponents win = 2 winners
+      }
+    } else if (matchType === "Team") {
+      // 5v5: Ensure one team has more winners
+      if (currentPlayerWillWin) {
+        // Current player wins -> Team A should win (need at least 3 winners on Team A)
+        const teamAAdditionalWinners = 2 + Math.floor(Math.random() * 3); // 2-4 more winners
+        teamAWinners = 1 + teamAAdditionalWinners; // Total: 3-5 winners on Team A
+        teamBWinners = Math.floor(Math.random() * 3); // 0-2 winners on Team B
+      } else {
+        // Current player loses -> Team B should win (need at least 3 winners on Team B)
+        teamAWinners = Math.floor(Math.random() * 3); // 0-2 winners on Team A
+        teamBWinners = 3 + Math.floor(Math.random() * 3); // 3-5 winners on Team B
+      }
     }
-    
-    players.push({
-      id: `ai-player-${i}`,
-      username: uniqueName,
-      targetScore: aiTargetScore,
-      currentScore: 0, // Everyone starts at 0
-      selections: [],
-      isReady: true,
-    });
+
+    // Assign willWin to AI players
+    let teamAIndex = 0; // Track Team A AI players (teammates)
+    let teamBIndex = 0; // Track Team B AI players (opponents)
+
+    for (let i = 0; i < aiCount; i++) {
+      const uniqueName = shuffledNames[i % shuffledNames.length];
+      let willWin: boolean;
+
+      if (matchType === "Solo") {
+        // Solo: opponent wins if current player loses
+        willWin = !currentPlayerWillWin;
+      } else if (matchType === "Duo") {
+        // First AI is teammate (Team A), rest are opponents (Team B)
+        if (i === 0) {
+          // Teammate on Team A
+          // If current player wins, teammate should win too (to have 2 winners)
+          // If current player loses, teammate might win or lose
+          willWin = currentPlayerWillWin
+            ? true // If current wins, teammate wins (need 2 winners)
+            : teamAIndex < teamAWinners; // If current loses, teammate might win/lose based on teamAWinners
+          teamAIndex++;
+        } else {
+          // Opponent on Team B
+          willWin = teamBIndex < teamBWinners;
+          teamBIndex++;
+        }
+      } else {
+        // Team: first 4 AI are teammates (Team A), last 5 are opponents (Team B)
+        if (i < 4) {
+          // Teammate on Team A
+          // Need teamAWinners - (current player's contribution) winners among teammates
+          willWin = teamAIndex < teamAWinners - (currentPlayerWillWin ? 1 : 0);
+          teamAIndex++;
+        } else {
+          // Opponent on Team B
+          willWin = teamBIndex < teamBWinners;
+          teamBIndex++;
+        }
+      }
+
+      players.push({
+        id: `ai-player-${i}`,
+        username: uniqueName,
+        targetScore: 0, // Not used for Miner
+        currentScore: 0,
+        selections: [],
+        isReady: true,
+        willWin,
+        openedTileCount: 0,
+        isAlive: true,
+      });
+    }
+
+    // Clean up temporary property
+    delete (players as any).__currentPlayerWillWin;
+  } else {
+    // PickHigher or Plinko: use targetScore logic
+    for (let i = 0; i < aiCount; i++) {
+      const uniqueName = shuffledNames[i % shuffledNames.length];
+      // PickHigher or Plinko: use targetScore
+      let aiTargetScore: number;
+
+      if (isPlinko) {
+        // Generate realistic Plinko score for AI
+        const ballCount =
+          gameMode === "Plinko3Balls" ? 3 : gameMode === "Plinko5Balls" ? 5 : 7;
+        const slotCount =
+          gameMode === "Plinko3Balls" ? 5 : gameMode === "Plinko5Balls" ? 7 : 9;
+        aiTargetScore = generateRealisticPlinkoScore(ballCount, slotCount);
+      } else {
+        // PickHigher - old logic
+        const playerTargetScore = players[0]?.targetScore || 600;
+        const variance = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
+        aiTargetScore = Math.floor(playerTargetScore * variance);
+      }
+
+      players.push({
+        id: `ai-player-${i}`,
+        username: uniqueName,
+        targetScore: aiTargetScore,
+        currentScore: 0, // Everyone starts at 0
+        selections: [],
+        isReady: true,
+      });
+    }
   }
 
   return players;
@@ -253,9 +389,9 @@ export const generateWinnableTiles = (
 
   // Generate tiles that give player a GUARANTEED chance to win
   // Strategy: ensure at least one tile/combination can reach neededScore
-  
+
   const values: number[] = [];
-  
+
   // Generate values for first maxSelections tiles (these are the "winning" tiles)
   for (let i = 0; i < maxSelections; i++) {
     if (i === 0) {
@@ -266,25 +402,35 @@ export const generateWinnableTiles = (
         values.push(Math.floor(neededScore * 1.1)); // 110% of needed
       } else {
         // For multiple selections: distribute fairly
-        values.push(Math.floor(neededScore / maxSelections) + Math.floor(Math.random() * 200));
+        values.push(
+          Math.floor(neededScore / maxSelections) +
+            Math.floor(Math.random() * 200)
+        );
       }
     } else {
       // Other tiles contribute to total but with variation
       const remaining = neededScore - values.reduce((sum, v) => sum + v, 0);
       const avgPerRemaining = Math.floor(remaining / (maxSelections - i));
       const variation = Math.floor(avgPerRemaining * 0.5);
-      values.push(Math.max(150, avgPerRemaining + Math.floor(Math.random() * variation * 2) - variation));
+      values.push(
+        Math.max(
+          150,
+          avgPerRemaining +
+            Math.floor(Math.random() * variation * 2) -
+            variation
+        )
+      );
     }
   }
-  
+
   // Add decoy tiles (lower values)
   for (let i = maxSelections; i < totalTiles; i++) {
     values.push(Math.floor(Math.random() * 400) + 100); // 100-500
   }
-  
+
   // Shuffle all values so the best tile isn't always first
   const shuffledValues = values.sort(() => Math.random() - 0.5);
-  
+
   // Create tiles with shuffled values
   for (let i = 0; i < totalTiles; i++) {
     tiles.push({
@@ -349,10 +495,13 @@ export const generateTargetedTiles = (
       const decoyMin = Math.max(50, Math.floor(avgTargetValue * 0.3)); // 30% of average
       const decoyMax = Math.min(800, Math.floor(avgTargetValue * 1.3)); // 130% of average
       value = Math.floor(Math.random() * (decoyMax - decoyMin)) + decoyMin;
-      
+
       // Try to ensure decoy doesn't match any target value (max 10 attempts)
       let attempts = 0;
-      while (attempts < 10 && targetValues.some(tv => Math.abs(value - tv) / tv < 0.05)) {
+      while (
+        attempts < 10 &&
+        targetValues.some((tv) => Math.abs(value - tv) / tv < 0.05)
+      ) {
         value = Math.floor(Math.random() * (decoyMax - decoyMin)) + decoyMin;
         attempts++;
       }

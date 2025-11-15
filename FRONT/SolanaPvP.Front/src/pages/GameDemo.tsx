@@ -9,11 +9,11 @@ import {
   GlassCardTitle,
 } from "@/components/ui/GlassCard";
 import { generateDemoPlayers } from "@/lib/gameMockGenerator";
-import { Confetti } from "@/components/game/effects/Confetti";
 import { GameResult, GameType } from "@/types/game";
 import { AuroraBackground } from "@/components/effects/AuroraBackground";
 import { MatchLoader } from "@/components/loaders/MatchLoader";
 import { GameResultModal } from "@/components/game/GameResultModal";
+import { MinerResultModal } from "@/components/game/games/Miner";
 import { cn } from "@/utils/cn";
 
 type GameMode =
@@ -22,9 +22,12 @@ type GameMode =
   | "PickOneFromThree"
   | "Plinko3Balls"
   | "Plinko5Balls"
-  | "Plinko7Balls";
+  | "Plinko7Balls"
+  | "Miner1v9"
+  | "Miner3v16"
+  | "Miner5v25";
 type MatchType = "Solo" | "Duo" | "Team";
-type GameCategory = "PickHigher" | "Plinko";
+type GameCategory = "PickHigher" | "Plinko" | "Miner";
 
 export const GameDemo: React.FC = () => {
   const [currentGame, setCurrentGame] = useState<GameCategory>("PickHigher");
@@ -35,7 +38,6 @@ export const GameDemo: React.FC = () => {
   const [isGameActive, setIsGameActive] = useState(false);
   const [gameKey, setGameKey] = useState(0);
   const [stakeAmount, setStakeAmount] = useState(0.1);
-  const [showConfetti, setShowConfetti] = useState(false);
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
 
   // PickHigher game modes
@@ -52,7 +54,19 @@ export const GameDemo: React.FC = () => {
     { mode: "Plinko7Balls", label: "7 Balls", icon: "🎱" },
   ];
 
-  const gameModes = currentGame === "Plinko" ? plinkoModes : pickHigherModes;
+  // Miner game modes
+  const minerModes: { mode: GameMode; label: string; icon: string }[] = [
+    { mode: "Miner1v9", label: "1v9", icon: "💣" },
+    { mode: "Miner3v16", label: "3v16", icon: "💣" },
+    { mode: "Miner5v25", label: "5v25", icon: "💣" },
+  ];
+
+  const gameModes =
+    currentGame === "Plinko"
+      ? plinkoModes
+      : currentGame === "Miner"
+      ? minerModes
+      : pickHigherModes;
 
   const matchTypes: { type: MatchType; label: string; description: string }[] =
     [
@@ -85,13 +99,32 @@ export const GameDemo: React.FC = () => {
 
   const handleGameComplete = (result: GameResult) => {
     console.log("Game completed:", result);
-    setGameResult(result);
-    // Show confetti if player won
-    const isWinner =
-      result.winner === "You" ||
-      (result.isTeamBattle && result.winner === "Team A");
-    if (isWinner) {
-      setShowConfetti(true);
+    console.log("Game type:", result.gameType);
+    console.log("Is Miner?", result.gameType === GameType.Miner);
+    console.log("PlayerResults:", result.playerResults);
+    console.log("[GameDemo] Result keys:", Object.keys(result));
+    console.log("[GameDemo] Result has gameType:", 'gameType' in result);
+    console.log("[GameDemo] Result has playerResults:", 'playerResults' in result);
+    
+    // For Miner games: use playerResults directly from result (it comes from willWin)
+    // Don't try to create from scores - scores are wrong (0/1 instead of willWin)
+    if (currentGame === "Miner") {
+      // For Miner: playerResults should come directly from calculateMinerGameResult
+      // which uses willWin from players
+      // IMPORTANT: result should already have gameType and playerResults from calculateMinerGameResult
+      const finalResult: GameResult = {
+        ...result,
+        gameType: (result as any).gameType || GameType.Miner,
+        playerResults: (result as any).playerResults || result.playerResults || {},
+      };
+      
+      console.log("[GameDemo] Final Miner result:", finalResult);
+      console.log("[GameDemo] Final gameType:", finalResult.gameType);
+      console.log("[GameDemo] Final playerResults:", finalResult.playerResults);
+      setGameResult(finalResult);
+    } else {
+      // For other games, use as is
+      setGameResult(result);
     }
   };
 
@@ -132,26 +165,6 @@ export const GameDemo: React.FC = () => {
 
   return (
     <>
-      {/* Confetti - render at absolute top level */}
-      {showConfetti && (
-        <div
-          className="fixed inset-0 pointer-events-none"
-          style={{
-            zIndex: 9999,
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-        >
-          <Confetti
-            isActive={showConfetti}
-            onComplete={() => setShowConfetti(false)}
-          />
-        </div>
-      )}
-
       <div className="relative min-h-screen bg-bg overflow-hidden">
         <AuroraBackground />
         <div className="relative z-10 max-w-7xl mx-auto px-1 md:px-6 py-2 md:py-8">
@@ -216,14 +229,21 @@ export const GameDemo: React.FC = () => {
                     <span className="text-sm font-semibold text-white">Plinko</span>
                   </button>
 
-                  {/* Bomber - Future */}
+                  {/* Miner */}
                   <button
-                    disabled
-                    className="flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 bg-white/5 border-white/10 opacity-50 cursor-not-allowed min-w-[100px]"
+                    onClick={() => {
+                      setCurrentGame("Miner");
+                      setCurrentGameMode("Miner1v9");
+                    }}
+                    className={cn(
+                      "flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px]",
+                      currentGame === "Miner"
+                        ? "bg-gradient-to-br from-red-500 to-orange-600 border-red-400/50 shadow-lg"
+                        : "bg-white/5 border-white/10 hover:bg-white/10"
+                    )}
                   >
                     <div className="text-4xl md:text-5xl">💣</div>
-                    <span className="text-sm font-semibold text-white/70">Bomber</span>
-                    <span className="text-[10px] text-white/50">Soon</span>
+                    <span className="text-sm font-semibold text-white">Miner</span>
                   </button>
                 </div>
               </GlassCard>
@@ -302,6 +322,19 @@ export const GameDemo: React.FC = () => {
                           <li>• Reach your target score to win</li>
                           <li>• Edge slots give higher scores</li>
                         </>
+                      ) : currentGame === "Miner" ? (
+                        <>
+                          <li>
+                            • Open tiles until you find a prize or bomb
+                          </li>
+                          <li>
+                            • {currentGameMode === "Miner1v9" ? "1 prize, 1 bomb in 9 tiles" 
+                              : currentGameMode === "Miner3v16" ? "3 prizes, 3 bombs in 16 tiles"
+                              : "5 prizes, 5 bombs in 25 tiles"}
+                          </li>
+                          <li>• Find prize to win, hit bomb to lose</li>
+                          <li>• Game ends immediately when you find prize or bomb</li>
+                        </>
                       ) : (
                         <>
                           <li>
@@ -364,7 +397,13 @@ export const GameDemo: React.FC = () => {
               {/* Game Board */}
               <UniversalGameBoard
                 key={gameKey}
-                gameType={currentGame === "Plinko" ? GameType.Plinko : GameType.PickHigher}
+                gameType={
+                  currentGame === "Plinko"
+                    ? GameType.Plinko
+                    : currentGame === "Miner"
+                    ? GameType.Miner
+                    : GameType.PickHigher
+                }
                 gameMode={currentGameMode}
                 teamSize={currentMatchType}
                 stakeSol={stakeAmount} // Demo stake
@@ -394,18 +433,36 @@ export const GameDemo: React.FC = () => {
 
       {/* Game Result Modal */}
       {gameResult && (
-        <GameResultModal
-          isOpen={!!gameResult}
-          onClose={() => {
-            setGameResult(null);
-          }}
-          onPlayAgain={() => {
-            setGameResult(null);
-            handleResetGame();
-          }}
-          result={gameResult}
-          isDemoMode={true}
-        />
+        <>
+          {/* Always use MinerResultModal for Miner games, check gameType first, then fallback to currentGame */}
+          {(gameResult.gameType === GameType.Miner || currentGame === "Miner") ? (
+            <MinerResultModal
+              isOpen={!!gameResult}
+              onClose={() => {
+                setGameResult(null);
+              }}
+              onPlayAgain={() => {
+                setGameResult(null);
+                handleResetGame();
+              }}
+              result={gameResult}
+              isDemoMode={true}
+            />
+          ) : (
+            <GameResultModal
+              isOpen={!!gameResult}
+              onClose={() => {
+                setGameResult(null);
+              }}
+              onPlayAgain={() => {
+                setGameResult(null);
+                handleResetGame();
+              }}
+              result={gameResult}
+              isDemoMode={true}
+            />
+          )}
+        </>
       )}
     </>
   );

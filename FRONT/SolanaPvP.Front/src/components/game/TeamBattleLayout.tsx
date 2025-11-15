@@ -1,7 +1,7 @@
 // Team battle layout component
 import React from "react";
 import { motion } from "framer-motion";
-import { GamePlayer, GameResult } from "@/types/game";
+import { GamePlayer, GameResult, GameType } from "@/types/game";
 import { PlayerCard } from "./PlayerCard";
 import { ScoreCounter } from "./effects/ScoreCounter";
 
@@ -12,6 +12,8 @@ interface TeamBattleLayoutProps {
   gameResult?: GameResult | null;
   shouldHideScores?: (playerUsername: string) => boolean;
   hideTeamScores?: boolean;
+  gameType?: GameType;
+  aiPlayerTimerInfo?: Map<string, { delay: number; startTime: number }>;
 }
 
 export const TeamBattleLayout: React.FC<TeamBattleLayoutProps> = ({
@@ -21,19 +23,29 @@ export const TeamBattleLayout: React.FC<TeamBattleLayoutProps> = ({
   gameResult,
   shouldHideScores,
   hideTeamScores = false,
+  gameType,
+  aiPlayerTimerInfo,
 }) => {
+  const isMinerGame = gameType === GameType.Miner;
   const teamSize = players.length / 2;
   const teamA = players.slice(0, teamSize);
   const teamB = players.slice(teamSize, teamSize * 2);
 
-  const teamAScore = teamA.reduce(
-    (sum, player) => sum + player.currentScore,
-    0
-  );
-  const teamBScore = teamB.reduce(
-    (sum, player) => sum + player.currentScore,
-    0
-  );
+  // For Miner game, count players who have revealed their result AND willWin === true (Alive)
+  // Only count players who have isScoreRevealed === true to ensure scores start at 0
+  // IMPORTANT: Only calculate scores if not hiding team scores (for performance)
+  // But calculation is still correct even when hiding - counts only revealed players
+  // For other games, sum scores
+  const teamAScore = hideTeamScores 
+    ? 0 // Don't calculate if hiding (for performance), but display will show "???" anyway
+    : isMinerGame
+    ? teamA.filter((p) => p.isScoreRevealed === true && p.willWin === true).length
+    : teamA.reduce((sum, player) => sum + player.currentScore, 0);
+  const teamBScore = hideTeamScores
+    ? 0 // Don't calculate if hiding (for performance), but display will show "???" anyway
+    : isMinerGame
+    ? teamB.filter((p) => p.isScoreRevealed === true && p.willWin === true).length
+    : teamB.reduce((sum, player) => sum + player.currentScore, 0);
 
   const isTeamAWinner = gameResult?.winner === "Team A";
   const isTeamBWinner = gameResult?.winner === "Team B";
@@ -117,6 +129,9 @@ export const TeamBattleLayout: React.FC<TeamBattleLayoutProps> = ({
                   shouldHideScores ? shouldHideScores(player.username) : false
                 }
                 className="text-sm"
+                gameType={gameType}
+                gameStatus={gameStatus}
+                aiTimerInfo={aiPlayerTimerInfo?.get(player.username)}
               />
             ))}
           </div>
@@ -145,6 +160,9 @@ export const TeamBattleLayout: React.FC<TeamBattleLayoutProps> = ({
                   shouldHideScores ? shouldHideScores(player.username) : false
                 }
                 className="text-sm"
+                gameType={gameType}
+                gameStatus={gameStatus}
+                aiTimerInfo={aiPlayerTimerInfo?.get(player.username)}
               />
             ))}
           </div>

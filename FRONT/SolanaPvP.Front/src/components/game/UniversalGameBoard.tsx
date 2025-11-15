@@ -13,6 +13,7 @@ import { GameLayout } from "./GameLayout";
 import { PickHigherGame } from "./games/PickHigher";
 import { PlinkoGame } from "./games/Plinko";
 import type { PlinkoGameHandle } from "./games/Plinko/PlinkoGame";
+import { MinerGameBoard } from "./games/Miner";
 import {
   getGameModeConfig,
   calculateGameResult,
@@ -21,7 +22,10 @@ import {
   generateWinnableTiles,
   generateTargetedTiles,
 } from "@/lib/gameMockGenerator";
-import { breakdownScoreToSlots, getSlotValues } from "@/utils/plinkoScoreBreakdown";
+import {
+  breakdownScoreToSlots,
+  getSlotValues,
+} from "@/utils/plinkoScoreBreakdown";
 
 export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
   gameType = GameType.PickHigher,
@@ -39,9 +43,13 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
 }) => {
   // Map teamSize to old matchType format for backwards compatibility
   const matchType = teamSize || "Solo";
-  
+
   // Determine if this is a Plinko game
-  const isPlinkoGame = gameType === GameType.Plinko || gameMode.startsWith("Plinko");
+  const isPlinkoGame =
+    gameType === GameType.Plinko || gameMode.startsWith("Plinko");
+  // Determine if this is a Miner game
+  const isMinerGame =
+    gameType === GameType.Miner || gameMode.startsWith("Miner");
   const [gameState, setGameState] = useState<GameState>({
     status: "waiting",
     timeRemaining: timeLimit,
@@ -49,14 +57,18 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     players: players.map((p) => ({
       id: p.username,
       username: p.username,
-      pubkey: (p as any).pubkey,
+      pubkey: p.pubkey,
       targetScore: p.targetScore,
       currentScore: p.currentScore || 0,
       selections: [],
       isReady: p.isReady,
-      isScoreRevealed: currentPlayerPubkey 
-        ? (p as any).pubkey === currentPlayerPubkey 
+      isScoreRevealed: currentPlayerPubkey
+        ? p.pubkey === currentPlayerPubkey
         : p.username === currentPlayer, // Current player always shows score
+      // Miner-specific fields: preserve willWin from players prop
+      willWin: p.willWin,
+      isAlive: p.isAlive,
+      openedTileCount: p.openedTileCount,
     })),
     currentPlayerTurn: currentPlayer,
     winner: undefined,
@@ -68,7 +80,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
   const gameCompletedRef = useRef(false);
   const autoSelectingRef = useRef(false);
   const plinkoGameRef = useRef<PlinkoGameHandle>(null);
-  
+
   // Plinko-specific state
   const [plinkoSlots, setPlinkoSlots] = useState<number[]>([]); // Pre-determined slots for each ball
   const [currentBallIndex, setCurrentBallIndex] = useState(0); // Current ball being dropped
@@ -76,9 +88,13 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
   const gameConfig = getGameModeConfig(gameMode);
   const maxPlayers = matchType === "Solo" ? 2 : matchType === "Duo" ? 2 : 5;
   // В Demo режиме сразу пропускаем waiting, в реальной игре ждем игроков
-  const isWaitingForPlayers = isDemoMode ? false : gameState.players.length < maxPlayers;
+  const isWaitingForPlayers = isDemoMode
+    ? false
+    : gameState.players.length < maxPlayers;
   const isWaitingForScores = gameState.status === "loading";
-  const [localGameResult, setLocalGameResult] = useState<GameResult | null>(null);
+  const [localGameResult, setLocalGameResult] = useState<GameResult | null>(
+    null
+  );
 
   // Check if we should hide other players' scores (opponents reveal individually)
   const shouldHideScores = useCallback(
@@ -87,12 +103,12 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
       const player = gameState.players.find(
         (p) => p.username === playerUsername
       );
-      
+
       // Current player always sees their own score (check by pubkey if available)
       if (currentPlayerPubkey && player?.pubkey === currentPlayerPubkey) {
         return false;
       }
-      
+
       // Fallback to username check for demo mode
       if (!currentPlayerPubkey && playerUsername === currentPlayer) {
         return false;
@@ -115,12 +131,36 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
   );
 
   // Function to show opponent score (NO TILE SELECTION!)
+  // Use ref to track which players have already been revealed to prevent duplicate calls
+  const revealedPlayersRef = useRef<Set<string>>(new Set());
+
   const showOpponentScore = useCallback((playerUsername: string) => {
+    // Prevent duplicate calls for the same player
+    if (revealedPlayersRef.current.has(playerUsername)) {
+      console.log(
+        `showOpponentScore: ${playerUsername} already revealed, skipping`
+      );
+      return;
+    }
+
     console.log(`showOpponentScore called for: ${playerUsername}`);
+    revealedPlayersRef.current.add(playerUsername);
+
     setGameState((prev) => {
+      // Double-check if player is already revealed (defensive check)
+      const player = prev.players.find((p) => p.username === playerUsername);
+      if (player?.isScoreRevealed) {
+        console.log(
+          `showOpponentScore: ${playerUsername} already revealed in state, skipping`
+        );
+        return prev;
+      }
+
       const newPlayers = prev.players.map((p) => {
         if (p.username === playerUsername) {
-          console.log(`Setting isScoreRevealed: true and currentScore = targetScore for ${playerUsername}`);
+          console.log(
+            `Setting isScoreRevealed: true and currentScore = targetScore for ${playerUsername}`
+          );
           return {
             ...p,
             isScoreRevealed: true,
@@ -154,18 +194,33 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
         // Use currentPlayerPubkey if available (real game), otherwise username (demo)
         let currentPlayerData;
         let aiPlayers;
-        
+
         if (currentPlayerPubkey) {
           // Real game: find by pubkey
-          currentPlayerData = gameState.players.find((p) => p.pubkey === currentPlayerPubkey);
-          aiPlayers = gameState.players.filter((p) => p.pubkey !== currentPlayerPubkey);
-          
-          console.log(`[Real Game] Current player:`, currentPlayerData?.username, currentPlayerPubkey);
-          console.log(`[Real Game] AI opponents:`, aiPlayers.map(p => p.username));
+          currentPlayerData = gameState.players.find(
+            (p) => p.pubkey === currentPlayerPubkey
+          );
+          aiPlayers = gameState.players.filter(
+            (p) => p.pubkey !== currentPlayerPubkey
+          );
+
+          console.log(
+            `[Real Game] Current player:`,
+            currentPlayerData?.username,
+            currentPlayerPubkey
+          );
+          console.log(
+            `[Real Game] AI opponents:`,
+            aiPlayers.map((p) => p.username)
+          );
         } else {
           // Demo mode: use username
-          currentPlayerData = gameState.players.find((p) => p.username === currentPlayer);
-          aiPlayers = gameState.players.filter((p) => p.username !== currentPlayer);
+          currentPlayerData = gameState.players.find(
+            (p) => p.username === currentPlayer
+          );
+          aiPlayers = gameState.players.filter(
+            (p) => p.username !== currentPlayer
+          );
         }
 
         // For Plinko: generate slot indices based on target score
@@ -175,11 +230,15 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
           const targetScore = currentPlayerData?.targetScore || 1000;
           const ballCount = gameConfig.maxSelections;
           const slotCount = (gameConfig as any).slots || 6;
-          
-          const slots = breakdownScoreToSlots(targetScore, ballCount, slotCount);
+
+          const slots = breakdownScoreToSlots(
+            targetScore,
+            ballCount,
+            slotCount
+          );
           setPlinkoSlots(slots);
           setCurrentBallIndex(0);
-          
+
           setGameState((prev) => ({
             ...prev,
             status: "playing",
@@ -192,12 +251,17 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
             ? (() => {
                 // Demo mode: generate tiles to give player chance to win
                 // Берем максимальный targetScore среди ВСЕХ игроков
-                const allTargetScores = gameState.players.map((p) => p.targetScore);
+                const allTargetScores = gameState.players.map(
+                  (p) => p.targetScore
+                );
                 const maxTargetScore = Math.max(...allTargetScores);
                 // Добавляем 5% для гарантии возможности выиграть
                 const winningTarget = Math.floor(maxTargetScore * 1.05);
                 const playerCurrentScore = currentPlayerData?.currentScore || 0;
-                const neededScore = Math.max(0, winningTarget - playerCurrentScore);
+                const neededScore = Math.max(
+                  0,
+                  winningTarget - playerCurrentScore
+                );
                 return generateWinnableTiles(gameMode, neededScore);
               })()
             : generateTargetedTiles(
@@ -214,24 +278,32 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
           }));
         }
 
+        // Reset revealed players ref when starting new game
+        revealedPlayersRef.current.clear();
+
         // Set up individual timers for ALL AI players (everyone except current player)
         // In both demo AND real games: all opponents are AI-controlled
-        const newTimers = new Map<string, NodeJS.Timeout>();
+        // NOTE: Miner game has its own logic in MinerGameBoard - don't set up timers here
+        if (!isMinerGame) {
+          const newTimers = new Map<string, NodeJS.Timeout>();
 
-        console.log(
-          `Setting up timers for ${aiPlayers.length} AI players in ${matchType} mode`
-        );
+          console.log(
+            `Setting up timers for ${aiPlayers.length} AI players in ${matchType} mode`
+          );
 
-        aiPlayers.forEach((aiPlayer) => {
-          const delay = Math.random() * 6000 + 12000; // 12-18 seconds
-          const timer = setTimeout(() => {
-            console.log(`Revealing score for AI player: ${aiPlayer.username}`);
-            showOpponentScore(aiPlayer.username);
-          }, delay);
-          newTimers.set(aiPlayer.username, timer);
-        });
+          aiPlayers.forEach((aiPlayer) => {
+            const delay = Math.random() * 6000 + 12000; // 12-18 seconds
+            const timer = setTimeout(() => {
+              console.log(
+                `Revealing score for AI player: ${aiPlayer.username}`
+              );
+              showOpponentScore(aiPlayer.username);
+            }, delay);
+            newTimers.set(aiPlayer.username, timer);
+          });
 
-        setOpponentRevealTimers(newTimers);
+          setOpponentRevealTimers(newTimers);
+        }
       }, 2000);
     }
   }, [
@@ -251,16 +323,22 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     matchFromBackend,
     gameConfig,
     isPlinkoGame,
+    isMinerGame,
   ]);
 
   // Handle ball drop for Plinko
   const handleBallDrop = useCallback(
     (slotIndex: number) => {
-      console.log('🔵 handleBallDrop called! Slot:', slotIndex, 'Status:', gameState.status);
-      
+      console.log(
+        "🔵 handleBallDrop called! Slot:",
+        slotIndex,
+        "Status:",
+        gameState.status
+      );
+
       // При revealing тоже принимаем очки (для автоброса после таймера)
       if (gameState.status !== "playing" && gameState.status !== "revealing") {
-        console.log('❌ BLOCKED by status:', gameState.status);
+        console.log("❌ BLOCKED by status:", gameState.status);
         return;
       }
 
@@ -268,36 +346,48 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
       const currentPlayerData = currentPlayerPubkey
         ? gameState.players.find((p) => p.pubkey === currentPlayerPubkey)
         : gameState.players.find((p) => p.username === currentPlayer);
-      
+
       if (!currentPlayerData) {
-        console.log('❌ BLOCKED: current player not found');
+        console.log("❌ BLOCKED: current player not found");
         return;
       }
 
-      console.log('👤 Current player:', currentPlayer, 'Selections:', currentPlayerData.selections.length, '/', gameConfig.maxSelections);
+      console.log(
+        "👤 Current player:",
+        currentPlayer,
+        "Selections:",
+        currentPlayerData.selections.length,
+        "/",
+        gameConfig.maxSelections
+      );
 
       // НЕ блокируем если revealing - автоброшенные шарики должны засчитаться!
-      if (gameState.status === "playing" && currentPlayerData.selections.length >= gameConfig.maxSelections) {
-        console.log('❌ BLOCKED: max selections in playing mode');
+      if (
+        gameState.status === "playing" &&
+        currentPlayerData.selections.length >= gameConfig.maxSelections
+      ) {
+        console.log("❌ BLOCKED: max selections in playing mode");
         return;
       }
 
       // Get the value from the slot
       const slotCount = (gameConfig as any).slots || 6;
       const slotValues = getSlotValues(slotCount);
-      
+
       // Ensure slotIndex is within bounds
       const clampedSlotIndex = Math.max(0, Math.min(slotCount - 1, slotIndex));
       const ballValue = slotValues[clampedSlotIndex];
-      
+
       if (slotIndex !== clampedSlotIndex) {
         console.warn(
           `⚠️ Slot index clamped: ${slotIndex} → ${clampedSlotIndex} (slotCount: ${slotCount}, slotValues length: ${slotValues.length})`
         );
       }
-      
+
       console.log(
-        `✅ Ball landed in slot ${clampedSlotIndex} (was ${slotIndex}), value: ${ballValue}, slotCount: ${slotCount}, slotValues: [${slotValues.join(', ')}]`
+        `✅ Ball landed in slot ${clampedSlotIndex} (was ${slotIndex}), value: ${ballValue}, slotCount: ${slotCount}, slotValues: [${slotValues.join(
+          ", "
+        )}]`
       );
 
       setGameState((prev) => {
@@ -306,11 +396,22 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
           const isCurrentPlayer = currentPlayerPubkey
             ? player.pubkey === currentPlayerPubkey
             : player.username === currentPlayer;
-            
+
           if (isCurrentPlayer) {
             const newSelections = [...player.selections, slotIndex];
             const newScore = player.currentScore + ballValue;
-            console.log('💎 Player update:', player.username, 'Score:', player.currentScore, '→', newScore, 'Selections:', player.selections.length, '→', newSelections.length);
+            console.log(
+              "💎 Player update:",
+              player.username,
+              "Score:",
+              player.currentScore,
+              "→",
+              newScore,
+              "Selections:",
+              player.selections.length,
+              "→",
+              newSelections.length
+            );
             return {
               ...player,
               selections: newSelections,
@@ -324,7 +425,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
         const updatedCurrentPlayer = currentPlayerPubkey
           ? newPlayers.find((p) => p.pubkey === currentPlayerPubkey)
           : newPlayers.find((p) => p.username === currentPlayer);
-        
+
         if (
           updatedCurrentPlayer &&
           updatedCurrentPlayer.selections.length >= gameConfig.maxSelections
@@ -361,7 +462,7 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
       const currentPlayerData = currentPlayerPubkey
         ? gameState.players.find((p) => p.pubkey === currentPlayerPubkey)
         : gameState.players.find((p) => p.username === currentPlayer);
-      
+
       if (!currentPlayerData) return;
 
       // Check if current player has reached selection limit
@@ -372,38 +473,48 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
       setGameState((prev) => {
         // Calculate tile value FIRST (before updating players)
         let calculatedTileValue = prev.tiles[index]?.value || 0;
-        
+
         // Find current player to calculate correct value
         const currentPlayerData = currentPlayerPubkey
           ? prev.players.find((p) => p.pubkey === currentPlayerPubkey)
           : prev.players.find((p) => p.username === currentPlayer);
-        
-        if (currentPlayerData && !isDemoMode && currentPlayerData.targetScore > 0) {
+
+        if (
+          currentPlayerData &&
+          !isDemoMode &&
+          currentPlayerData.targetScore > 0
+        ) {
           // Real game: calculate value to reach targetScore
           const selectionsCount = currentPlayerData.selections.length + 1; // +1 for current selection
-          const remainingSelections = gameConfig.maxSelections - selectionsCount;
-          
+          const remainingSelections =
+            gameConfig.maxSelections - selectionsCount;
+
           if (remainingSelections === 0) {
             // Last selection: make it exactly targetScore
-            calculatedTileValue = currentPlayerData.targetScore - currentPlayerData.currentScore;
+            calculatedTileValue =
+              currentPlayerData.targetScore - currentPlayerData.currentScore;
           } else {
             // Not last selection: distribute remaining score
-            const remainingScore = currentPlayerData.targetScore - currentPlayerData.currentScore;
+            const remainingScore =
+              currentPlayerData.targetScore - currentPlayerData.currentScore;
             // Divide remaining score by remaining selections (with some randomness)
-            const baseValue = Math.floor(remainingScore / (remainingSelections + 1));
+            const baseValue = Math.floor(
+              remainingScore / (remainingSelections + 1)
+            );
             const variation = Math.floor(baseValue * 0.3); // ±30% variation
-            calculatedTileValue = baseValue + Math.floor(Math.random() * variation * 2) - variation;
+            calculatedTileValue =
+              baseValue + Math.floor(Math.random() * variation * 2) - variation;
             calculatedTileValue = Math.max(1, calculatedTileValue); // At least 1
           }
         }
-        
+
         // Update players with calculated value
         const newPlayers = prev.players.map((player) => {
           // Match by pubkey (real game) or username (demo)
           const isCurrentPlayer = currentPlayerPubkey
             ? player.pubkey === currentPlayerPubkey
             : player.username === currentPlayer;
-            
+
           if (isCurrentPlayer) {
             const newSelections = [...player.selections, index];
             return {
@@ -417,8 +528,13 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
 
         // Update tiles - set the CALCULATED value to the selected tile
         const newTiles = prev.tiles.map((tile, i) =>
-          i === index 
-            ? { ...tile, selected: true, revealed: true, value: calculatedTileValue } 
+          i === index
+            ? {
+                ...tile,
+                selected: true,
+                revealed: true,
+                value: calculatedTileValue,
+              }
             : tile
         );
 
@@ -492,7 +608,9 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
         .slice(0, remainingSelections)
         .map(({ index }) => index);
 
-      console.log(`[AutoSelect] Player: ${playerUsername}, Remaining: ${remainingSelections}, Selecting: ${autoSelections}`);
+      console.log(
+        `[AutoSelect] Player: ${playerUsername}, Remaining: ${remainingSelections}, Selecting: ${autoSelections}`
+      );
 
       // Вызываем handleTileClick для каждого tile
       // Это гарантирует правильный расчет значений для достижения targetScore
@@ -505,7 +623,12 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
         autoSelectingRef.current = false;
       }, 500);
     },
-    [gameState.players, gameState.tiles, gameConfig.maxSelections, handleTileClick]
+    [
+      gameState.players,
+      gameState.tiles,
+      gameConfig.maxSelections,
+      handleTileClick,
+    ]
   );
 
   // Timer effect
@@ -521,19 +644,22 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
             return { ...prev, status: "finished" };
           } else if (prev.status === "playing") {
             // Timeout during game - auto-select/drop for current player
-            const currentPlayerData = prev.players.find(
-              (p) => p.username === currentPlayer
-            );
-            if (
-              currentPlayerData &&
-              currentPlayerData.selections.length < gameConfig.maxSelections
-            ) {
-              if (isPlinkoGame) {
-                // Plinko: автоброс всех оставшихся шариков
-                plinkoGameRef.current?.dropAllRemainingBalls();
-              } else {
-                // PickHigher: автовыбор
-                autoSelectForPlayer(currentPlayer);
+            // NOTE: Miner game has its own logic in MinerGameBoard - don't interfere
+            if (!isMinerGame) {
+              const currentPlayerData = prev.players.find(
+                (p) => p.username === currentPlayer
+              );
+              if (
+                currentPlayerData &&
+                currentPlayerData.selections.length < gameConfig.maxSelections
+              ) {
+                if (isPlinkoGame) {
+                  // Plinko: автоброс всех оставшихся шариков
+                  plinkoGameRef.current?.dropAllRemainingBalls();
+                } else {
+                  // PickHigher: автовыбор
+                  autoSelectForPlayer(currentPlayer);
+                }
               }
             }
             return { ...prev, status: "revealing" };
@@ -550,10 +676,17 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     currentPlayer,
     gameConfig.maxSelections,
     isPlinkoGame,
+    isMinerGame,
   ]);
 
   // Handle game completion
+  // IMPORTANT: Skip this for Miner games - MinerGameBoard handles its own completion
   useEffect(() => {
+    if (isMinerGame) {
+      // Miner games handle their own completion in MinerGameBoard
+      return;
+    }
+
     if (gameState.status === "revealing" && !gameCompletedRef.current) {
       gameCompletedRef.current = true;
 
@@ -571,24 +704,26 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
           currentPlayer,
           !isDemoMode // useFinalScores = true только для реальной игры (используем targetScore)
         );
-        
+
         // Determine if current player won from backend data
-        let isCurrentPlayerWinner = result.winner === currentPlayer || result.winner === "You";
+        let isCurrentPlayerWinner =
+          result.winner === currentPlayer || result.winner === "You";
         let actualWinAmount = result.winAmount;
-        
+
         if (matchFromBackend && currentPlayerPubkey) {
           const myParticipant = matchFromBackend.participants?.find(
             (p: any) => p.pubkey === currentPlayerPubkey
           );
           if (myParticipant) {
             isCurrentPlayerWinner = myParticipant.isWinner ?? false;
-            
+
             // Calculate actual win amount from real game data
             // Winner gets total pot (all stakes combined)
             if (isCurrentPlayerWinner) {
-              const totalParticipants = matchFromBackend.participants?.length || 2;
+              const totalParticipants =
+                matchFromBackend.participants?.length || 2;
               const totalPot = stakeSol * totalParticipants;
-              
+
               // Winner gets full pot
               actualWinAmount = totalPot;
             } else {
@@ -597,13 +732,13 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
             }
           }
         }
-        
+
         const enhancedResult = {
           ...result,
           isCurrentPlayerWinner,
           winAmount: actualWinAmount, // Override with actual win amount
         };
-        
+
         setLocalGameResult(enhancedResult);
 
         // Call onGameComplete to notify parent (MatchPreview will show modal)
@@ -638,6 +773,8 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     currentPlayerPubkey,
     matchFromBackend,
     isPlinkoGame,
+    isMinerGame,
+    isDemoMode,
   ]);
 
   // Cleanup timers on unmount
@@ -646,7 +783,6 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
       opponentRevealTimers.forEach((timer) => clearTimeout(timer));
     };
   }, [opponentRevealTimers]);
-
 
   if (isWaitingForPlayers) {
     return (
@@ -681,6 +817,24 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
     );
   }
 
+  // If Miner game, use MinerGameBoard component
+  if (isMinerGame) {
+    return (
+      <MinerGameBoard
+        gameMode={gameMode as "Miner1v9" | "Miner3v16" | "Miner5v25"}
+        matchType={matchType}
+        stakeSol={stakeSol}
+        players={gameState.players}
+        currentPlayer={currentPlayer}
+        currentPlayerPubkey={currentPlayerPubkey}
+        matchFromBackend={matchFromBackend}
+        timeLimit={timeLimit}
+        onGameComplete={onGameComplete}
+        isDemoMode={isDemoMode}
+      />
+    );
+  }
+
   return (
     <>
       <GameLayout
@@ -701,7 +855,9 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
           isPlinkoGame ? (
             <PlinkoGame
               ref={plinkoGameRef}
-              gameMode={gameMode as "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls"}
+              gameMode={
+                gameMode as "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls"
+              }
               onBallDrop={handleBallDrop}
               disabled={gameState.status !== "playing"}
               currentPlayer={currentPlayer}
@@ -712,7 +868,12 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
             />
           ) : (
             <PickHigherGame
-              gameMode={gameMode as "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree"}
+              gameMode={
+                gameMode as
+                  | "PickThreeFromNine"
+                  | "PickFiveFromSixteen"
+                  | "PickOneFromThree"
+              }
               tiles={gameState.tiles}
               onTileClick={handleTileClick}
               disabled={gameState.status !== "playing"}
@@ -727,7 +888,9 @@ export const UniversalGameBoard: React.FC<UniversalGameBoardProps> = ({
                 👁️ Spectator Mode
               </h3>
               <p className="text-txt-muted">
-                You are watching this match as a spectator. The game board is hidden, but you can see all player scores and team progress above.
+                You are watching this match as a spectator. The game board is
+                hidden, but you can see all player scores and team progress
+                above.
               </p>
             </div>
           </div>
