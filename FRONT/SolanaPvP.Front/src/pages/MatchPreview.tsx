@@ -68,7 +68,7 @@ export const MatchPreview: React.FC = () => {
   const [pageMode, setPageMode] = useState<PageMode>("preview");
   const [gameData, setGameData] = useState<{
     players: Player[];
-    gameMode: "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls";
+    gameMode: "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls" | "Miner1v9" | "Miner3v16" | "Miner5v25";
   } | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [userBalance, setUserBalance] = useState<number>(0);
@@ -450,7 +450,7 @@ export const MatchPreview: React.FC = () => {
       vrfRequest: new PublicKey("11111111111111111111111111111115"),
       winnerSide: 0,
       game: "PickHigher",
-      gameMode: "3x9",
+      gameMode: "PickHigher3v9",
       arenaType: "SingleBattle",
       teamSizeStr: "5v5",
     };
@@ -955,7 +955,7 @@ export const MatchPreview: React.FC = () => {
               <p className="text-xs lg:text-sm text-txt-muted mb-1">Game Mode</p>
               <p className="text-sm lg:text-lg font-semibold text-txt-base">
                 {(() => {
-                  const mode = (lobby as any)?.gameMode || matchFromBackend?.gameMode || "3x9";
+                  const mode = (lobby as any)?.gameMode || matchFromBackend?.gameMode || "PickHigher3v9";
                   // Format Plinko modes nicely
                   if (mode === "Plinko3Balls") return "🎱 3 balls";
                   if (mode === "Plinko5Balls") return "🎱 5 balls";

@@ -9,7 +9,7 @@ public class MatchDBO
     public string MatchPda { get; set; } = string.Empty;
     public string CreatorPubkey { get; set; } = string.Empty;
     public string GameType { get; set; } = string.Empty; // CHANGED: "PickHigher", "Plinko", "Dice", etc.
-    public string GameMode { get; set; } = string.Empty; // "1x3", "3x9", "5x16", etc.
+    public string GameMode { get; set; } = string.Empty; // "PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", "Miner1v9", etc.
     public string MatchMode { get; set; } = string.Empty; // CHANGED: "SingleBattle", "DeathMatch"
     public string TeamSize { get; set; } = string.Empty; // CHANGED: "1v1", "2v2", "5v5", "1v10", etc.
     public long StakeLamports { get; set; }

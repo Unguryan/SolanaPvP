@@ -15,9 +15,10 @@ public static class GameConfig
     {
         public const string PickHigher = "PickHigher";
         public const string Plinko = "Plinko";
+        public const string Miner = "Miner";
         public const string Dice = "Dice";
         
-        public static readonly string[] All = { PickHigher, Plinko, Dice };
+        public static readonly string[] All = { PickHigher, Plinko, Miner, Dice };
     }
     
     // ===================== GAME MODES =====================
@@ -27,9 +28,9 @@ public static class GameConfig
     /// </summary>
     public static class PickHigherModes
     {
-        public const string OneFromThree = "1x3";
-        public const string ThreeFromNine = "3x9";
-        public const string FiveFromSixteen = "5x16";
+        public const string OneFromThree = "PickHigher1v3";
+        public const string ThreeFromNine = "PickHigher3v9";
+        public const string FiveFromSixteen = "PickHigher5v16";
         
         public static readonly string[] All = { OneFromThree, ThreeFromNine, FiveFromSixteen };
     }
@@ -43,6 +44,18 @@ public static class GameConfig
         public const string Advanced = "Advanced";
         
         public static readonly string[] All = { Classic, Advanced };
+    }
+    
+    /// <summary>
+    /// Game modes for Miner game
+    /// </summary>
+    public static class MinerModes
+    {
+        public const string OneVsNine = "Miner1v9";      // 3x3 grid
+        public const string ThreeVsSixteen = "Miner3v16"; // 4x4 grid
+        public const string FiveVsTwentyFive = "Miner5v25"; // 5x5 grid
+        
+        public static readonly string[] All = { OneVsNine, ThreeVsSixteen, FiveVsTwentyFive };
     }
     
     /// <summary>
@@ -137,6 +150,7 @@ public static class GameConfig
         {
             Games.PickHigher => PickHigherModes.All.Contains(gameMode),
             Games.Plinko => PlinkoModes.All.Contains(gameMode),
+            Games.Miner => MinerModes.All.Contains(gameMode),
             Games.Dice => DiceModes.All.Contains(gameMode),
             _ => false
         };

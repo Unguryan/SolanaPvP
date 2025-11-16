@@ -45,7 +45,7 @@ public class MatchView
     public string MatchPda { get; set; } = string.Empty;
     public string CreatorPubkey { get; set; } = string.Empty; // Creator's public key
     public string GameType { get; set; } = string.Empty;      // NEW: PickHigher, Plinko, etc.
-    public string GameMode { get; set; } = string.Empty;      // CHANGED: now string ("1x3", "3x9", "5x16")
+    public string GameMode { get; set; } = string.Empty;      // CHANGED: now string ("PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", etc.)
     public string MatchMode { get; set; } = string.Empty;     // NEW: Team or DeathMatch
     public string TeamSize { get; set; } = string.Empty;      // RENAMED: from MatchType
     public long StakeLamports { get; set; }
@@ -65,7 +65,7 @@ public class MatchDetails
     public string MatchPda { get; set; } = string.Empty;
     public string CreatorPubkey { get; set; } = string.Empty; // Creator's public key
     public string GameType { get; set; } = string.Empty;      // NEW: PickHigher, Plinko, etc.
-    public string GameMode { get; set; } = string.Empty;      // CHANGED: now string ("1x3", "3x9", "5x16")
+    public string GameMode { get; set; } = string.Empty;      // CHANGED: now string ("PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", etc.)
     public string MatchMode { get; set; } = string.Empty;     // NEW: Team or DeathMatch
     public string TeamSize { get; set; } = string.Empty;      // RENAMED: from MatchType
     public long StakeLamports { get; set; }
@@ -96,9 +96,10 @@ public class ParticipantView
 
 public class GameDataView
 {
-    public string GameMode { get; set; } = string.Empty; // Now string: "1x3", "3x9", "5x16"
+    public string GameMode { get; set; } = string.Empty; // Now string: "PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", etc.
     public int Side0TotalScore { get; set; }
     public int Side1TotalScore { get; set; }
+    public string? PlayerScoresJson { get; set; } // JSON with player scores/results: {"pubkey": score} for PickHigher/Plinko, {"pubkey": true/false} for Miner
     public DateTime GeneratedAt { get; set; }
 }
 

@@ -256,6 +256,7 @@ public class MatchService : IMatchService
                 GameMode = match.GameData.GameMode, // Already string
                 Side0TotalScore = match.GameData.Side0TotalScore,
                 Side1TotalScore = match.GameData.Side1TotalScore,
+                PlayerScoresJson = match.GameData.PlayerScoresJson, // JSON with player scores/results
                 GeneratedAt = match.GameData.GeneratedAt
             } : null
         };

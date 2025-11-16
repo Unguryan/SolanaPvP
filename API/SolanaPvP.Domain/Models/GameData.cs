@@ -4,7 +4,7 @@ public class GameData
 {
     public int Id { get; set; }
     public string MatchPda { get; set; } = string.Empty;
-    public string GameMode { get; set; } = string.Empty; // CHANGED: from enum to string ("1x3", "3x9", "5x16")
+    public string GameMode { get; set; } = string.Empty; // CHANGED: from enum to string ("PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", etc.)
     public int Side0TotalScore { get; set; } // суммарное число для Side 0
     public int Side1TotalScore { get; set; } // суммарное число для Side 1
     public DateTime GeneratedAt { get; set; }

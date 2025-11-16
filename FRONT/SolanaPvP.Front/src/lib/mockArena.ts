@@ -8,7 +8,7 @@ export const mockFeed: FeedItem[] = [
     solAmount: 3.6,
     timestamp: Date.now() - 12000,
     gameType: "PickHigher",
-    gameMode: "3x9",
+    gameMode: "PickHigher3v9",
     matchType: "OneVOne",
     winnerSide: 0,
   },
@@ -19,7 +19,7 @@ export const mockFeed: FeedItem[] = [
     solAmount: 5.2,
     timestamp: Date.now() - 8000,
     gameType: "PickHigher",
-    gameMode: "5x16",
+    gameMode: "PickHigher5v16",
     matchType: "OneVOne",
     winnerSide: 1,
   },
@@ -30,7 +30,7 @@ export const mockFeed: FeedItem[] = [
     solAmount: 2.1,
     timestamp: Date.now() - 15000,
     gameType: "PickHigher",
-    gameMode: "1x3",
+    gameMode: "PickHigher1v3",
     matchType: "OneVOne",
     winnerSide: 0,
   },
@@ -41,7 +41,7 @@ export const mockFeed: FeedItem[] = [
     solAmount: 7.8,
     timestamp: Date.now() - 20000,
     gameType: "PickHigher",
-    gameMode: "3x9",
+    gameMode: "PickHigher3v9",
     matchType: "TwoVTwo",
     winnerSide: 0,
   },
@@ -52,7 +52,7 @@ export const mockFeed: FeedItem[] = [
     solAmount: 4.3,
     timestamp: Date.now() - 25000,
     gameType: "PickHigher",
-    gameMode: "5x16",
+    gameMode: "PickHigher5v16",
     matchType: "OneVOne",
     winnerSide: 1,
   },
@@ -63,7 +63,7 @@ export const mockFeed: FeedItem[] = [
     solAmount: 1.9,
     timestamp: Date.now() - 30000,
     gameType: "PickHigher",
-    gameMode: "1x3",
+    gameMode: "PickHigher1v3",
     matchType: "OneVOne",
     winnerSide: 0,
   },
@@ -74,7 +74,7 @@ export const mockFeed: FeedItem[] = [
     solAmount: 6.7,
     timestamp: Date.now() - 35000,
     gameType: "PickHigher",
-    gameMode: "3x9",
+    gameMode: "PickHigher3v9",
     matchType: "FiveVFive",
     winnerSide: 1,
   },
@@ -85,7 +85,7 @@ export const mockFeed: FeedItem[] = [
     solAmount: 3.2,
     timestamp: Date.now() - 40000,
     gameType: "PickHigher",
-    gameMode: "5x16",
+    gameMode: "PickHigher5v16",
     matchType: "OneVOne",
     winnerSide: 0,
   },
@@ -96,7 +96,7 @@ export const mockFeed: FeedItem[] = [
     solAmount: 8.1,
     timestamp: Date.now() - 45000,
     gameType: "PickHigher",
-    gameMode: "1x3",
+    gameMode: "PickHigher1v3",
     matchType: "TwoVTwo",
     winnerSide: 1,
   },
@@ -107,7 +107,7 @@ export const mockFeed: FeedItem[] = [
     solAmount: 2.8,
     timestamp: Date.now() - 50000,
     gameType: "PickHigher",
-    gameMode: "3x9",
+    gameMode: "PickHigher3v9",
     matchType: "OneVOne",
     winnerSide: 0,
   },
@@ -118,7 +118,7 @@ export const mockFeed: FeedItem[] = [
     solAmount: 5.5,
     timestamp: Date.now() - 55000,
     gameType: "PickHigher",
-    gameMode: "5x16",
+    gameMode: "PickHigher5v16",
     matchType: "OneVOne",
     winnerSide: 1,
   },
@@ -129,7 +129,7 @@ export const mockFeed: FeedItem[] = [
     solAmount: 4.7,
     timestamp: Date.now() - 60000,
     gameType: "PickHigher",
-    gameMode: "1x3",
+    gameMode: "PickHigher1v3",
     matchType: "OneVOne",
     winnerSide: 0,
   },
@@ -143,7 +143,7 @@ export const mockMatches: MatchLobby[] = [
     playersReady: 3,
     playersMax: 18,
     endsAt: Date.now() + 124000,
-    gameMode: "Pick3from9",
+    gameMode: "PickHigher3v9",
   },
   {
     id: "b",
@@ -152,7 +152,7 @@ export const mockMatches: MatchLobby[] = [
     playersReady: 7,
     playersMax: 7,
     endsAt: Date.now() + 12000,
-    gameMode: "Pick5from16",
+    gameMode: "PickHigher5v16",
   },
   {
     id: "c",
@@ -161,7 +161,7 @@ export const mockMatches: MatchLobby[] = [
     playersReady: 6,
     playersMax: 5,
     endsAt: Date.now() + 23000,
-    gameMode: "Pick1from3",
+    gameMode: "PickHigher1v3",
   },
   {
     id: "d",
@@ -170,7 +170,7 @@ export const mockMatches: MatchLobby[] = [
     playersReady: 1,
     playersMax: 10,
     endsAt: Date.now() + 180000,
-    gameMode: "Pick3from9",
+    gameMode: "PickHigher3v9",
   },
   {
     id: "e",
@@ -179,7 +179,7 @@ export const mockMatches: MatchLobby[] = [
     playersReady: 4,
     playersMax: 4,
     endsAt: Date.now() + 45000,
-    gameMode: "Pick5from16",
+    gameMode: "PickHigher5v16",
   },
   {
     id: "f",
@@ -188,7 +188,7 @@ export const mockMatches: MatchLobby[] = [
     playersReady: 2,
     playersMax: 8,
     endsAt: Date.now() + 90000,
-    gameMode: "Pick1from3",
+    gameMode: "PickHigher1v3",
   },
   {
     id: "g",
@@ -197,7 +197,7 @@ export const mockMatches: MatchLobby[] = [
     playersReady: 9,
     playersMax: 12,
     endsAt: Date.now() + 15000,
-    gameMode: "Pick3from9",
+    gameMode: "PickHigher3v9",
   },
   {
     id: "h",
@@ -206,7 +206,7 @@ export const mockMatches: MatchLobby[] = [
     playersReady: 0,
     playersMax: 6,
     endsAt: Date.now() + 300000,
-    gameMode: "Pick5from16",
+    gameMode: "PickHigher5v16",
   },
 ];
 
@@ -233,7 +233,7 @@ export const generateRandomFeedItem = (): FeedItem => {
     "to_the_moon",
   ];
 
-  const gameModes = ["1x3", "3x9", "5x16"];
+  const gameModes = ["PickHigher1v3", "PickHigher3v9", "PickHigher5v16"];
   const teamSizes = ["OneVOne", "TwoVTwo", "FiveVFive"];
 
   return {
@@ -250,18 +250,18 @@ export const generateRandomFeedItem = (): FeedItem => {
 };
 
 export const generateRandomMatch = (): MatchLobby => {
-  const gameModes = ["Pick3from9", "Pick5from16", "Pick1from3"];
+  const gameModes = ["PickHigher3v9", "PickHigher5v16", "PickHigher1v3"];
   const gameMode = gameModes[Math.floor(Math.random() * gameModes.length)];
 
   let playersMax: number;
   switch (gameMode) {
-    case "Pick3from9":
+    case "PickHigher3v9":
       playersMax = Math.floor(Math.random() * 15) + 5; // 5-20
       break;
-    case "Pick5from16":
+    case "PickHigher5v16":
       playersMax = Math.floor(Math.random() * 8) + 3; // 3-11
       break;
-    case "Pick1from3":
+    case "PickHigher1v3":
       playersMax = Math.floor(Math.random() * 6) + 2; // 2-8
       break;
     default:

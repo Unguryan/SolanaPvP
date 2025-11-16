@@ -1,6 +1,7 @@
 // Game configuration constants
 export const GAME_MODES = {
-  "1x3": {
+  // Standard format (backend sends this)
+  "PickHigher1v3": {
     name: "Pick 1 from 3",
     description: "Choose 1 card from 3 available options",
     maxSelections: 1,
@@ -8,7 +9,7 @@ export const GAME_MODES = {
     timeLimit: 15, // seconds
     icon: "🎯",
   },
-  "3x9": {
+  "PickHigher3v9": {
     name: "Pick 3 from 9",
     description: "Choose 3 cards from 9 available options",
     maxSelections: 3,
@@ -16,7 +17,7 @@ export const GAME_MODES = {
     timeLimit: 30, // seconds
     icon: "🎴",
   },
-  "5x16": {
+  "PickHigher5v16": {
     name: "Pick 5 from 16",
     description: "Choose 5 chests from 16 available options",
     maxSelections: 5,

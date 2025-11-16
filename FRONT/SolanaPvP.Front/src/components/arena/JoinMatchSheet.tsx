@@ -78,12 +78,20 @@ export const JoinMatchSheet: React.FC<JoinMatchSheetProps> = ({
 
   const getGameModeIcon = (gameMode: string) => {
     switch (gameMode) {
-      case "Pick3from9":
+      case "PickHigher3v9":
         return "🎴";
-      case "Pick5from16":
+      case "PickHigher5v16":
         return "🏆";
-      case "Pick1from3":
+      case "PickHigher1v3":
         return "🎯";
+      case "Plinko3Balls":
+      case "Plinko5Balls":
+      case "Plinko7Balls":
+        return "🎰";
+      case "Miner1v9":
+      case "Miner3v16":
+      case "Miner5v25":
+        return "💣";
       default:
         return "🎮";
     }
@@ -91,12 +99,24 @@ export const JoinMatchSheet: React.FC<JoinMatchSheetProps> = ({
 
   const getGameModeDescription = (gameMode: string) => {
     switch (gameMode) {
-      case "Pick3from9":
+      case "PickHigher3v9":
         return "Choose 3 cards from 9 available options. Each card has a hidden value. The player with the highest total wins!";
-      case "Pick5from16":
+      case "PickHigher5v16":
         return "Select 5 chests from a 4x4 grid. Each chest contains treasures. Find the best combination to win!";
-      case "Pick1from3":
+      case "PickHigher1v3":
         return "Quick decision time! Choose 1 card from 3 options. Fast-paced action with high stakes!";
+      case "Plinko3Balls":
+        return "Drop 3 balls down the Plinko board. Watch them bounce and land in multiplier slots!";
+      case "Plinko5Balls":
+        return "Drop 5 balls down the Plinko board. More balls, more chances to win!";
+      case "Plinko7Balls":
+        return "Drop 7 balls down the Plinko board. Maximum excitement with maximum balls!";
+      case "Miner1v9":
+        return "Open tiles on a 3x3 grid. Find the prize before hitting the bomb!";
+      case "Miner3v16":
+        return "Open tiles on a 4x4 grid. Find 3 prizes before hitting 3 bombs!";
+      case "Miner5v25":
+        return "Open tiles on a 5x5 grid. Find 5 prizes before hitting 5 bombs!";
       default:
         return "An exciting game mode with real SOL rewards.";
     }

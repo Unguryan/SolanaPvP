@@ -580,14 +580,28 @@ public class IndexerWorker : BackgroundService
                 offset += 1;
             }
 
-            _logger.LogDebug("[ParseMatchCreated] Parsed - Creator: {Creator}, Game: {Game}, Mode: {GameMode}, Arena: {ArenaType}, Team: {TeamSize}, CreatorSide: {CreatorSide}", 
-                creator, game, gameMode, arenaType, teamSizeStr, creatorSide);
+            // Map legacy gameMode format to new standard format
+            // Blockchain may send "3x9", "5x16", "1x3" -> convert to "PickHigher3v9", "PickHigher5v16", "PickHigher1v3"
+            string normalizedGameMode = gameMode;
+            if (game == "PickHigher")
+            {
+                normalizedGameMode = gameMode switch
+                {
+                    "3x9" => "PickHigher3v9",
+                    "5x16" => "PickHigher5v16",
+                    "1x3" => "PickHigher1v3",
+                    _ => gameMode // Keep as-is if already in new format or unknown
+                };
+            }
+
+            _logger.LogDebug("[ParseMatchCreated] Parsed - Creator: {Creator}, Game: {Game}, Mode: {GameMode} -> {NormalizedMode}, Arena: {ArenaType}, Team: {TeamSize}, CreatorSide: {CreatorSide}", 
+                creator, game, gameMode, normalizedGameMode, arenaType, teamSizeStr, creatorSide);
 
             return new MatchCreatedData
             {
                 Creator = creator,
                 GameType = game,
-                GameMode = gameMode,
+                GameMode = normalizedGameMode,
                 MatchMode = arenaType,
                 TeamSize = teamSizeStr,
                 StakeLamports = stakeLamports,
@@ -711,6 +725,7 @@ public class IndexerWorker : BackgroundService
         return new MatchView
         {
             MatchPda = matchDetails.MatchPda,
+            CreatorPubkey = matchDetails.CreatorPubkey,
             GameType = matchDetails.GameType,
             GameMode = matchDetails.GameMode,
             MatchMode = matchDetails.MatchMode,
@@ -721,6 +736,8 @@ public class IndexerWorker : BackgroundService
             WinnerSide = matchDetails.WinnerSide,
             CreatedAt = matchDetails.CreatedAt,
             JoinedAt = matchDetails.JoinedAt,
+            PendingAt = matchDetails.PendingAt,
+            GameStartTime = matchDetails.GameStartTime,
             ResolvedAt = matchDetails.ResolvedAt,
             Participants = matchDetails.Participants
         };
@@ -739,7 +756,7 @@ public class MatchCreatedData
 {
     public string Creator { get; set; } = string.Empty;
     public string GameType { get; set; } = string.Empty; // NEW: "PickHigher", etc.
-    public string GameMode { get; set; } = string.Empty; // NEW: "1x3", "3x9", etc.
+    public string GameMode { get; set; } = string.Empty; // NEW: "PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", "Miner1v9", etc.
     public string MatchMode { get; set; } = string.Empty; // NEW: "SingleBattle", "DeathMatch"
     public string TeamSize { get; set; } = string.Empty; // CHANGED: "1v1", "2v2", etc.
     public long StakeLamports { get; set; }

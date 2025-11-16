@@ -31,7 +31,11 @@ export const MatchesList: React.FC<MatchesListProps> = ({
     const now = Date.now();
 
     // Show Open, Pending, and InProgress matches
-    if (match.status === "Open" || match.status === "Pending" || match.status === "InProgress") {
+    if (
+      match.status === "Open" ||
+      match.status === "Pending" ||
+      match.status === "InProgress"
+    ) {
       return true;
     }
 
@@ -78,12 +82,20 @@ export const MatchesList: React.FC<MatchesListProps> = ({
 
   const getGameModeIcon = (gameMode: string) => {
     switch (gameMode) {
-      case "Pick3from9":
+      case "PickHigher3v9":
         return "🎴";
-      case "Pick5from16":
+      case "PickHigher5v16":
         return "🏆";
-      case "Pick1from3":
+      case "PickHigher1v3":
         return "🎯";
+      case "Plinko3Balls":
+      case "Plinko5Balls":
+      case "Plinko7Balls":
+        return "🎰";
+      case "Miner1v9":
+      case "Miner3v16":
+      case "Miner5v25":
+        return "💣";
       default:
         return "🎮";
     }
@@ -184,85 +196,90 @@ export const MatchesList: React.FC<MatchesListProps> = ({
           .filter((m) => m.status !== "Resolved" && m.status !== "Refunded") // Filter out ended matches
           .slice(0, maxItems)
           .map((match, index) => {
-          const fillPercentage = getFillPercentage(
-            match.playersReady,
-            match.playersMax
-          );
-          const timeRemaining = timeLeft[match.id] || 0;
-          const isWaiting = match.status === "Open";
-          const isInGame = match.status === "Pending" || match.status === "InProgress";
+            const fillPercentage = getFillPercentage(
+              match.playersReady,
+              match.playersMax
+            );
+            const timeRemaining = timeLeft[match.id] || 0;
+            const isWaiting = match.status === "Open";
+            const isInGame =
+              match.status === "Pending" || match.status === "InProgress";
 
-          return (
-            <motion.div
-              key={match.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-              className={`match-card ${getMatchStateColors(
-                match
-              )} cursor-pointer hover:bg-white/5 transition-colors`}
-              onClick={() => handleMatchClick(match)}
-            >
-              <div className="flex items-center justify-between gap-2 lg:gap-3">
-                <div className="flex items-center space-x-2 lg:space-x-3 flex-1 min-w-0">
-                  <div className="text-base lg:text-lg flex-shrink-0">
-                    {getGameModeIcon(match.gameMode)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-1.5 lg:space-x-2 flex-wrap">
-                      <span className="text-txt-base font-medium text-sm lg:text-base">
-                        {match.stake} SOL
-                      </span>
-                      <span className="text-txt-muted text-xs lg:text-sm">
-                        {formatGameDisplay(
-                          match.gameType || "PickHigher",
-                          match.gameMode,
-                          match.teamSize || "OneVOne"
+            return (
+              <motion.div
+                key={match.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+                className={`match-card ${getMatchStateColors(
+                  match
+                )} cursor-pointer hover:bg-white/5 transition-colors`}
+                onClick={() => handleMatchClick(match)}
+              >
+                <div className="flex items-center justify-between gap-2 lg:gap-3">
+                  <div className="flex items-center space-x-2 lg:space-x-3 flex-1 min-w-0">
+                    <div className="text-base lg:text-lg flex-shrink-0">
+                      {getGameModeIcon(match.gameMode)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-1.5 lg:space-x-2 flex-wrap">
+                        <span className="text-txt-base font-medium text-sm lg:text-base">
+                          {match.stake} SOL
+                        </span>
+                        <span className="text-txt-muted text-xs lg:text-sm">
+                          {formatGameDisplay(
+                            match.gameType || "PickHigher",
+                            match.gameMode,
+                            match.teamSize || "OneVOne"
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-1.5 lg:space-x-2 text-xs text-txt-muted">
+                        <span>
+                          {match.playersReady}/{match.playersMax} players
+                        </span>
+                        {isWaiting && (
+                          <>
+                            <span>•</span>
+                            <span>{formatTimeLeft(timeRemaining)}</span>
+                          </>
                         )}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-1.5 lg:space-x-2 text-xs text-txt-muted">
-                      <span>
-                        {match.playersReady}/{match.playersMax} players
-                      </span>
-                      {isWaiting && (
-                        <>
-                          <span>•</span>
-                          <span>{formatTimeLeft(timeRemaining)}</span>
-                        </>
-                      )}
-                      {isInGame && (
-                        <>
-                          <span>•</span>
-                          <span className="text-blue-400">Playing...</span>
-                        </>
-                      )}
+                        {isInGame && (
+                          <>
+                            <span>•</span>
+                            <span className="text-blue-400">Playing...</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="text-right flex-shrink-0">
-                  <div className={`text-xs lg:text-sm font-semibold mb-0.5 lg:mb-1 ${getMatchStatusColor(match)}`}>
-                    {getMatchStatusText(match)}
+                  <div className="text-right flex-shrink-0">
+                    <div
+                      className={`text-xs lg:text-sm font-semibold mb-0.5 lg:mb-1 ${getMatchStatusColor(
+                        match
+                      )}`}
+                    >
+                      {getMatchStatusText(match)}
+                    </div>
+                    {isWaiting && (
+                      <>
+                        <div className="text-xs text-txt-muted mb-0.5 lg:mb-1">
+                          {fillPercentage}% full
+                        </div>
+                        <div className="w-12 lg:w-16 h-1 bg-txt-muted/20 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-sol-purple to-sol-mint transition-all duration-300"
+                            style={{ width: `${fillPercentage}%` }}
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
-                  {isWaiting && (
-                    <>
-                      <div className="text-xs text-txt-muted mb-0.5 lg:mb-1">
-                        {fillPercentage}% full
-                      </div>
-                      <div className="w-12 lg:w-16 h-1 bg-txt-muted/20 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-sol-purple to-sol-mint transition-all duration-300"
-                          style={{ width: `${fillPercentage}%` }}
-                        />
-                      </div>
-                    </>
-                  )}
                 </div>
-              </div>
-            </motion.div>
-          );
-        })}
+              </motion.div>
+            );
+          })}
 
         {matches.length === 0 && (
           <div className="text-center py-8">

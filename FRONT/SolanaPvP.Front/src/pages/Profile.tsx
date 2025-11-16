@@ -27,12 +27,20 @@ import { AuroraBackground } from "@/components/effects/AuroraBackground";
 // Helper functions
 const getGameModeIcon = (gameMode: string) => {
   switch (gameMode) {
-    case "Pick3from9":
+    case "PickHigher3v9":
       return "🎴";
-    case "Pick5from16":
+    case "PickHigher5v16":
       return "🏆";
-    case "Pick1from3":
+    case "PickHigher1v3":
       return "🎯";
+    case "Plinko3Balls":
+    case "Plinko5Balls":
+    case "Plinko7Balls":
+      return "🎰";
+    case "Miner1v9":
+    case "Miner3v16":
+    case "Miner5v25":
+      return "💣";
     default:
       return "🎮";
   }

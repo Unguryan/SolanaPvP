@@ -19,7 +19,7 @@ export interface CreateLobbyParams {
   creator: PublicKey;
   // NEW: Game configuration
   game: string;           // "PickHigher", "Plinko", etc.
-  gameMode: string;       // "1x3", "3x9", "5x16", etc.
+  gameMode: string;       // "PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", "Miner1v9", etc.
   arenaType: string;      // "SingleBattle", "DeathMatch"
   teamSizeStr: string;    // "1v1", "2v2", "5v5", etc.
 }

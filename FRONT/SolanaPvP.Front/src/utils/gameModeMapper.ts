@@ -1,21 +1,25 @@
 // Helper to map backend game mode strings to frontend game mode format
-// Backend sends: "1x3", "3x9", "5x16", "Plinko3Balls", "Plinko5Balls", "Plinko7Balls"
-// Frontend UniversalGameBoard expects: "PickOneFromThree", "PickThreeFromNine", "PickFiveFromSixteen", "Plinko3Balls", etc.
+// Backend sends: "PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", "Plinko5Balls", "Plinko7Balls", "Miner1v9", "Miner3v16", "Miner5v25"
+// Frontend UniversalGameBoard expects: "PickOneFromThree", "PickThreeFromNine", "PickFiveFromSixteen", "Plinko3Balls", "Miner1v9", etc.
 
 export const mapGameModeToFrontend = (
   gameMode: string
-): "PickOneFromThree" | "PickThreeFromNine" | "PickFiveFromSixteen" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls" => {
+): "PickOneFromThree" | "PickThreeFromNine" | "PickFiveFromSixteen" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls" | "Miner1v9" | "Miner3v16" | "Miner5v25" => {
   console.log("[gameModeMapper] Input gameMode:", gameMode);
   
-  const mapping: Record<string, "PickOneFromThree" | "PickThreeFromNine" | "PickFiveFromSixteen" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls"> = {
-    // PickHigher modes
-    "1x3": "PickOneFromThree",
-    "3x9": "PickThreeFromNine",
-    "5x16": "PickFiveFromSixteen",
+  const mapping: Record<string, "PickOneFromThree" | "PickThreeFromNine" | "PickFiveFromSixteen" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls" | "Miner1v9" | "Miner3v16" | "Miner5v25"> = {
+    // PickHigher modes (standard format from backend)
+    "PickHigher1v3": "PickOneFromThree",
+    "PickHigher3v9": "PickThreeFromNine",
+    "PickHigher5v16": "PickFiveFromSixteen",
     // Plinko modes (backend sends same as frontend)
     "Plinko3Balls": "Plinko3Balls",
     "Plinko5Balls": "Plinko5Balls",
     "Plinko7Balls": "Plinko7Balls",
+    // Miner modes (backend sends same as frontend)
+    "Miner1v9": "Miner1v9",
+    "Miner3v16": "Miner3v16",
+    "Miner5v25": "Miner5v25",
   };
 
   const result = mapping[gameMode] || "PickThreeFromNine"; // Default to 3x9
@@ -66,14 +70,20 @@ export const getPlayersMaxFromTeamSize = (teamSize: string): number => {
 };
 
 export const formatGameDisplay = (gameType: string, gameMode: string, teamSize: string): string => {
-  // Format: "Pick Higher • 3x9 • 1v1" or "Plinko • 5 balls • 1v1"
-  const gameTypeDisplay = gameType === "PickHigher" ? "Pick Higher" : gameType === "Plinko" ? "Plinko" : gameType;
+  // Format: "Pick Higher • 3v9 • 1v1" or "Plinko • 5 balls • 1v1" or "Miner • 1v9 • 1v1"
+  const gameTypeDisplay = gameType === "PickHigher" ? "Pick Higher" : gameType === "Plinko" ? "Plinko" : gameType === "Miner" ? "Miner" : gameType;
   
   // Format game mode nicely
   let gameModeDisplay = gameMode;
-  if (gameMode === "Plinko3Balls") gameModeDisplay = "3 balls";
+  if (gameMode === "PickHigher1v3") gameModeDisplay = "1v3";
+  else if (gameMode === "PickHigher3v9") gameModeDisplay = "3v9";
+  else if (gameMode === "PickHigher5v16") gameModeDisplay = "5v16";
+  else if (gameMode === "Plinko3Balls") gameModeDisplay = "3 balls";
   else if (gameMode === "Plinko5Balls") gameModeDisplay = "5 balls";
   else if (gameMode === "Plinko7Balls") gameModeDisplay = "7 balls";
+  else if (gameMode === "Miner1v9") gameModeDisplay = "1v9";
+  else if (gameMode === "Miner3v16") gameModeDisplay = "3v16";
+  else if (gameMode === "Miner5v25") gameModeDisplay = "5v25";
   
   // TeamSize can be either "1v1" (new format) or "OneVOne" (old format)
   let teamSizeDisplay = teamSize;

@@ -25,15 +25,17 @@ public static class GameModeMapper
 
     /// <summary>
     /// Maps blockchain game_mode value to our string GameMode format
+    /// LEGACY: This method is for backward compatibility. Blockchain now sends strings directly.
     /// </summary>
+    [Obsolete("Blockchain now sends game mode as string. Use the blockchain value directly with normalization.")]
     public static string MapGameModeFromBlockchain(int gameModeId)
     {
         return gameModeId switch
         {
-            0 => "3x9",   // PickThreeFromNine
-            1 => "5x16",  // PickFiveFromSixteen
-            2 => "1x3",   // PickOneFromThree
-            _ => "3x9"    // Default
+            0 => "PickHigher3v9",   // PickThreeFromNine
+            1 => "PickHigher5v16",  // PickFiveFromSixteen
+            2 => "PickHigher1v3",   // PickOneFromThree
+            _ => "PickHigher3v9"    // Default
         };
     }
 

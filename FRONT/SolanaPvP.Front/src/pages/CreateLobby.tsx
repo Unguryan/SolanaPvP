@@ -17,9 +17,9 @@ import { MIN_STAKE_LAMPORTS } from "@/services/solana/config";
 import { AuroraBackground } from "@/components/effects/AuroraBackground";
 import { cn } from "@/utils/cn";
 
-type GameMode = "Pick3from9" | "Pick5from16" | "Pick1from3" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls";
+type GameMode = "Pick3from9" | "Pick5from16" | "Pick1from3" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls" | "Miner1v9" | "Miner3v16" | "Miner5v25";
 type TeamSize = 1 | 2 | 5;
-type GameCategory = "PickHigher" | "Plinko";
+type GameCategory = "PickHigher" | "Plinko" | "Miner";
 
 export const CreateLobby: React.FC = () => {
   const navigate = useNavigate();
@@ -45,6 +45,8 @@ export const CreateLobby: React.FC = () => {
       setGameMode("Pick3from9");
     } else if (currentGame === "Plinko") {
       setGameMode("Plinko3Balls");
+    } else if (currentGame === "Miner") {
+      setGameMode("Miner1v9");
     }
   }, [currentGame]);
   const [stakeError, setStakeError] = useState<string | null>(null);
@@ -69,6 +71,12 @@ export const CreateLobby: React.FC = () => {
     { mode: "Plinko3Balls", label: "3 Balls", icon: "🎱" },
     { mode: "Plinko5Balls", label: "5 Balls", icon: "🎱" },
     { mode: "Plinko7Balls", label: "7 Balls", icon: "🎱" },
+  ];
+
+  const minerModes: { mode: GameMode; label: string; icon: string }[] = [
+    { mode: "Miner1v9", label: "1v9", icon: "💣" },      // 3x3 grid
+    { mode: "Miner3v16", label: "3v16", icon: "💣" },    // 4x4 grid
+    { mode: "Miner5v25", label: "5v25", icon: "💣" },    // 5x5 grid
   ];
 
   const teamSizes: { size: TeamSize; label: string; description: string }[] = [
@@ -148,14 +156,17 @@ export const CreateLobby: React.FC = () => {
     try {
       const stakeLamports = Math.floor(stakeSOL * LAMPORTS_PER_SOL);
 
-      // Map gameMode to the correct format
+      // Map gameMode to the correct format (backend standard format)
       const gameModeMapping: Record<GameMode, string> = {
-        "Pick3from9": "3x9",
-        "Pick5from16": "5x16",
-        "Pick1from3": "1x3",
+        "Pick3from9": "PickHigher3v9",
+        "Pick5from16": "PickHigher5v16",
+        "Pick1from3": "PickHigher1v3",
         "Plinko3Balls": "Plinko3Balls",
         "Plinko5Balls": "Plinko5Balls",
         "Plinko7Balls": "Plinko7Balls",
+        "Miner1v9": "Miner1v9",
+        "Miner3v16": "Miner3v16",
+        "Miner5v25": "Miner5v25",
       };
       
       // Map teamSize to string format
@@ -433,20 +444,24 @@ export const CreateLobby: React.FC = () => {
                 <span className="text-sm font-semibold text-white">Plinko</span>
               </button>
 
-              {/* Bomber - Future */}
+              {/* Miner - ACTIVE! */}
               <button
-                disabled
-                className="flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 bg-white/5 border-white/10 opacity-50 cursor-not-allowed min-w-[100px]"
+                onClick={() => setCurrentGame("Miner")}
+                className={cn(
+                  "flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px]",
+                  currentGame === "Miner"
+                    ? "bg-gradient-to-br from-red-500 to-orange-600 border-red-400/50 shadow-lg"
+                    : "bg-white/5 border-white/10 hover:bg-white/10"
+                )}
               >
                 <div className="text-4xl md:text-5xl">💣</div>
-                <span className="text-sm font-semibold text-white/70">Bomber</span>
-                <span className="text-[10px] text-white/50">Soon</span>
+                <span className="text-sm font-semibold text-white">Miner</span>
               </button>
             </div>
           </GlassCard>
 
           {/* Game Mode Selection - только если выбрана конкретная игра */}
-          {(currentGame === "PickHigher" || currentGame === "Plinko") && (
+          {(currentGame === "PickHigher" || currentGame === "Plinko" || currentGame === "Miner") && (
             <GlassCard className="p-4">
               <GlassCardHeader>
                 <GlassCardTitle className="text-lg font-display text-txt-base">
@@ -475,6 +490,25 @@ export const CreateLobby: React.FC = () => {
                 })
               ) : currentGame === "Plinko" ? (
                 plinkoModes.map(({ mode, label, icon }, index) => {
+                  const variants = ["mint", "orange", "blue"];
+                  const selectedVariant =
+                    gameMode === mode ? variants[index] : "ghost";
+                  return (
+                    <GlowButton
+                      key={mode}
+                      variant={selectedVariant as any}
+                      onClick={() => setGameMode(mode)}
+                      className="flex flex-col items-center space-y-1 p-3 h-18"
+                    >
+                      <span className="text-xl md:text-2xl">{icon}</span>
+                      <span className="text-xs md:text-sm font-medium">
+                        {label}
+                      </span>
+                    </GlowButton>
+                  );
+                })
+              ) : currentGame === "Miner" ? (
+                minerModes.map(({ mode, label, icon }, index) => {
                   const variants = ["mint", "orange", "blue"];
                   const selectedVariant =
                     gameMode === mode ? variants[index] : "ghost";

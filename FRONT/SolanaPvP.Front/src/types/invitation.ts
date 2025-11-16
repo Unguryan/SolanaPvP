@@ -12,7 +12,7 @@ export interface MatchInvitation {
   inviterPubkey: string;
   inviteePubkey: string;
   gameType: string;        // NEW: "PickHigher", etc.
-  gameMode: string;        // CHANGED: now string ("1x3", "3x9", "5x16")
+  gameMode: string;        // CHANGED: now string ("PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", "Miner1v9", etc.)
   matchMode: string;       // NEW: "Team" or "DeathMatch"
   teamSize: string;        // RENAMED: from matchType
   stakeLamports: number;

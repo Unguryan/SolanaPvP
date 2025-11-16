@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/GlassCard";
 import { generateDemoPlayers } from "@/lib/gameMockGenerator";
 import { GameResult, GameType } from "@/types/game";
+import { MinerGameResult } from "@/types/miner";
 import { AuroraBackground } from "@/components/effects/AuroraBackground";
 import { MatchLoader } from "@/components/loaders/MatchLoader";
 import { GameResultModal } from "@/components/game/GameResultModal";
@@ -445,7 +446,11 @@ export const GameDemo: React.FC = () => {
                 setGameResult(null);
                 handleResetGame();
               }}
-              result={gameResult}
+              result={{
+                ...gameResult,
+                gameType: GameType.Miner,
+                playerResults: gameResult.playerResults || {},
+              } as MinerGameResult}
               isDemoMode={true}
             />
           ) : (

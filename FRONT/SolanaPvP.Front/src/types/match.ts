@@ -23,17 +23,17 @@ export interface GameData {
   gameMode: string;
   side0TotalScore: number;
   side1TotalScore: number;
-  playerScoresJson?: string; // NEW: Individual player scores for team modes
+  playerScoresJson?: string; // JSON with player scores/results: {"pubkey": score} for PickHigher/Plinko, {"pubkey": true/false} for Miner
 }
 
 export interface Match {
   id: number;
   matchPda: string;
-  creator: string;         // Creator's public key
-  gameType: string;        // NEW: "PickHigher", "Plinko", etc.
-  gameMode: string;        // CHANGED: now string ("1x3", "3x9", "5x16")
-  matchMode: string;       // NEW: "Team" or "DeathMatch"
-  teamSize: string;        // RENAMED: from matchType ("OneVOne", "TwoVTwo", etc.)
+  creator: string; // Creator's public key
+  gameType: string; // NEW: "PickHigher", "Plinko", etc.
+  gameMode: string; // CHANGED: now string ("PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", "Miner1v9", etc.)
+  matchMode: string; // NEW: "Team" or "DeathMatch"
+  teamSize: string; // RENAMED: from matchType ("OneVOne", "TwoVTwo", etc.)
   status: MatchStatus;
   stakeLamports: number;
   winnerSide?: number;
@@ -50,11 +50,11 @@ export interface Match {
 export interface MatchView {
   id: number;
   matchPda: string;
-  creator: string;         // Creator's public key
-  gameType: string;        // NEW: "PickHigher", etc.
-  gameMode: string;        // CHANGED: now string
-  matchMode: string;       // NEW: "Team" or "DeathMatch"
-  teamSize: string;        // RENAMED: from matchType
+  creator: string; // Creator's public key
+  gameType: string; // NEW: "PickHigher", etc.
+  gameMode: string; // CHANGED: now string
+  matchMode: string; // NEW: "Team" or "DeathMatch"
+  teamSize: string; // RENAMED: from matchType
   status: MatchStatus;
   stakeLamports: number;
   winnerSide?: number;
@@ -66,10 +66,10 @@ export interface MatchView {
 
 export interface MatchFilter {
   status?: MatchStatus;
-  gameType?: string;       // NEW: filter by game type
-  gameMode?: string;       // CHANGED: now string
-  matchMode?: string;      // NEW: Team or DeathMatch
-  teamSize?: string;       // RENAMED: from matchType
+  gameType?: string; // NEW: filter by game type
+  gameMode?: string; // CHANGED: now string
+  matchMode?: string; // NEW: Team or DeathMatch
+  teamSize?: string; // RENAMED: from matchType
   isPrivate?: boolean;
   page?: number;
   pageSize?: number;

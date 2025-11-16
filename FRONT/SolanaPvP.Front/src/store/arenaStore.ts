@@ -6,7 +6,7 @@ export type FeedItem = {
   username: string;
   solAmount: number;
   gameType?: string;    // NEW: "PickHigher", etc.
-  gameMode: string;     // Now: "1x3", "3x9", "5x16"
+  gameMode: string;     // Now: "PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", "Miner1v9", etc.
   matchType: string;    // TeamSize for now (will migrate)
   winnerSide: number;
   timestamp: number;
@@ -21,7 +21,7 @@ export type MatchLobby = {
   playersMax: number;
   endsAt: number;
   gameType?: string; // NEW: "PickHigher", etc.
-  gameMode: string; // CHANGED: now flexible ("1x3", "3x9", etc.)
+  gameMode: string; // CHANGED: now flexible ("PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", "Miner1v9", etc.)
   matchMode?: string; // NEW: "Team" or "DeathMatch"
   teamSize?: string; // RENAMED: from matchType ("OneVOne", etc.)
   status?: string; // "Open" | "Pending" | "InProgress" | "Resolved" | "Refunded"

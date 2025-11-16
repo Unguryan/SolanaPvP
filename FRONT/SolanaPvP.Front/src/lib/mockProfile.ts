@@ -41,7 +41,7 @@ export const mockUserProfile: UserProfile = {
   bestRank: 1,
   longestWinStreak: 12,
   currentWinStreak: 3,
-  favoriteGameMode: "Pick3from9",
+  favoriteGameMode: "PickHigher3v9",
   joinDate: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days ago
   lastActive: Date.now() - 2 * 60 * 60 * 1000, // 2 hours ago
   totalStaked: 1250.5,
@@ -51,7 +51,7 @@ export const mockUserProfile: UserProfile = {
 export const mockMatchHistory: MatchHistory[] = [
   {
     id: "match_1",
-    gameMode: "Pick3from9",
+    gameMode: "PickHigher3v9",
     stake: 5.0,
     result: "win",
     pnl: 8.5,
@@ -61,7 +61,7 @@ export const mockMatchHistory: MatchHistory[] = [
   },
   {
     id: "match_2",
-    gameMode: "Pick5from16",
+    gameMode: "PickHigher5v16",
     stake: 3.2,
     result: "win",
     pnl: 4.8,
@@ -71,7 +71,7 @@ export const mockMatchHistory: MatchHistory[] = [
   },
   {
     id: "match_3",
-    gameMode: "Pick1from3",
+    gameMode: "PickHigher1v3",
     stake: 2.1,
     result: "loss",
     pnl: -2.1,
@@ -81,7 +81,7 @@ export const mockMatchHistory: MatchHistory[] = [
   },
   {
     id: "match_4",
-    gameMode: "Pick3from9",
+    gameMode: "PickHigher3v9",
     stake: 7.5,
     result: "win",
     pnl: 12.3,
@@ -91,7 +91,7 @@ export const mockMatchHistory: MatchHistory[] = [
   },
   {
     id: "match_5",
-    gameMode: "Pick5from16",
+    gameMode: "PickHigher5v16",
     stake: 4.0,
     result: "win",
     pnl: 6.2,
@@ -101,7 +101,7 @@ export const mockMatchHistory: MatchHistory[] = [
   },
   {
     id: "match_6",
-    gameMode: "Pick1from3",
+    gameMode: "PickHigher1v3",
     stake: 1.8,
     result: "loss",
     pnl: -1.8,
@@ -111,7 +111,7 @@ export const mockMatchHistory: MatchHistory[] = [
   },
   {
     id: "match_7",
-    gameMode: "Pick3from9",
+    gameMode: "PickHigher3v9",
     stake: 6.3,
     result: "win",
     pnl: 9.7,
@@ -121,7 +121,7 @@ export const mockMatchHistory: MatchHistory[] = [
   },
   {
     id: "match_8",
-    gameMode: "Pick5from16",
+    gameMode: "PickHigher5v16",
     stake: 2.5,
     result: "win",
     pnl: 3.8,
@@ -131,7 +131,7 @@ export const mockMatchHistory: MatchHistory[] = [
   },
   {
     id: "match_9",
-    gameMode: "Pick1from3",
+    gameMode: "PickHigher1v3",
     stake: 3.7,
     result: "loss",
     pnl: -3.7,
@@ -141,7 +141,7 @@ export const mockMatchHistory: MatchHistory[] = [
   },
   {
     id: "match_10",
-    gameMode: "Pick3from9",
+    gameMode: "PickHigher3v9",
     stake: 4.2,
     result: "win",
     pnl: 7.1,
@@ -153,11 +153,11 @@ export const mockMatchHistory: MatchHistory[] = [
 
 export const getGameModeIcon = (gameMode: string) => {
   switch (gameMode) {
-    case "Pick3from9":
+    case "PickHigher3v9":
       return "🎴";
-    case "Pick5from16":
+    case "PickHigher5v16":
       return "🏆";
-    case "Pick1from3":
+    case "PickHigher1v3":
       return "🎯";
     default:
       return "🎮";

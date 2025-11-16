@@ -602,6 +602,12 @@ export const MinerGameBoard: React.FC<MinerGameBoardProps> = ({
                 const retryCurrentClickCount = currentPlayerData.openedTileCount || 0;
                 const retryPlayerWillWin = currentPlayerData.willWin === true;
 
+                // Check if retryResultClick is valid before proceeding
+                if (retryResultClick === null) {
+                  console.warn(`[MinerGameBoard] retryResultClick is null, cannot auto-open`);
+                  return;
+                }
+
                 if (autoOpenCleanupRef.current) {
                   autoOpenCleanupRef.current();
                 }

@@ -40,17 +40,17 @@ public class GameDataGenerator : IGameDataGenerator
         int minScore, maxScore;
         switch (match.GameMode)
         {
-            case "1x3":
+            case "PickHigher1v3":
                 // Pick 1 from 3: one card = full score, keep it low for variety
                 minScore = 500;
                 maxScore = 1001; // Max 1000
                 break;
-            case "3x9":
+            case "PickHigher3v9":
                 // Pick 3 from 9: 3 cards sum to score, moderate range
                 minScore = 900;
                 maxScore = 1801; // Max 1800
                 break;
-            case "5x16":
+            case "PickHigher5v16":
                 // Pick 5 from 16: 5 cards sum to score, higher range
                 minScore = 1500;
                 maxScore = 2501; // Max 2500

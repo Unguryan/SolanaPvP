@@ -13,7 +13,7 @@ export enum MatchMode {
 
 export type TeamSize = "1v1" | "2v2" | "5v5" | "1v10" | "2v20" | "4v40";
 
-// GameMode is now flexible string: "1x3", "3x9", "5x16"
+// GameMode is now flexible string: "PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", "Miner1v9", etc.
 export type GameMode = string;
 
 export interface GameTile {
