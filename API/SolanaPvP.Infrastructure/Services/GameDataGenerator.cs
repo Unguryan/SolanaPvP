@@ -27,6 +27,7 @@ public class GameDataGenerator : IGameDataGenerator
             "PickHigher" => await GeneratePickHigherScores(match, winnerSide),
             "Plinko" => await GeneratePlinkoScores(match, winnerSide),
             "Miner" => await GenerateMinerScores(match, winnerSide),
+            "GoldBars" => await GenerateGoldBarsScores(match, winnerSide),
             // Future games:
             // "Dice" => await GenerateDiceScores(match, winnerSide),
             _ => throw new NotSupportedException($"Game type {match.GameType} not supported")
@@ -359,6 +360,149 @@ public class GameDataGenerator : IGameDataGenerator
 
         _logger.LogInformation("[GameDataGenerator] ✅ Generated Miner data for mode {GameMode} ({TileCount} tiles, {TeamSize}) - Side0 prizes: {Side0PrizeCount}, Side1 prizes: {Side1PrizeCount}, Winner: Side {WinnerSide}, Players: {PlayerCount}", 
             match.GameMode, tileCount, match.TeamSize, side0PrizeCount, side1PrizeCount, winnerSide, playerResults.Count);
+
+        return Task.FromResult(gameData);
+    }
+
+    private Task<GameData> GenerateGoldBarsScores(Match match, int winnerSide)
+    {
+        // Determine total gold bars based on game mode
+        // totalGoldBars = totalTiles - totalBombs
+        int totalGoldBars;
+        switch (match.GameMode)
+        {
+            case "GoldBars1v9":
+                totalGoldBars = 8; // 9 tiles - 1 bomb
+                break;
+            case "GoldBars3v16":
+                totalGoldBars = 13; // 16 tiles - 3 bombs
+                break;
+            case "GoldBars5v25":
+                totalGoldBars = 20; // 25 tiles - 5 bombs
+                break;
+            default:
+                totalGoldBars = 8; // Default to 1v9
+                break;
+        }
+
+        var side0Participants = match.Participants.Where(p => p.Side == 0).ToList();
+        var side1Participants = match.Participants.Where(p => p.Side == 1).ToList();
+        
+        // Generate targetScore for each player (0 to totalGoldBars inclusive)
+        var playerScores = new Dictionary<string, int>();
+        int side0Total = 0;
+        int side1Total = 0;
+        
+        // Generate scores for Side 0
+        foreach (var participant in side0Participants)
+        {
+            var targetScore = _random.Next(0, totalGoldBars + 1); // 0 to totalGoldBars inclusive
+            playerScores[participant.Pubkey] = targetScore;
+            side0Total += targetScore;
+        }
+        
+        // Generate scores for Side 1
+        foreach (var participant in side1Participants)
+        {
+            var targetScore = _random.Next(0, totalGoldBars + 1); // 0 to totalGoldBars inclusive
+            playerScores[participant.Pubkey] = targetScore;
+            side1Total += targetScore;
+        }
+        
+        // CRITICAL: Ensure winner side has MORE total gold bars than loser side (no ties allowed)
+        var winnerParticipants = winnerSide == 0 ? side0Participants : side1Participants;
+        var loserParticipants = winnerSide == 0 ? side1Participants : side0Participants;
+        var winnerTotal = winnerSide == 0 ? side0Total : side1Total;
+        var loserTotal = winnerSide == 0 ? side1Total : side0Total;
+        
+        if (winnerTotal <= loserTotal)
+        {
+            // Need to adjust: increase winner side players' targetScore
+            int neededDifference = loserTotal - winnerTotal + 1; // At least 1 more than loser
+            int adjusted = 0;
+            int maxAttempts = 100; // Prevent infinite loop
+            int attempts = 0;
+            
+            while (adjusted < neededDifference && attempts < maxAttempts)
+            {
+                attempts++;
+                
+                // Randomly select a winner side player
+                if (winnerParticipants.Count == 0) break;
+                var randomPlayer = winnerParticipants[_random.Next(winnerParticipants.Count)];
+                var currentScore = playerScores[randomPlayer.Pubkey];
+                
+                // Try to increase this player's score (within totalGoldBars limit)
+                if (currentScore < totalGoldBars)
+                {
+                    int maxIncrease = totalGoldBars - currentScore;
+                    int increase = Math.Min(maxIncrease, neededDifference - adjusted);
+                    
+                    if (increase > 0)
+                    {
+                        playerScores[randomPlayer.Pubkey] += increase;
+                        adjusted += increase;
+                        
+                        if (winnerSide == 0)
+                            side0Total += increase;
+                        else
+                            side1Total += increase;
+                    }
+                }
+            }
+            
+            if (attempts >= maxAttempts)
+            {
+                _logger.LogWarning("[GameDataGenerator] ⚠️ Could not fully adjust winner side scores after {Attempts} attempts. Winner: {WinnerTotal}, Loser: {LoserTotal}", 
+                    attempts, winnerTotal, loserTotal);
+            }
+            else
+            {
+                _logger.LogInformation("[GameDataGenerator] Adjusted winner side scores: added {Adjusted} gold bars to ensure winner has more", adjusted);
+            }
+        }
+        
+        // Recalculate totals after adjustment
+        side0Total = side0Participants.Sum(p => playerScores[p.Pubkey]);
+        side1Total = side1Participants.Sum(p => playerScores[p.Pubkey]);
+        
+        // Final verification: ensure winner side has more
+        var finalWinnerTotal = winnerSide == 0 ? side0Total : side1Total;
+        var finalLoserTotal = winnerSide == 0 ? side1Total : side0Total;
+        
+        if (finalWinnerTotal <= finalLoserTotal)
+        {
+            _logger.LogError("[GameDataGenerator] ❌ ERROR: Winner side ({WinnerTotal}) does not have more gold bars than loser side ({LoserTotal})! This should not happen.", 
+                finalWinnerTotal, finalLoserTotal);
+            // Force winner to have at least 1 more by adjusting one player
+            if (winnerParticipants.Count > 0)
+            {
+                var firstWinner = winnerParticipants[0];
+                var currentScore = playerScores[firstWinner.Pubkey];
+                if (currentScore < totalGoldBars)
+                {
+                    playerScores[firstWinner.Pubkey] = Math.Min(totalGoldBars, currentScore + (finalLoserTotal - finalWinnerTotal + 1));
+                    if (winnerSide == 0)
+                        side0Total = side0Participants.Sum(p => playerScores[p.Pubkey]);
+                    else
+                        side1Total = side1Participants.Sum(p => playerScores[p.Pubkey]);
+                }
+            }
+        }
+        
+        // Create GameData with individual player targetScores
+        var gameData = new GameData
+        {
+            MatchPda = match.MatchPda,
+            GameMode = match.GameMode,
+            Side0TotalScore = side0Total, // Sum of targetScore for side 0
+            Side1TotalScore = side1Total, // Sum of targetScore for side 1
+            PlayerScoresJson = JsonSerializer.Serialize(playerScores), // {"pubkey": targetScore}
+            GeneratedAt = DateTime.UtcNow
+        };
+
+        _logger.LogInformation("[GameDataGenerator] ✅ Generated GoldBars data for mode {GameMode} ({TotalGoldBars} gold bars, {TeamSize}) - Side0: {Side0Total}, Side1: {Side1Total}, Winner: Side {WinnerSide}, Players: {PlayerCount}", 
+            match.GameMode, totalGoldBars, match.TeamSize, side0Total, side1Total, winnerSide, playerScores.Count);
 
         return Task.FromResult(gameData);
     }

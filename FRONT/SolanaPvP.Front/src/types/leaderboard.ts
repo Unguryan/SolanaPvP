@@ -13,19 +13,24 @@ export interface LeaderboardEntry {
   rank: number;
   pubkey: string;
   username?: string;
-  winRate: number;
+  // Backend fields (from C# LeaderboardEntry)
+  wins?: number;
+  losses?: number;
   totalMatches: number;
-  wonMatches: number;
-  totalEarnings: number;
-  monthlyEarnings: number;
+  winRate: number;
+  totalEarningsLamports?: number;
+  monthlyEarningsLamports?: number;
+  // Legacy / derived fields (for compatibility)
+  wonMatches?: number;
+  totalEarnings?: number;
+  monthlyEarnings?: number;
 }
 
 export interface LeaderboardResult {
   entries: LeaderboardEntry[];
-  totalCount: number;
+  total: number;
   page: number;
   pageSize: number;
-  totalPages: number;
   type: LeaderboardType;
   period: LeaderboardPeriod;
 }

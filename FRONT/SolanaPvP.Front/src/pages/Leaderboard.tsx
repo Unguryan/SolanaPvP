@@ -97,13 +97,27 @@ export const Leaderboard: React.FC = () => {
     return `${(safeRate * 100).toFixed(1)}%`;
   };
 
-  const formatPnL = (earnings: number) => {
+  const formatPnL = (lamports: number) => {
     // Convert lamports to SOL safely
-    const lamports = Number.isFinite(earnings) ? earnings : 0;
-    const sol = lamports / 1_000_000_000;
+    const safeLamports = Number.isFinite(lamports) ? lamports : 0;
+    const sol = safeLamports / 1_000_000_000;
     const safeSol = Number.isFinite(sol) ? sol : 0;
     const sign = safeSol >= 0 ? "+" : "";
     return `${sign}${safeSol.toFixed(2)} SOL`;
+  };
+
+  const getSafeEarningsLamports = (player: LeaderboardEntry) => {
+    const lamports =
+      (Number.isFinite(player.totalEarningsLamports)
+        ? player.totalEarningsLamports
+        : undefined) ??
+      (Number.isFinite(player.totalEarnings)
+        ? (player.totalEarnings as number)
+        : 0);
+    const sol = lamports / 1_000_000_000;
+    return Number.isFinite(lamports) && Number.isFinite(sol)
+      ? lamports
+      : 0;
   };
 
   const totalPlayers = leaderboard.length || 0;
@@ -265,10 +279,27 @@ export const Leaderboard: React.FC = () => {
                     </td>
                     <td className="py-4 px-6 text-right">
                       {(() => {
-                        const wins = Number.isFinite(player.wonMatches) ? player.wonMatches : 0;
-                        const total = Number.isFinite(player.totalMatches) ? player.totalMatches : 0;
-                        const losses = Math.max(0, total - wins);
-                        return <span className="text-txt-base">{wins}/{losses}</span>;
+                        const rawWins =
+                          (Number.isFinite(player.wins)
+                            ? player.wins
+                            : undefined) ??
+                          (Number.isFinite(player.wonMatches)
+                            ? player.wonMatches
+                            : 0);
+                        const wins = Number(rawWins) || 0;
+                        const total = Number.isFinite(player.totalMatches)
+                          ? player.totalMatches
+                          : wins;
+                        const rawLosses =
+                          Number.isFinite(player.losses) && player.losses !== undefined
+                            ? player.losses
+                            : total - wins;
+                        const losses = Math.max(0, Number(rawLosses) || 0);
+                        return (
+                          <span className="text-txt-base">
+                            {wins}/{losses}
+                          </span>
+                        );
                       })()}
                     </td>
                     <td className="py-4 px-6 text-right">
@@ -282,10 +313,14 @@ export const Leaderboard: React.FC = () => {
                     </td>
                     <td className="py-4 px-6 text-right">
                       {(() => {
-                        const earnings = Number.isFinite(player.totalEarnings) ? player.totalEarnings : 0;
+                        const earningsLamports = getSafeEarningsLamports(player);
                         return (
-                          <span className={`font-semibold ${getPnLColor(earnings)}`}>
-                            {formatPnL(earnings)}
+                          <span
+                            className={`font-semibold ${getPnLColor(
+                              earningsLamports
+                            )}`}
+                          >
+                            {formatPnL(earningsLamports)}
                           </span>
                         );
                       })()}
@@ -326,10 +361,14 @@ export const Leaderboard: React.FC = () => {
                   </div>
                   <div className="text-right">
                     {(() => {
-                      const earnings = Number.isFinite(player.totalEarnings) ? player.totalEarnings : 0;
+                      const earningsLamports = getSafeEarningsLamports(player);
                       return (
-                        <div className={`text-lg font-bold ${getPnLColor(earnings)}`}>
-                          {formatPnL(earnings)}
+                        <div
+                          className={`text-lg font-bold ${getPnLColor(
+                            earningsLamports
+                          )}`}
+                        >
+                          {formatPnL(earningsLamports)}
                         </div>
                       );
                     })()}
@@ -339,10 +378,27 @@ export const Leaderboard: React.FC = () => {
                   <div>
                     <div className="text-txt-muted">W/L</div>
                     {(() => {
-                      const wins = Number.isFinite(player.wonMatches) ? player.wonMatches : 0;
-                      const total = Number.isFinite(player.totalMatches) ? player.totalMatches : 0;
-                      const losses = Math.max(0, total - wins);
-                      return <div className="text-txt-base font-medium">{wins}/{losses}</div>;
+                      const rawWins =
+                        (Number.isFinite(player.wins)
+                          ? player.wins
+                          : undefined) ??
+                        (Number.isFinite(player.wonMatches)
+                          ? player.wonMatches
+                          : 0);
+                      const wins = Number(rawWins) || 0;
+                      const total = Number.isFinite(player.totalMatches)
+                        ? player.totalMatches
+                        : wins;
+                      const rawLosses =
+                        Number.isFinite(player.losses) && player.losses !== undefined
+                          ? player.losses
+                          : total - wins;
+                      const losses = Math.max(0, Number(rawLosses) || 0);
+                      return (
+                        <div className="text-txt-base font-medium">
+                          {wins}/{losses}
+                        </div>
+                      );
                     })()}
                   </div>
                   <div className="text-right">

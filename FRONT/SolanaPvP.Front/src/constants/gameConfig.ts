@@ -49,6 +49,30 @@ export const GAME_MODES = {
     timeLimit: 60, // seconds
     icon: "💣",
   },
+  "GoldBars1v9": {
+    name: "Gold Bars 1v9",
+    description: "Open tiles to find gold bars. Each gold bar = +1 score. When you reach targetScore, next tile is a bomb (3x3 grid)",
+    maxSelections: 8, // Can open up to 8 tiles (8 gold bars, 1 bomb)
+    gridSize: { rows: 3, cols: 3 },
+    timeLimit: 30, // seconds
+    icon: "🥇",
+  },
+  "GoldBars3v16": {
+    name: "Gold Bars 3v16",
+    description: "Open tiles to find gold bars. Each gold bar = +1 score. When you reach targetScore, next tile is a bomb (4x4 grid)",
+    maxSelections: 13, // Can open up to 13 tiles (13 gold bars, 3 bombs)
+    gridSize: { rows: 4, cols: 4 },
+    timeLimit: 45, // seconds
+    icon: "🥇",
+  },
+  "GoldBars5v25": {
+    name: "Gold Bars 5v25",
+    description: "Open tiles to find gold bars. Each gold bar = +1 score. When you reach targetScore, next tile is a bomb (5x5 grid)",
+    maxSelections: 20, // Can open up to 20 tiles (20 gold bars, 5 bombs)
+    gridSize: { rows: 5, cols: 5 },
+    timeLimit: 60, // seconds
+    icon: "🥇",
+  },
 } as const;
 
 export const TEAM_SIZES = {

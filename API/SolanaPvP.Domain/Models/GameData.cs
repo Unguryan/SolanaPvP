@@ -10,8 +10,9 @@ public class GameData
     public DateTime GeneratedAt { get; set; }
     
     // NEW: Individual player scores for team modes (JSON)
-    // Format for PickHigher/Plinko: { "pubkey1": 150, "pubkey2": 185, ... }
+    // Format for PickHigher/Plinko/GoldBars: { "pubkey1": 150, "pubkey2": 185, ... } (integer targetScore)
     // Format for Miner: { "pubkey1": true, "pubkey2": false, ... } (true = prize, false = bomb)
+    // For GoldBars: values are targetScore (number of gold bars to open, 0 to totalGoldBars)
     public string? PlayerScoresJson { get; set; }
 
     // Navigation properties

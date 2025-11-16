@@ -20,7 +20,8 @@ export type MatchLobby = {
   playersReady: number;
   playersMax: number;
   endsAt: number;
-  gameStartTime?: number; // Timestamp when match entered InProgress (ms)
+  createdAt?: number; // Timestamp when match was created (ms) - for Open/Pending deadline calculation
+  gameStartTime?: number; // Timestamp when match entered InProgress (ms) - for InProgress game timer
   gameType?: string; // NEW: "PickHigher", etc.
   gameMode: string; // CHANGED: now flexible ("PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", "Miner1v9", etc.)
   matchMode?: string; // NEW: "Team" or "DeathMatch"

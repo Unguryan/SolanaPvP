@@ -1,8 +1,9 @@
 // Player card component for game display
-import React, { useState, useEffect, memo, useRef } from "react";
+import React, { useState, useEffect, memo, useRef, useMemo } from "react";
 import { GamePlayer, GameType } from "@/types/game";
 import { ScoreCounter } from "./effects/ScoreCounter";
 import { motion } from "framer-motion";
+import { getGameModeConfig } from "@/utils/gameScoreDistribution";
 
 interface PlayerCardProps {
   player: GamePlayer;
@@ -13,6 +14,7 @@ interface PlayerCardProps {
   gameType?: GameType; // NEW: for Miner game display
   gameStatus?: "waiting" | "loading" | "playing" | "revealing" | "finished"; // NEW: to show "???" during game
   aiTimerInfo?: { delay: number; startTime: number }; // Timer info for AI player reveal
+  gameMode?: string; // NEW: for GoldBars - to determine totalGoldBars
 }
 
 const PlayerCardComponent: React.FC<PlayerCardProps> = ({
@@ -24,11 +26,25 @@ const PlayerCardComponent: React.FC<PlayerCardProps> = ({
   gameType,
   gameStatus = "waiting", // Used in arePropsEqual for memoization
   aiTimerInfo,
+  gameMode,
 }) => {
   // gameStatus is used in arePropsEqual for memoization, so we keep it even though it's not used here
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _gameStatus = gameStatus;
   const isMinerGame = gameType === GameType.Miner;
+  const isGoldBarsGame = gameType === GameType.GoldBars;
+
+  // Check if player reached all gold bars (for GoldBars game)
+  const reachedAllGoldBars = useMemo(() => {
+    if (!isGoldBarsGame || !gameMode) return false;
+    const gameConfig = getGameModeConfig(gameMode);
+    const totalGoldBars = (gameConfig as any).goldBars || 0;
+    return (
+      player.currentScore === player.targetScore &&
+      player.targetScore === totalGoldBars &&
+      player.currentScore > 0
+    );
+  }, [isGoldBarsGame, gameMode, player.currentScore, player.targetScore]);
 
   // Calculate remaining time for AI player reveal
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
@@ -111,12 +127,16 @@ const PlayerCardComponent: React.FC<PlayerCardProps> = ({
   }, [aiTimerInfo, hideScore, isCurrentPlayer, player.isScoreRevealed]);
 
   const getStatusColor = () => {
+    // GoldBars: orange border when reached all gold bars
+    if (reachedAllGoldBars) return "border-orange-500 shadow-glow-orange";
     if (isWinner) return "border-sol-mint shadow-glow-mint";
     if (isCurrentPlayer) return "border-sol-purple shadow-glow-purple";
     return "border-white/20";
   };
 
   const getStatusIcon = () => {
+    // GoldBars: fire icon when reached all gold bars
+    if (reachedAllGoldBars) return "🔥";
     if (isWinner) return "👑";
     if (isCurrentPlayer) return "🎯";
     if (player.isReady && !hideScore) return "✅"; // Show checkmark only when ready AND score is visible
@@ -236,6 +256,23 @@ const PlayerCardComponent: React.FC<PlayerCardProps> = ({
                 </span>
               );
             })()
+          ) : isGoldBarsGame ? (
+            // For GoldBars: show currentScore (number of gold bars opened)
+            // Show "???" if: hideScore is true OR (currentScore is 0 and not current player and not revealed)
+            (hideScore && !isCurrentPlayer) ||
+            (!isCurrentPlayer &&
+              player.currentScore === 0 &&
+              !player.isScoreRevealed) ? (
+              <>
+                <span className="text-sm text-txt-muted">Gold Bars</span>
+                <span className="text-2xl font-bold text-txt-muted">???</span>
+              </>
+            ) : (
+              <>
+                <span className="text-sm text-txt-muted">Gold Bars</span>
+                <ScoreCounter value={player.currentScore} />
+              </>
+            )
           ) : hideScore && !isCurrentPlayer ? (
             <>
               <span className="text-sm text-txt-muted">Score</span>
@@ -277,6 +314,8 @@ export const PlayerCard = memo(PlayerCardComponent, (prevProps, nextProps) => {
     prevProps.gameType !== nextProps.gameType ||
     prevProps.gameStatus !== nextProps.gameStatus ||
     prevProps.player.currentScore !== nextProps.player.currentScore ||
+    prevProps.player.targetScore !== nextProps.player.targetScore ||
+    prevProps.gameMode !== nextProps.gameMode ||
     !aiTimerEqual
   ) {
     return false; // Props changed, need re-render

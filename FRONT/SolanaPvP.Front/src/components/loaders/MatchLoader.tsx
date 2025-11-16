@@ -23,13 +23,20 @@ const DEFAULT_STATUS_MESSAGES = [
   "Match starting soon",
 ];
 
-// Hook for typewriter effect - оптимизирован для 30 секунд (5 сек на сообщение)
-const useTypewriter = (texts: string[], typingSpeed = 80, deletingSpeed = 40) => {
+// Hook for typewriter effect - с увеличенными паузами для лучшей читаемости
+const useTypewriter = (
+  texts: string[],
+  typingSpeed = 80,
+  deletingSpeed = 40
+) => {
   const [displayText, setDisplayText] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
+    if (isPaused) return; // Don't do anything while paused
+
     const currentText = texts[currentIndex];
 
     const timeout = setTimeout(
@@ -39,17 +46,25 @@ const useTypewriter = (texts: string[], typingSpeed = 80, deletingSpeed = 40) =>
           if (displayText.length < currentText.length) {
             setDisplayText(currentText.slice(0, displayText.length + 1));
           } else {
-            // Finished typing, pause then start deleting (3.5 seconds)
-            setTimeout(() => setIsDeleting(true), 3500);
+            // Finished typing, pause then start deleting (5 seconds to read)
+            setIsPaused(true);
+            setTimeout(() => {
+              setIsPaused(false);
+              setIsDeleting(true);
+            }, 5000);
           }
         } else {
           // Deleting
           if (displayText.length > 0) {
             setDisplayText(currentText.slice(0, displayText.length - 1));
           } else {
-            // Finished deleting, move to next text
-            setIsDeleting(false);
-            setCurrentIndex((prev) => (prev + 1) % texts.length);
+            // Finished deleting, pause before next text (1 second)
+            setIsPaused(true);
+            setTimeout(() => {
+              setIsPaused(false);
+              setIsDeleting(false);
+              setCurrentIndex((prev) => (prev + 1) % texts.length);
+            }, 1000);
           }
         }
       },
@@ -57,7 +72,15 @@ const useTypewriter = (texts: string[], typingSpeed = 80, deletingSpeed = 40) =>
     );
 
     return () => clearTimeout(timeout);
-  }, [displayText, currentIndex, isDeleting, texts, typingSpeed, deletingSpeed]);
+  }, [
+    displayText,
+    currentIndex,
+    isDeleting,
+    isPaused,
+    texts,
+    typingSpeed,
+    deletingSpeed,
+  ]);
 
   return displayText;
 };
@@ -94,7 +117,8 @@ export const MatchLoader: React.FC<MatchLoaderProps> = ({
 
       {/* Current Status - с typewriter эффектом */}
       <div className="relative z-10 w-full max-w-[600px] mx-auto mb-6 px-4">
-        <div className="flex items-center justify-center gap-2 md:gap-3 py-3 px-4 md:py-5 md:px-8 rounded-2xl border-2 border-white/20 shadow-[0_0_40px_rgba(153,69,255,0.2)]"
+        <div
+          className="flex items-center justify-center gap-2 md:gap-3 py-3 px-4 md:py-5 md:px-8 rounded-2xl border-2 border-white/20 shadow-[0_0_40px_rgba(153,69,255,0.2)]"
           style={{
             background: "rgba(11,15,23,0.9)",
           }}
@@ -127,9 +151,12 @@ export const MatchLoader: React.FC<MatchLoaderProps> = ({
 };
 
 // Team Panel Component - с последовательной анимацией
-const TeamPanel: React.FC<{ team: TeamData; type: "bevel" | "hex" }> = ({ team, type }) => {
+const TeamPanel: React.FC<{ team: TeamData; type: "bevel" | "hex" }> = ({
+  team,
+  type,
+}) => {
   const isLeft = type === "bevel";
-  
+
   const borderGradient = isLeft
     ? "linear-gradient(135deg, #9945FF 0%, #7F5AF0 50%, #14F195 100%)"
     : "linear-gradient(225deg, #00FFA3 0%, #14F195 50%, #9945FF 100%)";
@@ -214,10 +241,10 @@ const TeamPanel: React.FC<{ team: TeamData; type: "bevel" | "hex" }> = ({ team, 
                   className="flex items-center gap-3 group"
                   initial={{ opacity: 0, x: isLeft ? -10 : 10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ 
+                  transition={{
                     delay: playersStartDelay + idx * 0.15,
                     duration: 0.3,
-                    ease: "easeOut"
+                    ease: "easeOut",
                   }}
                 >
                   <motion.div
@@ -248,13 +275,14 @@ const TeamPanel: React.FC<{ team: TeamData; type: "bevel" | "hex" }> = ({ team, 
                   style={{ color: `${accentColor}cc` }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: playersStartDelay + team.players.length * 0.15 }}
+                  transition={{
+                    delay: playersStartDelay + team.players.length * 0.15,
+                  }}
                 >
                   + {team.additionalCount} more
                 </motion.div>
               )}
             </div>
-
           </div>
 
           {/* Corner accent */}
@@ -273,7 +301,7 @@ const TeamPanel: React.FC<{ team: TeamData; type: "bevel" | "hex" }> = ({ team, 
 // VS Center Component - уменьшенный и оптимизированный
 const VSCenter: React.FC = () => {
   return (
-    <motion.div 
+    <motion.div
       className="flex-shrink-0 flex items-center justify-center px-4 py-4"
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -284,7 +312,8 @@ const VSCenter: React.FC = () => {
         <motion.div
           className="absolute inset-0 rounded-full"
           style={{
-            background: "conic-gradient(from 0deg, transparent 0%, #9945FF 25%, transparent 50%, #14F195 75%, transparent 100%)",
+            background:
+              "conic-gradient(from 0deg, transparent 0%, #9945FF 25%, transparent 50%, #14F195 75%, transparent 100%)",
             opacity: 0.4,
           }}
           animate={{ rotate: 360 }}
@@ -294,12 +323,13 @@ const VSCenter: React.FC = () => {
             ease: "linear",
           }}
         />
-        
+
         {/* Inner rotating ring (opposite direction) */}
         <motion.div
           className="absolute inset-2 rounded-full"
           style={{
-            background: "conic-gradient(from 180deg, transparent 0%, #00FFA3 30%, transparent 50%, #9945FF 80%, transparent 100%)",
+            background:
+              "conic-gradient(from 180deg, transparent 0%, #00FFA3 30%, transparent 50%, #9945FF 80%, transparent 100%)",
             opacity: 0.3,
           }}
           animate={{ rotate: -360 }}
@@ -314,7 +344,8 @@ const VSCenter: React.FC = () => {
         <motion.div
           className="absolute inset-6 rounded-full"
           style={{
-            background: "radial-gradient(circle, rgba(153,69,255,0.25), rgba(20,241,149,0.15), transparent 70%)",
+            background:
+              "radial-gradient(circle, rgba(153,69,255,0.25), rgba(20,241,149,0.15), transparent 70%)",
           }}
           animate={{
             scale: [1, 1.15, 1],
@@ -350,12 +381,14 @@ const VSCenter: React.FC = () => {
                   x: [
                     0,
                     Math.cos((particle.angle * Math.PI) / 180) * distance,
-                    Math.cos((particle.angle * Math.PI) / 180) * (distance + 10),
+                    Math.cos((particle.angle * Math.PI) / 180) *
+                      (distance + 10),
                   ],
                   y: [
                     0,
                     Math.sin((particle.angle * Math.PI) / 180) * distance,
-                    Math.sin((particle.angle * Math.PI) / 180) * (distance + 10),
+                    Math.sin((particle.angle * Math.PI) / 180) *
+                      (distance + 10),
                   ],
                   opacity: [0, 0.9, 0],
                   scale: [0.4, 1, 0.4],
@@ -387,7 +420,8 @@ const VSCenter: React.FC = () => {
             className="font-display font-black tracking-[0.25em] text-4xl md:text-5xl"
             style={{
               color: "transparent",
-              background: "linear-gradient(135deg, #9945FF 0%, #fff 50%, #14F195 100%)",
+              background:
+                "linear-gradient(135deg, #9945FF 0%, #fff 50%, #14F195 100%)",
               WebkitBackgroundClip: "text",
               backgroundClip: "text",
               textShadow:
@@ -402,7 +436,8 @@ const VSCenter: React.FC = () => {
         <motion.div
           className="absolute inset-3"
           style={{
-            clipPath: "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)",
+            clipPath:
+              "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)",
             border: "1px solid rgba(255,255,255,0.15)",
           }}
           animate={{
@@ -418,4 +453,3 @@ const VSCenter: React.FC = () => {
     </motion.div>
   );
 };
-

@@ -5,27 +5,38 @@ import { MinerGameResult, MinerGamePlayer, MinerTile } from "@/types/miner";
 /**
  * Determines the N-th click where player will find their result (prize or bomb)
  * @param tileCount Total number of tiles
- * @returns Random number between 3 and tileCount-1 (minimum 3 to avoid finding too early)
+ * @param totalPrizes Total number of prizes in the game
+ * @param totalBombs Total number of bombs in the game
+ * @returns Random number from 1 to (tileCount - totalPrizes - totalBombs)
+ *
+ * Formula:
+ * - Miner1v9: 1 to (9 - 1 - 1) = 1 to 7
+ * - Miner3v16: 1 to (16 - 3 - 3) = 1 to 10
+ * - Miner5v25: 1 to (25 - 5 - 5) = 1 to 15
  */
-export function determineResultClick(tileCount: number): number {
-  const minClick = 3;
-  const maxClick = Math.max(minClick, tileCount - 1);
+export function determineResultClick(
+  tileCount: number,
+  totalPrizes: number,
+  totalBombs: number
+): number {
+  const maxClick = tileCount - totalPrizes - totalBombs;
+  const minClick = 1;
   const resultClick =
     Math.floor(Math.random() * (maxClick - minClick + 1)) + minClick;
   console.log(
-    `[determineResultClick] Result click determined: ${resultClick} (out of ${tileCount} tiles)`
+    `[determineResultClick] Result click determined: ${resultClick} (range: 1 to ${maxClick}, out of ${tileCount} tiles, ${totalPrizes} prizes, ${totalBombs} bombs)`
   );
   return resultClick;
 }
 
 /**
- * Distributes prizes and bombs to closed tiles
+ * Distributes prizes and bombs to closed tiles ONLY (not to already opened empty tiles)
  * @param tiles Current tiles array
  * @param clickedIndex Index of the tile that was just clicked (where player found result)
  * @param totalPrizes Total number of prizes needed
  * @param totalBombs Total number of bombs needed
  * @param currentPlayerFoundPrize Whether current player found prize (true) or bomb (false)
- * @returns Updated tiles array with prizes and bombs distributed
+ * @returns Updated tiles array with prizes and bombs distributed ONLY to closed slots
  */
 export function distributePrizesAndBombs(
   tiles: MinerTile[],
@@ -34,19 +45,11 @@ export function distributePrizesAndBombs(
   totalBombs: number,
   currentPlayerFoundPrize: boolean
 ): MinerTile[] {
-  // Get closed tile indices (excluding the one just clicked)
+  // Get ONLY closed tile indices (excluding the one just clicked)
+  // IMPORTANT: Do NOT include already opened empty tiles - they stay empty!
   const closedIndices = tiles
     .map((tile, idx) => ({ tile, idx }))
     .filter(({ tile, idx }) => !tile.revealed && idx !== clickedIndex)
-    .map(({ idx }) => idx);
-
-  // Get opened empty tile indices (to replace if needed)
-  const openedEmptyIndices = tiles
-    .map((tile, idx) => ({ tile, idx }))
-    .filter(
-      ({ tile, idx }) =>
-        tile.revealed && tile.type === "empty" && idx !== clickedIndex
-    )
     .map(({ idx }) => idx);
 
   // Determine remaining prizes and bombs
@@ -55,51 +58,46 @@ export function distributePrizesAndBombs(
 
   console.log(
     `[distributePrizesAndBombs] Distributing: ${remainingPrizes} prizes, ${remainingBombs} bombs. ` +
-      `Closed slots: ${closedIndices.length}, Opened empty: ${openedEmptyIndices.length}`
+      `Closed slots available: ${closedIndices.length}`
   );
 
-  // Shuffle closed indices randomly, then opened empty indices
+  // Shuffle closed indices randomly
   const shuffledClosed = [...closedIndices].sort(() => Math.random() - 0.5);
-  const shuffledOpenedEmpty = [...openedEmptyIndices].sort(
-    () => Math.random() - 0.5
-  );
 
-  // Combine closed and opened empty indices for distribution
-  // Priority: closed slots first, then opened empty slots
-  const availableSlots = [...shuffledClosed, ...shuffledOpenedEmpty];
-
-  // Assign prizes and bombs to available slots
+  // Assign prizes and bombs to closed slots ONLY
   const prizeIndices = new Set<number>();
   const bombIndices = new Set<number>();
 
-  // IMPORTANT: Distribute ALL prizes and bombs, using closed slots first, then opened empty slots
-  // First, assign prizes (as many as needed, using all available slots)
-  const prizesToAssign = Math.min(remainingPrizes, availableSlots.length);
+  // First, assign prizes to closed slots
+  const prizesToAssign = Math.min(remainingPrizes, shuffledClosed.length);
   for (let i = 0; i < prizesToAssign; i++) {
-    prizeIndices.add(availableSlots[i]);
+    prizeIndices.add(shuffledClosed[i]);
   }
 
-  // Then, assign bombs to remaining slots
-  const slotsAfterPrizes = availableSlots.length - prizesToAssign;
+  // Then, assign bombs to remaining closed slots
+  const slotsAfterPrizes = shuffledClosed.length - prizesToAssign;
   const bombsToAssign = Math.min(remainingBombs, slotsAfterPrizes);
   for (let i = prizesToAssign; i < prizesToAssign + bombsToAssign; i++) {
-    bombIndices.add(availableSlots[i]);
+    bombIndices.add(shuffledClosed[i]);
   }
 
   // Log warning if we still can't fit everything
-  if (remainingPrizes + remainingBombs > availableSlots.length) {
+  if (remainingPrizes + remainingBombs > shuffledClosed.length) {
     console.warn(
-      `[distributePrizesAndBombs] ⚠️ Not enough slots! Need ${
+      `[distributePrizesAndBombs] ⚠️ Not enough closed slots! Need ${
         remainingPrizes + remainingBombs
-      } items but only ${availableSlots.length} available slots. ` +
+      } items but only ${shuffledClosed.length} closed slots available. ` +
         `Assigning ${prizesToAssign} prizes and ${bombsToAssign} bombs. ` +
         `Missing: ${
-          remainingPrizes + remainingBombs - availableSlots.length
+          remainingPrizes + remainingBombs - shuffledClosed.length
         } items.`
     );
   } else {
     console.log(
-      `[distributePrizesAndBombs] ✅ All items distributed: ${prizesToAssign} prizes, ${bombsToAssign} bombs`
+      `[distributePrizesAndBombs] ✅ All items distributed to closed slots: ${prizesToAssign} prizes, ${bombsToAssign} bombs. ` +
+        `Remaining empty slots: ${
+          shuffledClosed.length - prizesToAssign - bombsToAssign
+        }`
     );
   }
 
@@ -119,7 +117,7 @@ export function distributePrizesAndBombs(
     Array.from(bombIndices)
   );
 
-  // Update tiles: assign types and reveal ALL tiles immediately
+  // Update tiles: assign types and reveal ALL tiles
   return tiles.map((tile) => {
     // Current tile (the one player clicked) - already has correct type
     if (tile.index === clickedIndex) {
@@ -131,14 +129,14 @@ export function distributePrizesAndBombs(
       };
     }
 
-    // Tiles in prize/bomb sets - assign type and reveal (even if already revealed)
+    // Tiles in prize/bomb sets - assign type and reveal
     if (prizeIndices.has(tile.index)) {
       return { ...tile, type: "prize", revealed: true };
     } else if (bombIndices.has(tile.index)) {
       return { ...tile, type: "bomb", revealed: true };
     }
 
-    // Already revealed tiles that are not in prize/bomb sets - keep as is
+    // Already revealed tiles that are not in prize/bomb sets - keep as is (stay empty)
     if (tile.revealed) {
       return tile;
     }

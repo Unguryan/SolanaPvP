@@ -1,5 +1,5 @@
 // 1x3 Card Row component - Poker style cards
-import React from "react";
+import React, { useMemo } from "react";
 import { GameTile } from "@/types/game";
 
 interface CardRowProps {
@@ -8,6 +8,7 @@ interface CardRowProps {
   disabled?: boolean;
   currentPlayer?: string;
   playerSelections?: number[];
+  allTilesRevealed?: boolean; // Whether all tiles are revealed (for dimming unselected tiles)
 }
 
 export const CardRow: React.FC<CardRowProps> = ({
@@ -15,6 +16,7 @@ export const CardRow: React.FC<CardRowProps> = ({
   onTileClick,
   disabled = false,
   playerSelections = [],
+  allTilesRevealed = false,
 }) => {
   const handleCardClick = (index: number) => {
     if (disabled || tiles[index].selected || tiles[index].revealed) return;
@@ -41,14 +43,21 @@ export const CardRow: React.FC<CardRowProps> = ({
     return getValueColor(value);
   };
 
+  // Check if all tiles are revealed
+  const allRevealed = useMemo(() => {
+    return tiles.every((tile) => tile.revealed);
+  }, [tiles]);
+
   return (
-    <div className="flex justify-center gap-4 md:gap-6 lg:gap-8 p-2">
+    <div className="flex justify-center gap-4 md:gap-6 lg:gap-8 py-6 md:py-8 px-4 md:px-6">
       {tiles.map((tile) => {
         // Проверяем выбрал ли ТЕКУЩИЙ игрок эту карту
         const isSelectedByCurrentPlayer = playerSelections.includes(tile.index);
         const isFlipped = tile.revealed || isSelectedByCurrentPlayer;
         const suitIcon = getSuitIcon(tile.value);
         const cardColor = getCardColor(tile.value);
+        // Use prop if provided, otherwise check if all tiles are revealed
+        const shouldDim = allTilesRevealed || allRevealed;
 
         return (
           <div
@@ -115,8 +124,19 @@ export const CardRow: React.FC<CardRowProps> = ({
                   backfaceVisibility: "hidden",
                   WebkitBackfaceVisibility: "hidden",
                   transform: "rotateY(180deg)",
+                  opacity: isFlipped ? 1 : 0,
+                  transition: "opacity 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)",
                 }}
               >
+                {/* Dim overlay for unselected cards when all cards are revealed */}
+                {shouldDim && !isSelectedByCurrentPlayer && isFlipped && (
+                  <div
+                    className="absolute inset-0 rounded-xl bg-black/60 z-10 transition-opacity duration-300"
+                    style={{
+                      pointerEvents: "none",
+                    }}
+                  />
+                )}
                 {/* Top suit */}
                 <div className={`absolute top-2 left-2 ${cardColor} text-xl md:text-2xl font-bold`}>
                   {suitIcon}

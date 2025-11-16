@@ -18,15 +18,25 @@ import {
 } from "@/services/solana/accounts";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { UniversalGameBoard } from "@/components/game/UniversalGameBoard";
+import { MinerGameBoard } from "@/components/game/games/Miner";
+import { GoldBarsGameBoard } from "@/components/game/games/GoldBars/GoldBarsGameBoard";
 import { GameResultModal } from "@/components/game/GameResultModal";
+import { MinerResultModal } from "@/components/game/games/Miner/MinerResultModal";
+import { GoldBarsResultModal } from "@/components/game/games/GoldBars/GoldBarsResultModal";
 import { Player, GameType, MatchMode } from "@/types/game";
+import { MinerGameResult } from "@/types/miner";
+import { GoldBarsGameResult } from "@/types/goldBars";
 import { usersApi } from "@/services/api/users";
 import { matchesApi } from "@/services/api/matches";
-import { mapTeamSizeToMatchType, mapGameModeToFrontend } from "@/utils/gameModeMapper";
+import {
+  mapTeamSizeToMatchType,
+  mapGameModeToFrontend,
+} from "@/utils/gameModeMapper";
 import * as anchor from "@coral-xyz/anchor";
 import { useWebSocketStore } from "@/store/websocketStore";
 import { AuroraBackground } from "@/components/effects/AuroraBackground";
 import { MatchLoader } from "@/components/loaders/MatchLoader";
+import { getRemainingSecondsUtc } from "@/utils/format";
 
 type PageMode = "preview" | "preparing" | "game" | "results";
 
@@ -51,7 +61,7 @@ export const MatchPreview: React.FC = () => {
 
   // For mock lobbies only
   const [mockLobby, setMockLobby] = useState<LobbyAccount | null>(null);
-  
+
   // Backend match data (has real-time status updates via SignalR!)
   const [matchFromBackend, setMatchFromBackend] = useState<any>(null);
 
@@ -68,7 +78,19 @@ export const MatchPreview: React.FC = () => {
   const [pageMode, setPageMode] = useState<PageMode>("preview");
   const [gameData, setGameData] = useState<{
     players: Player[];
-    gameMode: "PickThreeFromNine" | "PickFiveFromSixteen" | "PickOneFromThree" | "Plinko3Balls" | "Plinko5Balls" | "Plinko7Balls" | "Miner1v9" | "Miner3v16" | "Miner5v25";
+    gameMode:
+      | "PickThreeFromNine"
+      | "PickFiveFromSixteen"
+      | "PickOneFromThree"
+      | "Plinko3Balls"
+      | "Plinko5Balls"
+      | "Plinko7Balls"
+      | "Miner1v9"
+      | "Miner3v16"
+      | "Miner5v25"
+      | "GoldBars1v9"
+      | "GoldBars3v16"
+      | "GoldBars5v25";
   } | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [userBalance, setUserBalance] = useState<number>(0);
@@ -79,28 +101,34 @@ export const MatchPreview: React.FC = () => {
   const resultsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
   const [gameResult, setGameResult] = useState<any>(null);
-  
+
   // SignalR event handlers
-  const { onMatchInProgress, onMatchFinalized, onMatchJoined } = useWebSocketStore();
+  const { onMatchInProgress, onMatchFinalized, onMatchJoined } =
+    useWebSocketStore();
 
   // Load match from backend for real-time status
   useEffect(() => {
     const loadMatchFromBackend = async () => {
       if (!matchPda || matchPda.startsWith("mock-")) return;
-      
+
       try {
         console.log("📡 [MatchPreview] Loading match from backend:", matchPda);
         const match = await matchesApi.getMatch(matchPda);
         console.log("📡 [MatchPreview] Backend match status:", match.status);
         setMatchFromBackend(match);
       } catch (err) {
-        console.log("📡 [MatchPreview] Match not in backend yet (normal for new lobbies)");
-        console.error("📡 [MatchPreview] Error loading match from backend:", err);
+        console.log(
+          "📡 [MatchPreview] Match not in backend yet (normal for new lobbies)"
+        );
+        console.error(
+          "📡 [MatchPreview] Error loading match from backend:",
+          err
+        );
       }
     };
-    
+
     loadMatchFromBackend();
-    
+
     // Cleanup timeout on unmount
     return () => {
       if (resultsTimeoutRef.current) {
@@ -115,17 +143,25 @@ export const MatchPreview: React.FC = () => {
     const handleMatchInProgress = async (match: any) => {
       console.log("🎮 [MatchPreview] Match InProgress event received:", match);
       if (match.matchPda === matchPda && matchPda) {
-        console.log("🎮 [MatchPreview] This is OUR match! Updating backend data...");
+        console.log(
+          "🎮 [MatchPreview] This is OUR match! Updating backend data..."
+        );
         // Update backend match data immediately
         setMatchFromBackend(match);
-        
+
         // Immediately fetch full match data including gameData
         try {
           const fullMatchData = await matchesApi.getMatch(matchPda);
           setMatchFromBackend(fullMatchData);
-          console.log("🎮 [MatchPreview] Full match data fetched:", fullMatchData);
+          console.log(
+            "🎮 [MatchPreview] Full match data fetched:",
+            fullMatchData
+          );
         } catch (error) {
-          console.error("🎮 [MatchPreview] Failed to fetch full match data:", error);
+          console.error(
+            "🎮 [MatchPreview] Failed to fetch full match data:",
+            error
+          );
         }
       }
     };
@@ -142,21 +178,32 @@ export const MatchPreview: React.FC = () => {
     const handleMatchJoined = async (match: any) => {
       console.log("👥 [MatchPreview] Match joined event received:", match);
       if (match.matchPda === matchPda) {
-        console.log("👥 [MatchPreview] This is OUR match! Updating backend data...");
+        console.log(
+          "👥 [MatchPreview] This is OUR match! Updating backend data..."
+        );
         // Update backend match data immediately
         setMatchFromBackend(match);
-        
+
         // Start polling for InProgress status (in case matchInProgress event is missed)
-        console.log("👥 [MatchPreview] Starting polling for InProgress status...");
+        console.log(
+          "👥 [MatchPreview] Starting polling for InProgress status..."
+        );
         let pollCount = 0;
         const pollForInProgress = setInterval(async () => {
           pollCount++;
           try {
             const latestMatch = await matchesApi.getMatch(matchPda!);
-            console.log(`[MatchPreview] Poll ${pollCount}/60 - Status: ${latestMatch.status}`);
-            
-            if (latestMatch.status === "InProgress" || latestMatch.status === "Resolved") {
-              console.log("✅ [MatchPreview] Match became InProgress! Updating...");
+            console.log(
+              `[MatchPreview] Poll ${pollCount}/60 - Status: ${latestMatch.status}`
+            );
+
+            if (
+              latestMatch.status === "InProgress" ||
+              latestMatch.status === "Resolved"
+            ) {
+              console.log(
+                "✅ [MatchPreview] Match became InProgress! Updating..."
+              );
               clearInterval(pollForInProgress);
               setMatchFromBackend(latestMatch);
             } else if (pollCount >= 60) {
@@ -175,24 +222,27 @@ export const MatchPreview: React.FC = () => {
     onMatchJoined(handleMatchJoined);
   }, [matchPda, onMatchInProgress, onMatchFinalized, onMatchJoined]);
 
-  // Update game time remaining every second
+  // Update game time remaining every second (Miner / real games) using UTC-based helper
   useEffect(() => {
-    if (pageMode === "game" && matchFromBackend?.gameStartTime) {
+    if (pageMode === "game") {
       const updateTimer = () => {
-        const startTime = new Date(matchFromBackend.gameStartTime).getTime();
-        const endTime = startTime + 20000; // +20 seconds
-        const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+        const startIso =
+          matchFromBackend?.gameStartTime ||
+          matchFromBackend?.gameData?.generatedAt ||
+          undefined;
+        const remaining = getRemainingSecondsUtc(startIso, 20);
         setGameTimeRemaining(remaining);
       };
 
-      // Initial update
       updateTimer();
-
-      // Update every second
       const interval = setInterval(updateTimer, 1000);
       return () => clearInterval(interval);
     }
-  }, [pageMode, matchFromBackend?.gameStartTime]);
+  }, [
+    pageMode,
+    matchFromBackend?.gameStartTime,
+    matchFromBackend?.gameData?.generatedAt,
+  ]);
 
   // Fetch usernames for all players in the lobby
   useEffect(() => {
@@ -230,7 +280,7 @@ export const MatchPreview: React.FC = () => {
       console.log("👀 [MatchPreview] Wallet not connected yet, waiting...");
       return;
     }
-    
+
     // If no match data yet, wait for it to load
     if (!lobby && !matchFromBackend) {
       console.log("👀 [MatchPreview] Match data not loaded yet, waiting...");
@@ -257,7 +307,7 @@ export const MatchPreview: React.FC = () => {
     // If participant in either blockchain OR backend, they can play
     const isParticipant = isParticipantChain || isParticipantBackend;
     setIsViewer(!isParticipant);
-    
+
     if (isParticipant) {
       console.log("✅ [MatchPreview] User IS participant, can play game");
     } else {
@@ -290,16 +340,20 @@ export const MatchPreview: React.FC = () => {
 
     const calculateTimeLeft = () => {
       const nowSeconds = Date.now() / 1000;
-      
+
       // If match is resolved, show time until resolveAt + 20 seconds
-      if (matchFromBackend?.status === "Resolved" && matchFromBackend?.resolvedAt) {
-        const resolvedAtSeconds = new Date(matchFromBackend.resolvedAt).getTime() / 1000;
+      if (
+        matchFromBackend?.status === "Resolved" &&
+        matchFromBackend?.resolvedAt
+      ) {
+        const resolvedAtSeconds =
+          new Date(matchFromBackend.resolvedAt).getTime() / 1000;
         const endTimeSeconds = resolvedAtSeconds + 20; // +20 seconds after resolve
         const remaining = Math.max(0, endTimeSeconds - nowSeconds);
         setTimeLeft(Math.floor(remaining));
         return;
       }
-      
+
       // Otherwise show time until deadline (createdAt + timeout)
       const createdAtSeconds = lobby.createdAt.toNumber();
       const elapsed = nowSeconds - createdAtSeconds;
@@ -324,22 +378,27 @@ export const MatchPreview: React.FC = () => {
 
     // Use backend status if available (more up-to-date via SignalR!)
     const effectiveStatus = matchFromBackend?.status || lobby.status;
-    console.log("🎮 [MatchPreview] Effective status:", effectiveStatus, "(backend:", matchFromBackend?.status, ", chain:", lobby.status, ")");
+    console.log(
+      "🎮 [MatchPreview] Effective status:",
+      effectiveStatus,
+      "(backend:",
+      matchFromBackend?.status,
+      ", chain:",
+      lobby.status,
+      ")"
+    );
 
     if (effectiveStatus === "Open" && !isLobbyFull(lobby)) {
       setPageMode("preview");
-    } 
-    else if (effectiveStatus === "Pending") {
+    } else if (effectiveStatus === "Pending") {
       setPageMode("preparing");
-    }
-    else if (effectiveStatus === "InProgress") {
+    } else if (effectiveStatus === "InProgress") {
       if (gameData) {
         setPageMode("game");
       } else {
         setPageMode("preparing"); // Still loading game data
       }
-    }
-    else if (effectiveStatus === "Resolved") {
+    } else if (effectiveStatus === "Resolved") {
       // Match is resolved - keep showing game for 20 seconds (to show result modal)
       // Sequence: Game → 1s → Modal appears → user can view/close → after 20s total → results page
       if (pageMode === "game" && !resultsTimeoutRef.current) {
@@ -352,8 +411,7 @@ export const MatchPreview: React.FC = () => {
         // Already on results page or other page, switch to results
         setPageMode("results");
       }
-    }
-    else {
+    } else {
       setPageMode("preview");
     }
   }, [lobby, gameData, matchFromBackend, pageMode]);
@@ -375,34 +433,56 @@ export const MatchPreview: React.FC = () => {
             // Convert participants to Player format for game board
             console.log("[MatchPreview] Usernames mapping:", usernames);
             console.log("[MatchPreview] Participants:", matchData.participants);
-            
+
             // Sort participants by side and position before mapping
-            const sortedParticipants = [...matchData.participants].sort((a: any, b: any) => {
-              if (a.side !== b.side) return a.side - b.side; // Sort by side first (0, 1, 2, ...)
-              return a.position - b.position; // Then by position within side
-            });
-            
+            const sortedParticipants = [...matchData.participants].sort(
+              (a: any, b: any) => {
+                if (a.side !== b.side) return a.side - b.side; // Sort by side first (0, 1, 2, ...)
+                return a.position - b.position; // Then by position within side
+              }
+            );
+
             const players = sortedParticipants.map((p: any) => {
               // Use username from participant (from backend) as priority
-              const finalUsername = p.username || usernames[p.pubkey] || p.pubkey.substring(0, 8) + "...";
-              console.log(`[MatchPreview] Player ${p.pubkey.substring(0, 8)}: side=${p.side}, position=${p.position}, username from backend = ${p.username}, from mapping = ${usernames[p.pubkey]}, final = ${finalUsername}`);
-              
+              const finalUsername =
+                p.username ||
+                usernames[p.pubkey] ||
+                p.pubkey.substring(0, 8) + "...";
+              console.log(
+                `[MatchPreview] Player ${p.pubkey.substring(0, 8)}: side=${
+                  p.side
+                }, position=${p.position}, username from backend = ${
+                  p.username
+                }, from mapping = ${
+                  usernames[p.pubkey]
+                }, final = ${finalUsername}`
+              );
+
+              const targetScore = p.targetScore || 0;
+
+              // For Miner games: targetScore 1 = willWin true (alive), 0 = willWin false (bombed)
+              const willWin =
+                matchData.gameType === "Miner" ? targetScore === 1 : undefined;
+
               return {
                 username: finalUsername,
                 pubkey: p.pubkey, // Add pubkey for AI identification
-                targetScore: p.targetScore || 0, // Backend's target for winning
+                targetScore, // Backend's target for winning
                 currentScore: 0, // Start from 0, accumulates from tile selections
                 selections: [], // Will be filled by game board
                 isReady: true,
+                willWin, // For Miner: true if targetScore === 1 (alive), false if === 0 (bombed)
               };
             });
 
             // Map backend gameMode string to frontend format
             console.log("[MatchPreview] Backend gameData:", matchData.gameData);
-            const frontendGameMode = mapGameModeToFrontend(matchData.gameData.gameMode);
+            const frontendGameMode = mapGameModeToFrontend(
+              matchData.gameData.gameMode
+            );
             console.log("[MatchPreview] Mapped gameMode:", frontendGameMode);
             console.log("[MatchPreview] Players:", players);
-            
+
             setGameData({
               players,
               gameMode: frontendGameMode,
@@ -487,28 +567,40 @@ export const MatchPreview: React.FC = () => {
       await refetchLobby();
 
       // Fetch backend data with polling - match will transition to Pending -> InProgress
-      console.log("[MatchPreview] Starting to poll for match status updates...");
-      
+      console.log(
+        "[MatchPreview] Starting to poll for match status updates..."
+      );
+
       // Poll backend every second for up to 60 seconds to catch status change
       let pollAttempts = 0;
       const maxPollAttempts = 60;
-      
+
       const pollInterval = setInterval(async () => {
         pollAttempts++;
-        console.log(`[MatchPreview] Polling attempt ${pollAttempts}/${maxPollAttempts}`);
-        
+        console.log(
+          `[MatchPreview] Polling attempt ${pollAttempts}/${maxPollAttempts}`
+        );
+
         try {
           const response = await matchesApi.getMatch(matchPda!);
           console.log("[MatchPreview] Polled match status:", response.status);
-          
-          if (response.status === "InProgress" || response.status === "Resolved") {
-            console.log("[MatchPreview] ✅ Match started! Status:", response.status);
+
+          if (
+            response.status === "InProgress" ||
+            response.status === "Resolved"
+          ) {
+            console.log(
+              "[MatchPreview] ✅ Match started! Status:",
+              response.status
+            );
             clearInterval(pollInterval);
             setMatchFromBackend(response);
             // Refetch lobby from blockchain as well
             await refetchLobby();
           } else if (pollAttempts >= maxPollAttempts) {
-            console.log("[MatchPreview] ⏱️ Polling timeout reached, reloading page...");
+            console.log(
+              "[MatchPreview] ⏱️ Polling timeout reached, reloading page..."
+            );
             clearInterval(pollInterval);
             window.location.reload();
           }
@@ -539,7 +631,7 @@ export const MatchPreview: React.FC = () => {
       clearTimeout(resultsTimeoutRef.current);
       resultsTimeoutRef.current = null;
     }
-    
+
     navigate("/matches");
   };
 
@@ -549,7 +641,7 @@ export const MatchPreview: React.FC = () => {
       clearTimeout(resultsTimeoutRef.current);
       resultsTimeoutRef.current = null;
     }
-    
+
     navigate("/leaderboard");
   };
 
@@ -559,7 +651,7 @@ export const MatchPreview: React.FC = () => {
       clearTimeout(resultsTimeoutRef.current);
       resultsTimeoutRef.current = null;
     }
-    
+
     // Immediately go to results page
     setPageMode("results");
   };
@@ -698,7 +790,10 @@ export const MatchPreview: React.FC = () => {
   };
 
   const getArenaTypeDisplay = () => {
-    const arenaType = (lobby as any)?.arenaType || matchFromBackend?.matchMode || "SingleBattle";
+    const arenaType =
+      (lobby as any)?.arenaType ||
+      matchFromBackend?.matchMode ||
+      "SingleBattle";
     return arenaType === "DeathMatch" ? "Death Match" : "Single Battle";
   };
 
@@ -813,20 +908,94 @@ export const MatchPreview: React.FC = () => {
             </h1>
           </motion.div>
 
-          <UniversalGameBoard
-            gameType={matchFromBackend?.gameType === "Plinko" ? GameType.Plinko : GameType.PickHigher}
-            gameMode={gameData.gameMode}
-            matchMode={MatchMode.Team}
-            teamSize={mapTeamSizeToMatchType(matchFromBackend?.teamSize || "OneVOne") as "Solo" | "Duo" | "Team"}
-            stakeSol={stakeSOL}
-            players={gameData.players}
-            currentPlayer={isViewer ? "" : "You"} // Spectators have no current player
-            currentPlayerPubkey={isViewer ? undefined : publicKey?.toBase58()} // No pubkey for spectators
-            matchFromBackend={matchFromBackend}
-            timeLimit={gameTimeRemaining}
-            onGameComplete={handleGameComplete}
-            isDemoMode={false}
-          />
+          {matchFromBackend?.gameType === "Miner" ? (
+            <MinerGameBoard
+              gameMode={
+                gameData.gameMode as "Miner1v9" | "Miner3v16" | "Miner5v25"
+              }
+              matchType={
+                mapTeamSizeToMatchType(
+                  matchFromBackend?.teamSize || "OneVOne"
+                ) as "Solo" | "Duo" | "Team"
+              }
+              stakeSol={stakeSOL}
+              players={gameData.players.map((p) => ({
+                id: p.pubkey || p.username,
+                username: p.username,
+                pubkey: p.pubkey,
+                targetScore: p.targetScore,
+                currentScore: p.currentScore,
+                selections: p.selections,
+                isReady: p.isReady,
+                isScoreRevealed: false,
+                willWin: p.willWin,
+                isAlive: p.isAlive,
+                openedTileCount: p.openedTileCount,
+              }))}
+              currentPlayer={isViewer ? "" : "You"}
+              currentPlayerPubkey={isViewer ? undefined : publicKey?.toBase58()}
+              matchFromBackend={matchFromBackend}
+              timeLimit={gameTimeRemaining}
+              onGameComplete={handleGameComplete}
+              isDemoMode={false}
+            />
+          ) : matchFromBackend?.gameType === "GoldBars" ? (
+            <GoldBarsGameBoard
+              gameMode={
+                gameData.gameMode as
+                  | "GoldBars1v9"
+                  | "GoldBars3v16"
+                  | "GoldBars5v25"
+              }
+              matchType={
+                mapTeamSizeToMatchType(
+                  matchFromBackend?.teamSize || "OneVOne"
+                ) as "Solo" | "Duo" | "Team"
+              }
+              stakeSol={stakeSOL}
+              players={gameData.players.map((p) => ({
+                id: p.pubkey || p.username,
+                username: p.username,
+                pubkey: p.pubkey,
+                targetScore: p.targetScore,
+                currentScore: p.currentScore,
+                selections: p.selections,
+                isReady: p.isReady,
+                isScoreRevealed: false,
+                openedTileCount: p.openedTileCount || 0,
+                reachedAllGoldBars: false,
+              }))}
+              currentPlayer={isViewer ? "" : "You"}
+              currentPlayerPubkey={isViewer ? undefined : publicKey?.toBase58()}
+              matchFromBackend={matchFromBackend}
+              timeLimit={gameTimeRemaining}
+              onGameComplete={handleGameComplete}
+              isDemoMode={false}
+            />
+          ) : (
+            <UniversalGameBoard
+              gameType={
+                matchFromBackend?.gameType === "Plinko"
+                  ? GameType.Plinko
+                  : GameType.PickHigher
+              }
+              gameMode={gameData.gameMode}
+              matchMode={MatchMode.Team}
+              teamSize={
+                mapTeamSizeToMatchType(
+                  matchFromBackend?.teamSize || "OneVOne"
+                ) as "Solo" | "Duo" | "Team"
+              }
+              stakeSol={stakeSOL}
+              players={gameData.players}
+              currentPlayer={isViewer ? "" : "You"} // Spectators have no current player
+              currentPlayerPubkey={isViewer ? undefined : publicKey?.toBase58()} // No pubkey for spectators
+              matchFromBackend={matchFromBackend}
+              timeLimit={gameTimeRemaining}
+              onGameComplete={handleGameComplete}
+              isDemoMode={false}
+            />
+          )}
 
           <div className="mt-8 flex justify-center">
             <GlowButton variant="ghost" onClick={() => navigate("/matches")}>
@@ -834,17 +1003,39 @@ export const MatchPreview: React.FC = () => {
             </GlowButton>
           </div>
         </div>
-        
+
         {/* Result Modal - rendered here so it persists across pageMode changes */}
-        <GameResultModal
-          isOpen={showResultModal}
-          result={gameResult}
-          onClose={() => setShowResultModal(false)}
-          onPlayAgain={handlePlayAgain}
-          onViewLeaderboard={handleViewLeaderboard}
-          onBackToLobby={handleBackToLobby}
-          isDemoMode={false}
-        />
+        {matchFromBackend?.gameType === "Miner" ? (
+          <MinerResultModal
+            isOpen={showResultModal}
+            result={gameResult as MinerGameResult | null}
+            onClose={() => setShowResultModal(false)}
+            onPlayAgain={handlePlayAgain}
+            onViewLeaderboard={handleViewLeaderboard}
+            onBackToLobby={handleBackToLobby}
+            isDemoMode={false}
+          />
+        ) : matchFromBackend?.gameType === "GoldBars" ? (
+          <GoldBarsResultModal
+            isOpen={showResultModal}
+            result={gameResult as GoldBarsGameResult | null}
+            onClose={() => setShowResultModal(false)}
+            onPlayAgain={handlePlayAgain}
+            onViewLeaderboard={handleViewLeaderboard}
+            onBackToLobby={handleBackToLobby}
+            isDemoMode={false}
+          />
+        ) : (
+          <GameResultModal
+            isOpen={showResultModal}
+            result={gameResult}
+            onClose={() => setShowResultModal(false)}
+            onPlayAgain={handlePlayAgain}
+            onViewLeaderboard={handleViewLeaderboard}
+            onBackToLobby={handleBackToLobby}
+            isDemoMode={false}
+          />
+        )}
       </div>
     );
   }
@@ -853,361 +1044,393 @@ export const MatchPreview: React.FC = () => {
     <div className="relative min-h-screen bg-bg py-4 lg:py-8 overflow-hidden">
       <AuroraBackground />
       <div className="relative z-10">
-      {/* Join Message Toast */}
-      <AnimatePresence>
-        {joinMessage && (
-          <motion.div
-            className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[6vh] pt-[6vh] px-3 pointer-events-none"
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            transition={{ duration: 0.4 }}
-          >
-            <div className="glass-card p-4 border-yellow-500/50 bg-yellow-500/10 max-w-md w-full pointer-events-auto">
-              <p className="text-yellow-400 text-sm text-center font-semibold">
-                {joinMessage}
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Preparation Overlay - MatchLoader */}
-      <AnimatePresence>
-        {pageMode === "preparing" && (
-          <motion.div
-            className="fixed inset-0 z-50"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <MatchLoader
-              team1={{
-                name: "Team 1",
-                players: getTeam1Players().map((pubkey) => `@${getPlayerDisplay(pubkey)}`),
-              }}
-              team2={{
-                name: "Team 2",
-                players: getTeam2Players().map((pubkey) => `@${getPlayerDisplay(pubkey)}`),
-              }}
-              statusMessages={[
-                "Connecting to Solana",
-                "Creating new arena",
-                `Preparing ${lobby.teamSize}v${lobby.teamSize} match`,
-                "Waiting for VRF",
-                "Locking escrow...",
-                "Match starting soon",
-              ]}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="max-w-6xl mx-auto px-3 lg:px-6">
-        {/* Header */}
-        <motion.div
-          className="text-center mb-4 lg:mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <h1 className="text-xl lg:text-4xl font-display font-bold text-txt-base mb-2">
-            {getArenaTypeDisplay()} #{lobby.lobbyId.toString()}
-          </h1>
-        </motion.div>
-
-        {/* Match Info */}
-        <GlassCard className="p-3 lg:p-6 mb-3 lg:mb-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
-            <div>
-              <p className="text-xs lg:text-sm text-txt-muted mb-1">Status</p>
-              <p
-                className={`text-sm lg:text-lg font-semibold ${getStatusColor(
-                  lobby.status
-                )}`}
-              >
-                {lobby.status}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs lg:text-sm text-txt-muted mb-1">Stake</p>
-              <p className="text-sm lg:text-lg font-semibold text-txt-base">
-                {stakeSOL} SOL
-              </p>
-            </div>
-            <div>
-              <p className="text-xs lg:text-sm text-txt-muted mb-1">Time</p>
-              <p className="text-sm lg:text-lg font-semibold text-txt-base">
-                {formatTimeLeft(timeLeft)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs lg:text-sm text-txt-muted mb-1">Game</p>
-              <p className="text-sm lg:text-lg font-semibold text-txt-base">
-                {(() => {
-                  const game = (lobby as any)?.game || matchFromBackend?.gameType || "PickHigher";
-                  if (game === "PickHigher") return "Pick Higher";
-                  if (game === "Plinko") return "🎱 Plinko";
-                  return game;
-                })()}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs lg:text-sm text-txt-muted mb-1">Game Mode</p>
-              <p className="text-sm lg:text-lg font-semibold text-txt-base">
-                {(() => {
-                  const mode = (lobby as any)?.gameMode || matchFromBackend?.gameMode || "PickHigher3v9";
-                  // Format Plinko modes nicely
-                  if (mode === "Plinko3Balls") return "🎱 3 balls";
-                  if (mode === "Plinko5Balls") return "🎱 5 balls";
-                  if (mode === "Plinko7Balls") return "🎱 7 balls";
-                  return mode;
-                })()}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs lg:text-sm text-txt-muted mb-1">Team Size</p>
-              <p className="text-sm lg:text-lg font-semibold text-txt-base">
-                {(lobby as any)?.teamSizeStr || matchFromBackend?.teamSize || `${lobby.teamSize}v${lobby.teamSize}`}
-              </p>
-            </div>
-          </div>
-        </GlassCard>
-
-        {/* Teams - Side by side */}
-        <div className="grid grid-cols-2 gap-4 lg:gap-6 mb-6">
-          {/* Team 1 */}
-          <GlassCard className={`p-4 ${
-            matchFromBackend?.status === "Resolved" && matchFromBackend?.winnerSide === 0
-              ? "border-2 border-sol-mint shadow-glow-mint"
-              : ""
-          }`}>
-            <GlassCardHeader>
-              <GlassCardTitle className="text-base lg:text-xl font-display text-sol-purple flex items-center justify-between">
-                <span>Team 1 ({getTeam1Players().length}/{lobby.teamSize})</span>
-                {matchFromBackend?.status === "Resolved" && matchFromBackend?.winnerSide === 0 && (
-                  <span className="text-green-400 font-bold text-xs">WIN</span>
-                )}
-              </GlassCardTitle>
-            </GlassCardHeader>
-            <div className="mt-2 lg:mt-4 space-y-1 lg:space-y-2">
-              {Array.from({ length: lobby.teamSize }).map((_, i) => {
-                const team1Players = getTeam1Players();
-                const playerPubkey = team1Players[i];
-                return (
-                  <div
-                    key={i}
-                    className="p-2 lg:p-3 bg-bg-dark rounded-lg flex items-center gap-2"
-                  >
-                    {playerPubkey ? (
-                      <>
-                        <div className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-green-400 rounded-full flex-shrink-0"></div>
-                        <span className="text-txt-base text-xs lg:text-sm flex-1 truncate">
-                          {getPlayerDisplay(playerPubkey)}
-                        </span>
-                        {publicKey?.toString() === playerPubkey && (
-                          <span className="text-xs text-sol-purple flex-shrink-0">
-                            You
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-txt-muted text-xs lg:text-sm">
-                        Empty slot
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            {/* Progress bar */}
-            <div className="mt-2 lg:mt-4">
-              <div className="h-1.5 lg:h-2 bg-bg-dark rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
-                  style={{ width: `${team1Progress}%` }}
-                />
+        {/* Join Message Toast */}
+        <AnimatePresence>
+          {joinMessage && (
+            <motion.div
+              className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[6vh] pt-[6vh] px-3 pointer-events-none"
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              transition={{ duration: 0.4 }}
+            >
+              <div className="glass-card p-4 border-yellow-500/50 bg-yellow-500/10 max-w-md w-full pointer-events-auto">
+                <p className="text-yellow-400 text-sm text-center font-semibold">
+                  {joinMessage}
+                </p>
               </div>
-            </div>
-            {/* Join Button */}
-            {lobby.status === LobbyStatus.Open && !isPlayerInLobby() && (
-              <div className="mt-3 lg:mt-4">
-                <GlowButton
-                  variant="blue"
-                  size="sm"
-                  onClick={() => handleJoinAttempt(0)}
-                  disabled={isJoining}
-                  className={`w-full ${
-                    !canJoinTeam(0) ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                >
-                  {isJoining ? "Joining..." : "Join Team 1"}
-                </GlowButton>
-              </div>
-            )}
-          </GlassCard>
-
-          {/* Team 2 */}
-          <GlassCard className={`p-4 ${
-            matchFromBackend?.status === "Resolved" && matchFromBackend?.winnerSide === 1
-              ? "border-2 border-sol-mint shadow-glow-mint"
-              : ""
-          }`}>
-            <GlassCardHeader>
-              <GlassCardTitle className="text-base lg:text-xl font-display text-sol-purple flex items-center justify-between">
-                <span>Team 2 ({getTeam2Players().length}/{lobby.teamSize})</span>
-                {matchFromBackend?.status === "Resolved" && matchFromBackend?.winnerSide === 1 && (
-                  <span className="text-green-400 font-bold text-xs">WIN</span>
-                )}
-              </GlassCardTitle>
-            </GlassCardHeader>
-            <div className="mt-2 lg:mt-4 space-y-1 lg:space-y-2">
-              {Array.from({ length: lobby.teamSize }).map((_, i) => {
-                const team2Players = getTeam2Players();
-                const playerPubkey = team2Players[i];
-                return (
-                  <div
-                    key={i}
-                    className="p-2 lg:p-3 bg-bg-dark rounded-lg flex items-center gap-2"
-                  >
-                    {playerPubkey ? (
-                      <>
-                        <div className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-green-400 rounded-full flex-shrink-0"></div>
-                        <span className="text-txt-base text-xs lg:text-sm flex-1 truncate">
-                          {getPlayerDisplay(playerPubkey)}
-                        </span>
-                        {publicKey?.toString() === playerPubkey && (
-                          <span className="text-xs text-sol-purple flex-shrink-0">
-                            You
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-txt-muted text-xs lg:text-sm">
-                        Empty slot
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            {/* Progress bar */}
-            <div className="mt-2 lg:mt-4">
-              <div className="h-1.5 lg:h-2 bg-bg-dark rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-orange-500 to-red-500 transition-all duration-300"
-                  style={{ width: `${team2Progress}%` }}
-                />
-              </div>
-            </div>
-            {/* Join Button */}
-            {lobby.status === LobbyStatus.Open && !isPlayerInLobby() && (
-              <div className="mt-3 lg:mt-4">
-                <GlowButton
-                  variant="orange"
-                  size="sm"
-                  onClick={() => handleJoinAttempt(1)}
-                  disabled={isJoining}
-                  className={`w-full ${
-                    !canJoinTeam(1) ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                >
-                  {isJoining ? "Joining..." : "Join Team 2"}
-                </GlowButton>
-              </div>
-            )}
-          </GlassCard>
-        </div>
-
-        {/* Participant already in match message */}
-        {!isViewer &&
-          isPlayerInLobby() &&
-          lobby.status === LobbyStatus.Open &&
-          matchFromBackend?.status === "Open" && (
-            <GlassCard className="p-6 mb-6 text-center">
-              <p className="text-sol-mint font-semibold">
-                ✓ You are already in this match
-              </p>
-              <p className="text-txt-muted text-sm mt-2">
-                Waiting for other players to join...
-              </p>
-            </GlassCard>
+            </motion.div>
           )}
+        </AnimatePresence>
 
-        {/* Refund - Only for creator after timeout */}
-        {lobby.creator.toString() === publicKey?.toString() &&
-          !isViewer &&
-          lobby.status === LobbyStatus.Open &&
-          matchFromBackend?.status === "Open" && (
-            <GlassCard className="p-6 mb-6 border-red-500/30">
-              <GlassCardHeader>
-                <GlassCardTitle className="text-xl font-display text-red-400">
-                  Refund Match
-                </GlassCardTitle>
-              </GlassCardHeader>
-              <div className="mt-4">
-                {canRefund() ? (
-                  <>
-                    <p className="text-sm text-txt-muted mb-4">
-                      No one joined your match? Request a refund to get your
-                      stake back.
-                    </p>
-                    <GlowButton
-                      variant="ghost"
-                      onClick={handleRefund}
-                      disabled={isRefunding}
-                      className="w-full border-red-500/30"
-                    >
-                      {isRefunding ? "Processing..." : "Request Refund"}
-                    </GlowButton>
-                  </>
-                ) : (
-                  <p className="text-sm text-txt-muted">
-                    Refund will be available in {formatTimeLeft(timeLeft)}
-                  </p>
-                )}
-              </div>
-            </GlassCard>
+        {/* Preparation Overlay - MatchLoader */}
+        <AnimatePresence>
+          {pageMode === "preparing" && (
+            <motion.div
+              className="fixed inset-0 z-50 pt-[6vh] md:pt-[6vh]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <MatchLoader
+                team1={{
+                  name: "Team 1",
+                  players: getTeam1Players().map(
+                    (pubkey) => `@${getPlayerDisplay(pubkey)}`
+                  ),
+                }}
+                team2={{
+                  name: "Team 2",
+                  players: getTeam2Players().map(
+                    (pubkey) => `@${getPlayerDisplay(pubkey)}`
+                  ),
+                }}
+                statusMessages={[
+                  "Connecting to Solana",
+                  "Creating new arena",
+                  `Preparing ${lobby.teamSize}v${lobby.teamSize} match`,
+                  "Waiting for VRF",
+                  "Locking escrow...",
+                  "Match starting soon",
+                ]}
+              />
+            </motion.div>
           )}
+        </AnimatePresence>
 
-        {/* Error */}
-        {error && (
-          <GlassCard className="p-4 mb-6 border-red-500/50">
-            <p className="text-red-400 text-sm">{error}</p>
-          </GlassCard>
-        )}
-
-        {/* Transaction Link - only shown when match is Resolved */}
-        {pageMode === "results" && matchFromBackend?.payoutTx && (
+        <div className="max-w-6xl mx-auto px-3 lg:px-6">
+          {/* Header */}
           <motion.div
+            className="text-center mb-4 lg:mb-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
           >
-            <GlassCard>
-              <div>
-                <h3 className="text-sm font-semibold text-txt-muted mb-2">
-                  Blockchain Transaction
-                </h3>
-                <a
-                  href={`https://solscan.io/tx/${matchFromBackend.payoutTx}?cluster=devnet`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sol-purple hover:text-sol-mint transition-colors break-all text-sm inline-flex items-center gap-1"
-                >
-                  <span>{matchFromBackend.payoutTx}</span>
-                </a>
-              </div>
-            </GlassCard>
+            <h1 className="text-xl lg:text-4xl font-display font-bold text-txt-base mb-2">
+              {getArenaTypeDisplay()} #{lobby.lobbyId.toString()}
+            </h1>
           </motion.div>
-        )}
 
-        {/* Back button */}
-        <div className="mt-8 flex justify-center">
-          <GlowButton variant="ghost" onClick={() => navigate("/matches")}>
-            Back to Matches
-          </GlowButton>
+          {/* Match Info */}
+          <GlassCard className="p-3 lg:p-6 mb-3 lg:mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
+              <div>
+                <p className="text-xs lg:text-sm text-txt-muted mb-1">Status</p>
+                <p
+                  className={`text-sm lg:text-lg font-semibold ${getStatusColor(
+                    lobby.status
+                  )}`}
+                >
+                  {lobby.status}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs lg:text-sm text-txt-muted mb-1">Stake</p>
+                <p className="text-sm lg:text-lg font-semibold text-txt-base">
+                  {stakeSOL} SOL
+                </p>
+              </div>
+              <div>
+                <p className="text-xs lg:text-sm text-txt-muted mb-1">Time</p>
+                <p className="text-sm lg:text-lg font-semibold text-txt-base">
+                  {formatTimeLeft(timeLeft)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs lg:text-sm text-txt-muted mb-1">Game</p>
+                <p className="text-sm lg:text-lg font-semibold text-txt-base">
+                  {(() => {
+                    const game =
+                      (lobby as any)?.game ||
+                      matchFromBackend?.gameType ||
+                      "PickHigher";
+                    if (game === "PickHigher") return "Pick Higher";
+                    if (game === "Plinko") return "🎱 Plinko";
+                    return game;
+                  })()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs lg:text-sm text-txt-muted mb-1">
+                  Game Mode
+                </p>
+                <p className="text-sm lg:text-lg font-semibold text-txt-base">
+                  {(() => {
+                    const mode =
+                      (lobby as any)?.gameMode ||
+                      matchFromBackend?.gameMode ||
+                      "PickHigher3v9";
+                    // Format Plinko modes nicely
+                    if (mode === "Plinko3Balls") return "🎱 3 balls";
+                    if (mode === "Plinko5Balls") return "🎱 5 balls";
+                    if (mode === "Plinko7Balls") return "🎱 7 balls";
+                    return mode;
+                  })()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs lg:text-sm text-txt-muted mb-1">
+                  Team Size
+                </p>
+                <p className="text-sm lg:text-lg font-semibold text-txt-base">
+                  {(lobby as any)?.teamSizeStr ||
+                    matchFromBackend?.teamSize ||
+                    `${lobby.teamSize}v${lobby.teamSize}`}
+                </p>
+              </div>
+            </div>
+          </GlassCard>
+
+          {/* Teams - Side by side */}
+          <div className="grid grid-cols-2 gap-4 lg:gap-6 mb-6">
+            {/* Team 1 */}
+            <GlassCard
+              className={`p-4 ${
+                matchFromBackend?.status === "Resolved" &&
+                matchFromBackend?.winnerSide === 0
+                  ? "border-2 border-sol-mint shadow-glow-mint"
+                  : ""
+              }`}
+            >
+              <GlassCardHeader>
+                <GlassCardTitle className="text-base lg:text-xl font-display text-sol-purple flex items-center justify-between">
+                  <span>
+                    Team 1 ({getTeam1Players().length}/{lobby.teamSize})
+                  </span>
+                  {matchFromBackend?.status === "Resolved" &&
+                    matchFromBackend?.winnerSide === 0 && (
+                      <span className="text-green-400 font-bold text-xs">
+                        WIN
+                      </span>
+                    )}
+                </GlassCardTitle>
+              </GlassCardHeader>
+              <div className="mt-2 lg:mt-4 space-y-1 lg:space-y-2">
+                {Array.from({ length: lobby.teamSize }).map((_, i) => {
+                  const team1Players = getTeam1Players();
+                  const playerPubkey = team1Players[i];
+                  return (
+                    <div
+                      key={i}
+                      className="p-2 lg:p-3 bg-bg-dark rounded-lg flex items-center gap-2"
+                    >
+                      {playerPubkey ? (
+                        <>
+                          <div className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-green-400 rounded-full flex-shrink-0"></div>
+                          <span className="text-txt-base text-xs lg:text-sm flex-1 truncate">
+                            {getPlayerDisplay(playerPubkey)}
+                          </span>
+                          {publicKey?.toString() === playerPubkey && (
+                            <span className="text-xs text-sol-purple flex-shrink-0">
+                              You
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-txt-muted text-xs lg:text-sm">
+                          Empty slot
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Progress bar */}
+              <div className="mt-2 lg:mt-4">
+                <div className="h-1.5 lg:h-2 bg-bg-dark rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+                    style={{ width: `${team1Progress}%` }}
+                  />
+                </div>
+              </div>
+              {/* Join Button */}
+              {lobby.status === LobbyStatus.Open && !isPlayerInLobby() && (
+                <div className="mt-3 lg:mt-4">
+                  <GlowButton
+                    variant="blue"
+                    size="sm"
+                    onClick={() => handleJoinAttempt(0)}
+                    disabled={isJoining}
+                    className={`w-full ${
+                      !canJoinTeam(0) ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    {isJoining ? "Joining..." : "Join Team 1"}
+                  </GlowButton>
+                </div>
+              )}
+            </GlassCard>
+
+            {/* Team 2 */}
+            <GlassCard
+              className={`p-4 ${
+                matchFromBackend?.status === "Resolved" &&
+                matchFromBackend?.winnerSide === 1
+                  ? "border-2 border-sol-mint shadow-glow-mint"
+                  : ""
+              }`}
+            >
+              <GlassCardHeader>
+                <GlassCardTitle className="text-base lg:text-xl font-display text-sol-purple flex items-center justify-between">
+                  <span>
+                    Team 2 ({getTeam2Players().length}/{lobby.teamSize})
+                  </span>
+                  {matchFromBackend?.status === "Resolved" &&
+                    matchFromBackend?.winnerSide === 1 && (
+                      <span className="text-green-400 font-bold text-xs">
+                        WIN
+                      </span>
+                    )}
+                </GlassCardTitle>
+              </GlassCardHeader>
+              <div className="mt-2 lg:mt-4 space-y-1 lg:space-y-2">
+                {Array.from({ length: lobby.teamSize }).map((_, i) => {
+                  const team2Players = getTeam2Players();
+                  const playerPubkey = team2Players[i];
+                  return (
+                    <div
+                      key={i}
+                      className="p-2 lg:p-3 bg-bg-dark rounded-lg flex items-center gap-2"
+                    >
+                      {playerPubkey ? (
+                        <>
+                          <div className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-green-400 rounded-full flex-shrink-0"></div>
+                          <span className="text-txt-base text-xs lg:text-sm flex-1 truncate">
+                            {getPlayerDisplay(playerPubkey)}
+                          </span>
+                          {publicKey?.toString() === playerPubkey && (
+                            <span className="text-xs text-sol-purple flex-shrink-0">
+                              You
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-txt-muted text-xs lg:text-sm">
+                          Empty slot
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Progress bar */}
+              <div className="mt-2 lg:mt-4">
+                <div className="h-1.5 lg:h-2 bg-bg-dark rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-orange-500 to-red-500 transition-all duration-300"
+                    style={{ width: `${team2Progress}%` }}
+                  />
+                </div>
+              </div>
+              {/* Join Button */}
+              {lobby.status === LobbyStatus.Open && !isPlayerInLobby() && (
+                <div className="mt-3 lg:mt-4">
+                  <GlowButton
+                    variant="orange"
+                    size="sm"
+                    onClick={() => handleJoinAttempt(1)}
+                    disabled={isJoining}
+                    className={`w-full ${
+                      !canJoinTeam(1) ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    {isJoining ? "Joining..." : "Join Team 2"}
+                  </GlowButton>
+                </div>
+              )}
+            </GlassCard>
+          </div>
+
+          {/* Participant already in match message */}
+          {!isViewer &&
+            isPlayerInLobby() &&
+            lobby.status === LobbyStatus.Open &&
+            matchFromBackend?.status === "Open" && (
+              <GlassCard className="p-6 mb-6 text-center">
+                <p className="text-sol-mint font-semibold">
+                  ✓ You are already in this match
+                </p>
+                <p className="text-txt-muted text-sm mt-2">
+                  Waiting for other players to join...
+                </p>
+              </GlassCard>
+            )}
+
+          {/* Refund - Only for creator after timeout */}
+          {lobby.creator.toString() === publicKey?.toString() &&
+            !isViewer &&
+            lobby.status === LobbyStatus.Open &&
+            matchFromBackend?.status === "Open" && (
+              <GlassCard className="p-6 mb-6 border-red-500/30">
+                <GlassCardHeader>
+                  <GlassCardTitle className="text-xl font-display text-red-400">
+                    Refund Match
+                  </GlassCardTitle>
+                </GlassCardHeader>
+                <div className="mt-4">
+                  {canRefund() ? (
+                    <>
+                      <p className="text-sm text-txt-muted mb-4">
+                        No one joined your match? Request a refund to get your
+                        stake back.
+                      </p>
+                      <GlowButton
+                        variant="ghost"
+                        onClick={handleRefund}
+                        disabled={isRefunding}
+                        className="w-full border-red-500/30"
+                      >
+                        {isRefunding ? "Processing..." : "Request Refund"}
+                      </GlowButton>
+                    </>
+                  ) : (
+                    <p className="text-sm text-txt-muted">
+                      Refund will be available in {formatTimeLeft(timeLeft)}
+                    </p>
+                  )}
+                </div>
+              </GlassCard>
+            )}
+
+          {/* Error */}
+          {error && (
+            <GlassCard className="p-4 mb-6 border-red-500/50">
+              <p className="text-red-400 text-sm">{error}</p>
+            </GlassCard>
+          )}
+
+          {/* Transaction Link - only shown when match is Resolved */}
+          {pageMode === "results" && matchFromBackend?.payoutTx && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8"
+            >
+              <GlassCard>
+                <div>
+                  <h3 className="text-sm font-semibold text-txt-muted mb-2">
+                    Blockchain Transaction
+                  </h3>
+                  <a
+                    href={`https://solscan.io/tx/${matchFromBackend.payoutTx}?cluster=devnet`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sol-purple hover:text-sol-mint transition-colors break-all text-sm inline-flex items-center gap-1"
+                  >
+                    <span>{matchFromBackend.payoutTx}</span>
+                  </a>
+                </div>
+              </GlassCard>
+            </motion.div>
+          )}
+
+          {/* Back button */}
+          <div className="mt-8 flex justify-center">
+            <GlowButton variant="ghost" onClick={() => navigate("/matches")}>
+              Back to Matches
+            </GlowButton>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );

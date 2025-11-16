@@ -9,6 +9,7 @@ import {
   GlassCardTitle,
 } from "@/components/ui/GlassCard";
 import { formatGameDisplay } from "@/utils/gameModeMapper";
+import { getRemainingSecondsUtc } from "@/utils/format";
 
 interface MatchesListProps {
   className?: string;
@@ -54,21 +55,32 @@ export const MatchesList: React.FC<MatchesListProps> = ({
   // Update countdown timers
   useEffect(() => {
     const interval = setInterval(() => {
-      const now = Date.now();
       const newTimeLeft: Record<string, number> = {};
 
       matches.forEach((match) => {
-        // For matches already in game, show time remaining out of 20s from gameStartTime
         if (match.status === "InProgress" && match.gameStartTime) {
-          const endAt = match.gameStartTime + 20000; // 20s round
-          const remaining = Math.max(0, endAt - now);
-          newTimeLeft[match.id] = remaining;
-          return;
+          // For InProgress: gameStartTime + 20 seconds = end of game
+          const remainingSec = getRemainingSecondsUtc(
+            new Date(match.gameStartTime),
+            20
+          );
+          newTimeLeft[match.id] = remainingSec * 1000;
+        } else if (
+          (match.status === "Open" || match.status === "Pending") &&
+          match.createdAt
+        ) {
+          // For Open/Pending: createdAt + 120 seconds (2 minutes) = deadline
+          const remainingSec = getRemainingSecondsUtc(
+            new Date(match.createdAt),
+            120
+          );
+          newTimeLeft[match.id] = remainingSec * 1000;
+        } else {
+          // Fallback: use endsAt if createdAt/gameStartTime not available
+          const now = Date.now();
+          const remainingMs = Math.max(0, match.endsAt - now);
+          newTimeLeft[match.id] = remainingMs;
         }
-
-        // Otherwise show time until deadline (Open/Pending)
-        const remaining = Math.max(0, match.endsAt - now);
-        newTimeLeft[match.id] = remaining;
       });
 
       setTimeLeft(newTimeLeft);
@@ -78,7 +90,7 @@ export const MatchesList: React.FC<MatchesListProps> = ({
   }, [matches]);
 
   const formatTimeLeft = (milliseconds: number) => {
-    if (milliseconds <= 0) return "Ended";
+    if (milliseconds <= 0) return "0s";
 
     const minutes = Math.floor(milliseconds / 60000);
     const seconds = Math.floor((milliseconds % 60000) / 1000);
@@ -256,7 +268,8 @@ export const MatchesList: React.FC<MatchesListProps> = ({
                         {isInGame && (
                           <>
                             <span>•</span>
-                            {match.status === "InProgress" && (match.gameStartTime ?? 0) > 0 ? (
+                            {match.status === "InProgress" &&
+                            (match.gameStartTime ?? 0) > 0 ? (
                               <span className="text-blue-400">
                                 {formatTimeLeft(timeRemaining)}
                               </span>

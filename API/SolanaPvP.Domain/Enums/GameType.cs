@@ -4,6 +4,8 @@ public enum GameType
 {
     PickHigher = 0,
     Plinko = 1,
-    // Future: Dice = 2, CoinFlip = 3, Minesweeper = 4, WheelSpin = 5
+    Miner = 2,
+    GoldBars = 3,
+    // Future: Dice = 4, CoinFlip = 5, WheelSpin = 6
 }
 

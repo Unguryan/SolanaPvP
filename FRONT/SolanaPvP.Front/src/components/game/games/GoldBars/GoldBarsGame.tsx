@@ -1,11 +1,11 @@
-// Miner game component - handles tile opening until prize or bomb
-// Animations exactly like TileGrid (flip through rotateY)
+// Gold Bars game component - handles tile opening to find gold bars
+// Animations exactly like MinerGame (flip through rotateY)
 import React, { useMemo, memo, useCallback, useState, useEffect } from "react";
-import { MinerTile } from "@/types/miner";
+import { GoldBarsTile } from "@/types/goldBars";
 
-interface MinerGameProps {
-  gameMode: "Miner1v9" | "Miner3v16" | "Miner5v25";
-  tiles: MinerTile[];
+interface GoldBarsGameProps {
+  gameMode: "GoldBars1v9" | "GoldBars3v16" | "GoldBars5v25";
+  tiles: GoldBarsTile[];
   onTileClick: (index: number) => void;
   disabled?: boolean;
   currentPlayer?: string;
@@ -14,21 +14,21 @@ interface MinerGameProps {
   allTilesRevealed?: boolean; // Whether all tiles are revealed (for dimming unselected tiles)
 }
 
-// Helper functions - defined at module level, exactly like TileGrid
-const getTileStyle = (tile: MinerTile, isFlipped: boolean) => {
+// Helper functions - defined at module level
+const getTileStyle = (tile: GoldBarsTile, isFlipped: boolean) => {
   if (!isFlipped) {
-    // Closed tile - Darker, more mysterious style for Miner (different from TileGrid)
+    // Closed tile - Gold/orange gradient style
     return {
       background:
-        "linear-gradient(135deg, rgba(220,38,38,0.3) 0%, rgba(153,69,255,0.3) 100%)",
-      borderColor: "rgba(249, 115, 22, 0.4)",
+        "linear-gradient(135deg, rgba(251,191,36,0.3) 0%, rgba(245,158,11,0.3) 100%)",
+      borderColor: "rgba(251, 191, 36, 0.4)",
     };
   }
 
   // Revealed tile - different styles based on type
   switch (tile.type) {
-    case "prize":
-      // Gold gradient for prize
+    case "gold":
+      // Bright gold gradient for gold bars
       return {
         background:
           "linear-gradient(135deg, #fbbf24 0%, #f59e0b 30%, #d97706 60%, #92400e 100%)",
@@ -52,14 +52,14 @@ const getTileStyle = (tile: MinerTile, isFlipped: boolean) => {
   }
 };
 
-const getTileIcon = (tile: MinerTile, isFlipped: boolean) => {
+const getTileIcon = (tile: GoldBarsTile, isFlipped: boolean) => {
   if (!isFlipped) {
     return "?!"; // Closed tile icon
   }
 
   switch (tile.type) {
-    case "prize":
-      return "💎";
+    case "gold":
+      return "💰"; // Gold bar icon
     case "bomb":
       return "💣";
     case "empty":
@@ -68,9 +68,9 @@ const getTileIcon = (tile: MinerTile, isFlipped: boolean) => {
   }
 };
 
-const getTileShadow = (tile: MinerTile) => {
+const getTileShadow = (tile: GoldBarsTile) => {
   switch (tile.type) {
-    case "prize":
+    case "gold":
       // Gold glow
       return "0 0 20px rgba(251, 191, 36, 1), 0 0 40px rgba(245, 158, 11, 0.9), 0 0 60px rgba(217, 119, 6, 0.7)";
     case "bomb":
@@ -82,19 +82,19 @@ const getTileShadow = (tile: MinerTile) => {
 };
 
 // Tile component props - defined at module level
-interface MinerTileComponentProps {
-  tile: MinerTile;
+interface GoldBarsTileComponentProps {
+  tile: GoldBarsTile;
   isSelectedByPlayer: boolean;
   isFlipped: boolean;
   disabled: boolean;
   gameEnded: boolean;
   onTileClick: (index: number) => void;
-  gameMode: "Miner1v9" | "Miner3v16" | "Miner5v25";
+  gameMode: "GoldBars1v9" | "GoldBars3v16" | "GoldBars5v25";
   allTilesRevealed?: boolean; // Whether all tiles are revealed (for dimming unselected tiles)
 }
 
-// Tile component - defined at module level, exactly like TileGrid (no inline component)
-const MinerTileComponent: React.FC<MinerTileComponentProps> = ({
+// Tile component - defined at module level
+const GoldBarsTileComponent: React.FC<GoldBarsTileComponentProps> = ({
   tile,
   isSelectedByPlayer,
   isFlipped,
@@ -104,12 +104,12 @@ const MinerTileComponent: React.FC<MinerTileComponentProps> = ({
   gameMode: tileGameMode,
   allTilesRevealed = false,
 }) => {
-  // Show border with 500ms delay after tile is flipped and selected
+  // Show border with delay after tile is flipped and selected
   const [showBorder, setShowBorder] = useState(false);
 
   useEffect(() => {
     if (isSelectedByPlayer && isFlipped) {
-      // Delay showing border by 500ms
+      // Delay showing border by 300ms
       const timeout = setTimeout(() => {
         setShowBorder(true);
       }, 300);
@@ -120,7 +120,7 @@ const MinerTileComponent: React.FC<MinerTileComponentProps> = ({
     }
   }, [isSelectedByPlayer, isFlipped]);
 
-  // Handle tile click - same logic as TileGrid: don't allow clicks on already revealed tiles
+  // Handle tile click
   const handleTileClickInternal = () => {
     if (disabled || tile.revealed || tile.selected || gameEnded) {
       return; // Don't allow clicks on already revealed tiles
@@ -137,11 +137,11 @@ const MinerTileComponent: React.FC<MinerTileComponentProps> = ({
       return "text-xl md:text-2xl";
     }
     switch (tileGameMode) {
-      case "Miner1v9":
+      case "GoldBars1v9":
         return "text-5xl md:text-6xl lg:text-7xl";
-      case "Miner3v16":
+      case "GoldBars3v16":
         return "text-4xl md:text-5xl lg:text-6xl";
-      case "Miner5v25":
+      case "GoldBars5v25":
         return "text-3xl md:text-4xl lg:text-5xl";
       default:
         return "text-4xl md:text-5xl lg:text-6xl";
@@ -154,7 +154,7 @@ const MinerTileComponent: React.FC<MinerTileComponentProps> = ({
       className="relative w-full aspect-square"
       style={{ perspective: "800px" }}
     >
-      {/* Tile container with flip animation - EXACTLY like TileGrid */}
+      {/* Tile container with flip animation */}
       <div
         className={`relative w-full h-full transition-all duration-300 ${
           disabled || gameEnded ? "cursor-not-allowed" : "cursor-pointer"
@@ -166,40 +166,40 @@ const MinerTileComponent: React.FC<MinerTileComponentProps> = ({
         }}
         onClick={handleTileClickInternal}
       >
-        {/* Tile Back (closed) - Darker, more mysterious style for Miner (different from TileGrid) */}
+        {/* Tile Back (closed) - Gold/orange gradient style */}
         <div
-          className="absolute inset-0 rounded-lg border-2 border-orange-500/40 shadow-lg"
+          className="absolute inset-0 rounded-lg border-2 border-yellow-500/40 shadow-lg"
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
             background:
-              "linear-gradient(135deg, rgba(220,38,38,0.3) 0%, rgba(153,69,255,0.3) 100%)",
+              "linear-gradient(135deg, rgba(251,191,36,0.3) 0%, rgba(245,158,11,0.3) 100%)",
           }}
         >
-          {/* Pattern - Diagonal stripes for Miner (different from TileGrid dots) */}
+          {/* Pattern - Diagonal stripes */}
           <div
             className="absolute inset-0 rounded-lg opacity-30"
             style={{
               backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(255,255,255,0.1) 8px, rgba(255,255,255,0.1) 16px)`,
             }}
           />
-          {/* Icon - Different style for Miner */}
+          {/* Icon */}
           <div
             className={`absolute inset-0 flex items-center justify-center ${iconSizeClass} font-bold opacity-70`}
             style={{
               textShadow:
-                "0 0 10px rgba(220, 38, 38, 0.8), 0 0 20px rgba(153, 69, 255, 0.6)",
+                "0 0 10px rgba(251, 191, 36, 0.8), 0 0 20px rgba(245, 158, 11, 0.6)",
             }}
           >
             {icon}
           </div>
-          {/* Hover effect - Orange/red glow for Miner (different from TileGrid purple) */}
+          {/* Hover effect - Gold/yellow glow */}
           {!disabled && !gameEnded && !isFlipped && (
-            <div className="absolute inset-0 bg-orange-500/0 hover:bg-orange-500/25 transition-colors duration-200 rounded-lg" />
+            <div className="absolute inset-0 bg-yellow-500/0 hover:bg-yellow-500/25 transition-colors duration-200 rounded-lg" />
           )}
         </div>
 
-        {/* Tile Front (revealed) - exactly like TileGrid with fade animation */}
+        {/* Tile Front (revealed) */}
         <div
           className="absolute inset-0 rounded-lg border-2 shadow-lg"
           style={{
@@ -255,8 +255,6 @@ const MinerTileComponent: React.FC<MinerTileComponentProps> = ({
       </div>
 
       {/* Selected indicator ring - highlight ONLY tiles selected by current player when revealed */}
-      {/* NO GLOW - only border, exactly like user requested */}
-      {/* Border appears with 500ms delay after tile is flipped */}
       {showBorder && (
         <div className="absolute inset-0 rounded-lg border-4 border-sol-mint pointer-events-none z-10 transition-opacity duration-300 opacity-100" />
       )}
@@ -264,11 +262,10 @@ const MinerTileComponent: React.FC<MinerTileComponentProps> = ({
   );
 };
 
-MinerTileComponent.displayName = "MinerTileComponent";
+GoldBarsTileComponent.displayName = "GoldBarsTileComponent";
 
-// Memoize the entire MinerGame component to prevent re-renders when parent re-renders
-// This prevents tile animations from restarting when timeRemaining changes
-const MinerGameComponent: React.FC<MinerGameProps> = ({
+// Memoize the entire GoldBarsGame component
+const GoldBarsGameComponent: React.FC<GoldBarsGameProps> = ({
   gameMode,
   tiles,
   onTileClick,
@@ -291,28 +288,25 @@ const MinerGameComponent: React.FC<MinerGameProps> = ({
     [disabled, tiles, gameEnded, onTileClick]
   );
 
-  // Determine grid columns based on game mode
-  const getGridCols = () => {
-    switch (gameMode) {
-      case "Miner1v9":
-        return "grid-cols-3";
-      case "Miner3v16":
-        return "grid-cols-4";
-      case "Miner5v25":
-        return "grid-cols-5";
-      default:
-        return "grid-cols-3";
-    }
-  };
-
   // Memoize player selections set for faster lookup
   const playerSelectionsSet = useMemo(
     () => new Set(playerSelections || []),
     [playerSelections]
   );
 
-  // Get grid columns based on game mode
-  const gridCols = getGridCols();
+  // Memoize grid columns based on game mode
+  const gridCols = useMemo(() => {
+    switch (gameMode) {
+      case "GoldBars1v9":
+        return "grid-cols-3";
+      case "GoldBars3v16":
+        return "grid-cols-4";
+      case "GoldBars5v25":
+        return "grid-cols-5";
+      default:
+        return "grid-cols-3";
+    }
+  }, [gameMode]);
 
   // Check if all tiles are revealed
   const allRevealed = useMemo(() => {
@@ -332,13 +326,13 @@ const MinerGameComponent: React.FC<MinerGameProps> = ({
       >
         {tiles.map((tile) => {
           const isSelectedByPlayer = playerSelectionsSet.has(tile.index);
-          // Only flip if tile is revealed (opened) - don't flip based on selections or gameEnded
+          // Only flip if tile is revealed (opened)
           const isFlipped = tile.revealed;
           // Use prop if provided, otherwise check if all tiles are revealed
           const shouldDim = allTilesRevealed || allRevealed;
 
           return (
-            <MinerTileComponent
+            <GoldBarsTileComponent
               key={tile.index}
               tile={tile}
               isSelectedByPlayer={isSelectedByPlayer}
@@ -356,44 +350,47 @@ const MinerGameComponent: React.FC<MinerGameProps> = ({
   );
 };
 
-MinerGameComponent.displayName = "MinerGame";
+GoldBarsGameComponent.displayName = "GoldBarsGame";
 
 // Memoize the component with custom comparison function
-// Only re-render if tiles actually changed (not just reference)
-export const MinerGame = memo(MinerGameComponent, (prevProps, nextProps) => {
-  // Custom comparison function to prevent re-renders when only timeRemaining changes
-  // Compare all props that matter for rendering
-  if (prevProps.gameMode !== nextProps.gameMode) return false;
-  if (prevProps.disabled !== nextProps.disabled) return false;
-  if (prevProps.gameEnded !== nextProps.gameEnded) return false;
-  if (prevProps.currentPlayer !== nextProps.currentPlayer) return false;
-  if (prevProps.tiles.length !== nextProps.tiles.length) return false;
-  if (prevProps.playerSelections?.length !== nextProps.playerSelections?.length)
-    return false;
-
-  // Deep compare tiles array - only re-render if actual tile properties changed
-  for (let i = 0; i < prevProps.tiles.length; i++) {
-    const prevTile = prevProps.tiles[i];
-    const nextTile = nextProps.tiles[i];
+export const GoldBarsGame = memo(
+  GoldBarsGameComponent,
+  (prevProps, nextProps) => {
+    // Custom comparison function to prevent re-renders when only timeRemaining changes
+    if (prevProps.gameMode !== nextProps.gameMode) return false;
+    if (prevProps.disabled !== nextProps.disabled) return false;
+    if (prevProps.gameEnded !== nextProps.gameEnded) return false;
+    if (prevProps.currentPlayer !== nextProps.currentPlayer) return false;
+    if (prevProps.tiles.length !== nextProps.tiles.length) return false;
     if (
-      prevTile.index !== nextTile.index ||
-      prevTile.revealed !== nextTile.revealed ||
-      prevTile.selected !== nextTile.selected ||
-      prevTile.type !== nextTile.type
-    ) {
-      return false; // Tiles changed, need re-render
-    }
-  }
+      prevProps.playerSelections?.length !== nextProps.playerSelections?.length
+    )
+      return false;
 
-  // Deep compare playerSelections
-  if (prevProps.playerSelections && nextProps.playerSelections) {
-    const prevSorted = [...prevProps.playerSelections].sort();
-    const nextSorted = [...nextProps.playerSelections].sort();
-    if (prevSorted.length !== nextSorted.length) return false;
-    for (let i = 0; i < prevSorted.length; i++) {
-      if (prevSorted[i] !== nextSorted[i]) return false;
+    // Deep compare tiles array
+    for (let i = 0; i < prevProps.tiles.length; i++) {
+      const prevTile = prevProps.tiles[i];
+      const nextTile = nextProps.tiles[i];
+      if (
+        prevTile.index !== nextTile.index ||
+        prevTile.revealed !== nextTile.revealed ||
+        prevTile.selected !== nextTile.selected ||
+        prevTile.type !== nextTile.type
+      ) {
+        return false; // Tiles changed, need re-render
+      }
     }
-  }
 
-  return true; // No changes, skip re-render
-});
+    // Deep compare playerSelections
+    if (prevProps.playerSelections && nextProps.playerSelections) {
+      const prevSorted = [...prevProps.playerSelections].sort();
+      const nextSorted = [...nextProps.playerSelections].sort();
+      if (prevSorted.length !== nextSorted.length) return false;
+      for (let i = 0; i < prevSorted.length; i++) {
+        if (prevSorted[i] !== nextSorted[i]) return false;
+      }
+    }
+
+    return true; // No changes, skip re-render
+  }
+);

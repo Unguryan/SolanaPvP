@@ -3,6 +3,7 @@ export enum GameType {
   PickHigher = "PickHigher",
   Plinko = "Plinko",
   Miner = "Miner",
+  GoldBars = "GoldBars",
   // Future: Dice = "Dice", CoinFlip = "CoinFlip", WheelSpin = "WheelSpin"
 }
 

@@ -6,6 +6,7 @@ import {
   generateRandomValues,
 } from "@/utils/gameScoreDistribution";
 import { getSlotValues } from "@/utils/plinkoScoreBreakdown";
+import { getGameModeConfig } from "@/utils/gameScoreDistribution";
 
 const AI_NAMES = [
   "CryptoKing",
@@ -74,6 +75,7 @@ export const generateDemoPlayers = (
   // Check game type
   const isPlinko = gameMode?.startsWith("Plinko");
   const isMiner = gameMode?.startsWith("Miner");
+  const isGoldBars = gameMode?.startsWith("GoldBars");
 
   // Add current user
   if (isMiner) {
@@ -97,7 +99,7 @@ export const generateDemoPlayers = (
     // Store current player's willWin for later use
     (players as any).__currentPlayerWillWin = currentPlayerWillWin;
   } else {
-    // PickHigher or Plinko: use targetScore
+    // PickHigher, Plinko, or GoldBars: use targetScore
     let playerTargetScore: number;
 
     if (isPlinko) {
@@ -107,6 +109,17 @@ export const generateDemoPlayers = (
       const slotCount =
         gameMode === "Plinko3Balls" ? 5 : gameMode === "Plinko5Balls" ? 7 : 9;
       playerTargetScore = generateRealisticPlinkoScore(ballCount, slotCount);
+    } else if (isGoldBars) {
+      // GoldBars: targetScore should be from 0 to totalGoldBars
+      // totalGoldBars = Tiles.Count - bombs.Count
+      if (gameMode) {
+        const gameConfig = getGameModeConfig(gameMode);
+        const totalGoldBars = (gameConfig as any).goldBars || 8;
+        // Generate targetScore in valid range: 0 to totalGoldBars
+        playerTargetScore = Math.floor(Math.random() * (totalGoldBars + 1)); // 0 to totalGoldBars (inclusive)
+      } else {
+        playerTargetScore = Math.floor(Math.random() * 9); // Default: 0-8
+      }
     } else {
       // PickHigher - old logic
       playerTargetScore = Math.floor(Math.random() * 400) + 400; // 400-800
@@ -230,10 +243,10 @@ export const generateDemoPlayers = (
     // Clean up temporary property
     delete (players as any).__currentPlayerWillWin;
   } else {
-    // PickHigher or Plinko: use targetScore logic
+    // PickHigher, Plinko, or GoldBars: use targetScore logic
     for (let i = 0; i < aiCount; i++) {
       const uniqueName = shuffledNames[i % shuffledNames.length];
-      // PickHigher or Plinko: use targetScore
+      // PickHigher, Plinko, or GoldBars: use targetScore
       let aiTargetScore: number;
 
       if (isPlinko) {
@@ -243,6 +256,17 @@ export const generateDemoPlayers = (
         const slotCount =
           gameMode === "Plinko3Balls" ? 5 : gameMode === "Plinko5Balls" ? 7 : 9;
         aiTargetScore = generateRealisticPlinkoScore(ballCount, slotCount);
+      } else if (isGoldBars) {
+        // GoldBars: targetScore should be from 0 to totalGoldBars
+        // totalGoldBars = Tiles.Count - bombs.Count
+        if (gameMode) {
+          const gameConfig = getGameModeConfig(gameMode);
+          const totalGoldBars = (gameConfig as any).goldBars || 8;
+          // Generate targetScore in valid range: 0 to totalGoldBars
+          aiTargetScore = Math.floor(Math.random() * (totalGoldBars + 1)); // 0 to totalGoldBars (inclusive)
+        } else {
+          aiTargetScore = Math.floor(Math.random() * 9); // Default: 0-8
+        }
       } else {
         // PickHigher - old logic
         const playerTargetScore = players[0]?.targetScore || 600;

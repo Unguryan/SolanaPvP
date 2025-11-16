@@ -16,9 +16,10 @@ public static class GameConfig
         public const string PickHigher = "PickHigher";
         public const string Plinko = "Plinko";
         public const string Miner = "Miner";
+        public const string GoldBars = "GoldBars";
         public const string Dice = "Dice";
         
-        public static readonly string[] All = { PickHigher, Plinko, Miner, Dice };
+        public static readonly string[] All = { PickHigher, Plinko, Miner, GoldBars, Dice };
     }
     
     // ===================== GAME MODES =====================
@@ -54,6 +55,18 @@ public static class GameConfig
         public const string OneVsNine = "Miner1v9";      // 3x3 grid
         public const string ThreeVsSixteen = "Miner3v16"; // 4x4 grid
         public const string FiveVsTwentyFive = "Miner5v25"; // 5x5 grid
+        
+        public static readonly string[] All = { OneVsNine, ThreeVsSixteen, FiveVsTwentyFive };
+    }
+    
+    /// <summary>
+    /// Game modes for GoldBars game
+    /// </summary>
+    public static class GoldBarsModes
+    {
+        public const string OneVsNine = "GoldBars1v9";      // 3x3 grid (8 gold bars, 1 bomb)
+        public const string ThreeVsSixteen = "GoldBars3v16"; // 4x4 grid (13 gold bars, 3 bombs)
+        public const string FiveVsTwentyFive = "GoldBars5v25"; // 5x5 grid (20 gold bars, 5 bombs)
         
         public static readonly string[] All = { OneVsNine, ThreeVsSixteen, FiveVsTwentyFive };
     }
@@ -151,6 +164,7 @@ public static class GameConfig
             Games.PickHigher => PickHigherModes.All.Contains(gameMode),
             Games.Plinko => PlinkoModes.All.Contains(gameMode),
             Games.Miner => MinerModes.All.Contains(gameMode),
+            Games.GoldBars => GoldBarsModes.All.Contains(gameMode),
             Games.Dice => DiceModes.All.Contains(gameMode),
             _ => false
         };

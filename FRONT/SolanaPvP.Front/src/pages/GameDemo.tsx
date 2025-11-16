@@ -11,10 +11,14 @@ import {
 import { generateDemoPlayers } from "@/lib/gameMockGenerator";
 import { GameResult, GameType } from "@/types/game";
 import { MinerGameResult } from "@/types/miner";
+import { GoldBarsGameResult } from "@/types/goldBars";
 import { AuroraBackground } from "@/components/effects/AuroraBackground";
 import { MatchLoader } from "@/components/loaders/MatchLoader";
 import { GameResultModal } from "@/components/game/GameResultModal";
 import { MinerResultModal } from "@/components/game/games/Miner";
+import { GoldBarsResultModal } from "@/components/game/games/GoldBars/GoldBarsResultModal";
+import { GoldBarsGameBoard } from "@/components/game/games/GoldBars/GoldBarsGameBoard";
+import { MinerGameBoard } from "@/components/game/games/Miner";
 import { cn } from "@/utils/cn";
 
 type GameMode =
@@ -26,9 +30,12 @@ type GameMode =
   | "Plinko7Balls"
   | "Miner1v9"
   | "Miner3v16"
-  | "Miner5v25";
+  | "Miner5v25"
+  | "GoldBars1v9"
+  | "GoldBars3v16"
+  | "GoldBars5v25";
 type MatchType = "Solo" | "Duo" | "Team";
-type GameCategory = "PickHigher" | "Plinko" | "Miner";
+type GameCategory = "PickHigher" | "Plinko" | "Miner" | "GoldBars";
 
 export const GameDemo: React.FC = () => {
   const [currentGame, setCurrentGame] = useState<GameCategory>("PickHigher");
@@ -62,11 +69,20 @@ export const GameDemo: React.FC = () => {
     { mode: "Miner5v25", label: "5v25", icon: "💣" },
   ];
 
+  // GoldBars game modes
+  const goldBarsModes: { mode: GameMode; label: string; icon: string }[] = [
+    { mode: "GoldBars1v9", label: "1v9", icon: "🥇" },
+    { mode: "GoldBars3v16", label: "3v16", icon: "🥇" },
+    { mode: "GoldBars5v25", label: "5v25", icon: "🥇" },
+  ];
+
   const gameModes =
     currentGame === "Plinko"
       ? plinkoModes
       : currentGame === "Miner"
       ? minerModes
+      : currentGame === "GoldBars"
+      ? goldBarsModes
       : pickHigherModes;
 
   const matchTypes: { type: MatchType; label: string; description: string }[] =
@@ -79,10 +95,10 @@ export const GameDemo: React.FC = () => {
   const handleStartGame = () => {
     // Scroll to top FIRST
     window.scrollTo({ top: 0, behavior: "smooth" });
-    
+
     // Show loader for 5 seconds
     setIsLoading(true);
-    
+
     // Generate random stake amount
     const stakes = [0.1, 0.5, 1.0];
     const randomStake = stakes[Math.floor(Math.random() * stakes.length)];
@@ -104,9 +120,12 @@ export const GameDemo: React.FC = () => {
     console.log("Is Miner?", result.gameType === GameType.Miner);
     console.log("PlayerResults:", result.playerResults);
     console.log("[GameDemo] Result keys:", Object.keys(result));
-    console.log("[GameDemo] Result has gameType:", 'gameType' in result);
-    console.log("[GameDemo] Result has playerResults:", 'playerResults' in result);
-    
+    console.log("[GameDemo] Result has gameType:", "gameType" in result);
+    console.log(
+      "[GameDemo] Result has playerResults:",
+      "playerResults" in result
+    );
+
     // For Miner games: use playerResults directly from result (it comes from willWin)
     // Don't try to create from scores - scores are wrong (0/1 instead of willWin)
     if (currentGame === "Miner") {
@@ -116,9 +135,10 @@ export const GameDemo: React.FC = () => {
       const finalResult: GameResult = {
         ...result,
         gameType: (result as any).gameType || GameType.Miner,
-        playerResults: (result as any).playerResults || result.playerResults || {},
+        playerResults:
+          (result as any).playerResults || result.playerResults || {},
       };
-      
+
       console.log("[GameDemo] Final Miner result:", finalResult);
       console.log("[GameDemo] Final gameType:", finalResult.gameType);
       console.log("[GameDemo] Final playerResults:", finalResult.playerResults);
@@ -137,21 +157,28 @@ export const GameDemo: React.FC = () => {
 
   // Show loader overlay
   if (isLoading) {
-    const teamSize = currentMatchType === "Solo" ? 1 : currentMatchType === "Duo" ? 2 : 5;
+    const teamSize =
+      currentMatchType === "Solo" ? 1 : currentMatchType === "Duo" ? 2 : 5;
     const demoPlayers = [
-      ["@demo_player", "@ai_opponent", "@test_user", "@random_guy", "@mock_player"],
-      ["@bot_alpha", "@bot_beta", "@bot_gamma", "@bot_delta", "@bot_omega"]
+      [
+        "@demo_player",
+        "@ai_opponent",
+        "@test_user",
+        "@random_guy",
+        "@mock_player",
+      ],
+      ["@bot_alpha", "@bot_beta", "@bot_gamma", "@bot_delta", "@bot_omega"],
     ];
 
     return (
       <MatchLoader
         team1={{
           name: "Team 1",
-          players: demoPlayers[0].slice(0, teamSize).map(p => p),
+          players: demoPlayers[0].slice(0, teamSize).map((p) => p),
         }}
         team2={{
           name: "Team 2",
-          players: demoPlayers[1].slice(0, teamSize).map(p => p),
+          players: demoPlayers[1].slice(0, teamSize).map((p) => p),
         }}
         statusMessages={[
           "Connecting to Solana",
@@ -210,7 +237,28 @@ export const GameDemo: React.FC = () => {
                     )}
                   >
                     <div className="text-4xl md:text-5xl">🎴</div>
-                    <span className="text-sm font-semibold text-white">Pick Higher</span>
+                    <span className="text-sm font-semibold text-white">
+                      Pick Higher
+                    </span>
+                  </button>
+
+                  {/* GoldBars */}
+                  <button
+                    onClick={() => {
+                      setCurrentGame("GoldBars");
+                      setCurrentGameMode("GoldBars1v9");
+                    }}
+                    className={cn(
+                      "flex-shrink-0 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px]",
+                      currentGame === "GoldBars"
+                        ? "bg-gradient-to-br from-yellow-500 to-orange-600 border-yellow-400/50 shadow-lg"
+                        : "bg-white/5 border-white/10 hover:bg-white/10"
+                    )}
+                  >
+                    <div className="text-4xl md:text-5xl">💰</div>
+                    <span className="text-sm font-semibold text-white">
+                      Gold Bars
+                    </span>
                   </button>
 
                   {/* Plinko */}
@@ -227,7 +275,9 @@ export const GameDemo: React.FC = () => {
                     )}
                   >
                     <div className="text-4xl md:text-5xl">🎰</div>
-                    <span className="text-sm font-semibold text-white">Plinko</span>
+                    <span className="text-sm font-semibold text-white">
+                      Plinko
+                    </span>
                   </button>
 
                   {/* Miner */}
@@ -244,7 +294,9 @@ export const GameDemo: React.FC = () => {
                     )}
                   >
                     <div className="text-4xl md:text-5xl">💣</div>
-                    <span className="text-sm font-semibold text-white">Miner</span>
+                    <span className="text-sm font-semibold text-white">
+                      Miner
+                    </span>
                   </button>
                 </div>
               </GlassCard>
@@ -318,29 +370,64 @@ export const GameDemo: React.FC = () => {
                     <ul className="text-sm text-txt-muted space-y-1">
                       {currentGame === "Plinko" ? (
                         <>
-                          <li>• Drop {currentGameMode === "Plinko3Balls" ? "3" : currentGameMode === "Plinko5Balls" ? "5" : "7"} balls down the board</li>
-                          <li>• Each ball bounces off pins and lands in a slot</li>
+                          <li>
+                            • Drop{" "}
+                            {currentGameMode === "Plinko3Balls"
+                              ? "3"
+                              : currentGameMode === "Plinko5Balls"
+                              ? "5"
+                              : "7"}{" "}
+                            balls down the board
+                          </li>
+                          <li>
+                            • Each ball bounces off pins and lands in a slot
+                          </li>
                           <li>• Reach your target score to win</li>
                           <li>• Edge slots give higher scores</li>
                         </>
                       ) : currentGame === "Miner" ? (
                         <>
+                          <li>• Open tiles until you find a prize or bomb</li>
                           <li>
-                            • Open tiles until you find a prize or bomb
-                          </li>
-                          <li>
-                            • {currentGameMode === "Miner1v9" ? "1 prize, 1 bomb in 9 tiles" 
-                              : currentGameMode === "Miner3v16" ? "3 prizes, 3 bombs in 16 tiles"
+                            •{" "}
+                            {currentGameMode === "Miner1v9"
+                              ? "1 prize, 1 bomb in 9 tiles"
+                              : currentGameMode === "Miner3v16"
+                              ? "3 prizes, 3 bombs in 16 tiles"
                               : "5 prizes, 5 bombs in 25 tiles"}
                           </li>
                           <li>• Find prize to win, hit bomb to lose</li>
-                          <li>• Game ends immediately when you find prize or bomb</li>
+                          <li>
+                            • Game ends immediately when you find prize or bomb
+                          </li>
+                        </>
+                      ) : currentGame === "GoldBars" ? (
+                        <>
+                          <li>
+                            • Open tiles to find gold bars. Each gold bar = +1
+                            score
+                          </li>
+                          <li>
+                            •{" "}
+                            {currentGameMode === "GoldBars1v9"
+                              ? "8 gold bars, 1 bomb in 9 tiles"
+                              : currentGameMode === "GoldBars3v16"
+                              ? "13 gold bars, 3 bombs in 16 tiles"
+                              : "20 gold bars, 5 bombs in 25 tiles"}
+                          </li>
+                          <li>
+                            • When you reach targetScore, next tile is a bomb
+                          </li>
+                          <li>• If targetScore = all gold bars, you win!</li>
                         </>
                       ) : (
                         <>
                           <li>
-                            • {currentGameMode === "PickThreeFromNine" ? "Pick 3 from 9 tiles" 
-                              : currentGameMode === "PickFiveFromSixteen" ? "Pick 5 from 16 tiles"
+                            •{" "}
+                            {currentGameMode === "PickThreeFromNine"
+                              ? "Pick 3 from 9 tiles"
+                              : currentGameMode === "PickFiveFromSixteen"
+                              ? "Pick 5 from 16 tiles"
                               : "Pick 1 from 3 cards"}
                           </li>
                           <li>• Each selection reveals a point value</li>
@@ -396,24 +483,90 @@ export const GameDemo: React.FC = () => {
               </div>
 
               {/* Game Board */}
-              <UniversalGameBoard
-                key={gameKey}
-                gameType={
-                  currentGame === "Plinko"
-                    ? GameType.Plinko
-                    : currentGame === "Miner"
-                    ? GameType.Miner
-                    : GameType.PickHigher
-                }
-                gameMode={currentGameMode}
-                teamSize={currentMatchType}
-                stakeSol={stakeAmount} // Demo stake
-                players={generateDemoPlayers(currentMatchType, "You", currentGameMode)}
-                currentPlayer="You"
-                timeLimit={20} // 20s for all games
-                onGameComplete={handleGameComplete}
-                isDemoMode={true}
-              />
+              {currentGame === "Miner" ? (
+                <MinerGameBoard
+                  key={gameKey}
+                  gameMode={
+                    currentGameMode as "Miner1v9" | "Miner3v16" | "Miner5v25"
+                  }
+                  matchType={currentMatchType}
+                  stakeSol={stakeAmount}
+                  players={generateDemoPlayers(
+                    currentMatchType,
+                    "You",
+                    currentGameMode
+                  ).map((p) => ({
+                    id: p.pubkey || p.username,
+                    username: p.username,
+                    pubkey: p.pubkey,
+                    targetScore: p.targetScore,
+                    currentScore: p.currentScore,
+                    selections: p.selections,
+                    isReady: p.isReady,
+                    isScoreRevealed: false,
+                    willWin: p.willWin,
+                    isAlive: p.isAlive,
+                    openedTileCount: p.openedTileCount,
+                  }))}
+                  currentPlayer="You"
+                  timeLimit={20}
+                  onGameComplete={handleGameComplete}
+                  isDemoMode={true}
+                />
+              ) : currentGame === "GoldBars" ? (
+                <GoldBarsGameBoard
+                  key={gameKey}
+                  gameMode={
+                    currentGameMode as
+                      | "GoldBars1v9"
+                      | "GoldBars3v16"
+                      | "GoldBars5v25"
+                  }
+                  matchType={currentMatchType}
+                  stakeSol={stakeAmount}
+                  players={generateDemoPlayers(
+                    currentMatchType,
+                    "You",
+                    currentGameMode
+                  ).map((p) => ({
+                    id: p.pubkey || p.username,
+                    username: p.username,
+                    pubkey: p.pubkey,
+                    targetScore: p.targetScore,
+                    currentScore: p.currentScore,
+                    selections: p.selections,
+                    isReady: p.isReady,
+                    isScoreRevealed: false,
+                    openedTileCount: p.openedTileCount || 0,
+                    reachedAllGoldBars: false,
+                  }))}
+                  currentPlayer="You"
+                  timeLimit={20}
+                  onGameComplete={handleGameComplete}
+                  isDemoMode={true}
+                />
+              ) : (
+                <UniversalGameBoard
+                  key={gameKey}
+                  gameType={
+                    currentGame === "Plinko"
+                      ? GameType.Plinko
+                      : GameType.PickHigher
+                  }
+                  gameMode={currentGameMode}
+                  teamSize={currentMatchType}
+                  stakeSol={stakeAmount} // Demo stake
+                  players={generateDemoPlayers(
+                    currentMatchType,
+                    "You",
+                    currentGameMode
+                  )}
+                  currentPlayer="You"
+                  timeLimit={20} // 20s for all games
+                  onGameComplete={handleGameComplete}
+                  isDemoMode={true}
+                />
+              )}
             </div>
           )}
 
@@ -435,8 +588,8 @@ export const GameDemo: React.FC = () => {
       {/* Game Result Modal */}
       {gameResult && (
         <>
-          {/* Always use MinerResultModal for Miner games, check gameType first, then fallback to currentGame */}
-          {(gameResult.gameType === GameType.Miner || currentGame === "Miner") ? (
+          {/* Use appropriate modal based on game type */}
+          {gameResult.gameType === GameType.Miner || currentGame === "Miner" ? (
             <MinerResultModal
               isOpen={!!gameResult}
               onClose={() => {
@@ -446,11 +599,32 @@ export const GameDemo: React.FC = () => {
                 setGameResult(null);
                 handleResetGame();
               }}
-              result={{
-                ...gameResult,
-                gameType: GameType.Miner,
-                playerResults: gameResult.playerResults || {},
-              } as MinerGameResult}
+              result={
+                {
+                  ...gameResult,
+                  gameType: GameType.Miner,
+                  playerResults: gameResult.playerResults || {},
+                } as MinerGameResult
+              }
+              isDemoMode={true}
+            />
+          ) : gameResult.gameType === GameType.GoldBars ||
+            currentGame === "GoldBars" ? (
+            <GoldBarsResultModal
+              isOpen={!!gameResult}
+              onClose={() => {
+                setGameResult(null);
+              }}
+              onPlayAgain={() => {
+                setGameResult(null);
+                handleResetGame();
+              }}
+              result={
+                {
+                  ...gameResult,
+                  gameType: GameType.GoldBars,
+                } as GoldBarsGameResult
+              }
               isDemoMode={true}
             />
           ) : (

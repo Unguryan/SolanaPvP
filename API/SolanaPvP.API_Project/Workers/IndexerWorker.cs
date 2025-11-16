@@ -66,6 +66,15 @@ public class IndexerWorker : BackgroundService
             _logger.LogDebug("Received log event - Signature: {Signature}, Slot: {Slot}, Logs count: {Count}", 
                 logEvent.Signature, logEvent.Slot, logEvent.Logs?.Count ?? 0);
 
+            // Ignore simulation-only signatures (all '1's) - these come from RPC simulations,
+            // not from real confirmed transactions. Processing them was causing phantom
+            // matches/lobbies to appear in DB even when the wallet rejected the transaction.
+            if (logEvent.Signature == "1111111111111111111111111111111111111111111111111111111111111111")
+            {
+                _logger.LogWarning("Ignoring simulated transaction logs (signature is all 1s)");
+                return;
+            }
+
             // Check if we've already processed this event (in-memory deduplication)
             if (_processedSignatures.ContainsKey(logEvent.Signature))
             {
@@ -427,35 +436,65 @@ public class IndexerWorker : BackgroundService
         var gameData = await gameDataGenerator.GenerateGameDataAsync(match, resolutionData.WinnerSide);
         _logger.LogInformation("[ProcessMatchResolved] GameData generated successfully");
         
-        // Assign targetScore to each participant based on their side
-        var side0Participants = match.Participants.Where(p => p.Side == 0).ToList();
-        var side1Participants = match.Participants.Where(p => p.Side == 1).ToList();
-        
-        // Distribute side0 total score among side0 participants
-        if (side0Participants.Any())
+        // Assign targetScore to each participant based on game type
+        if (match.GameType == "GoldBars" && !string.IsNullOrEmpty(gameData.PlayerScoresJson))
         {
-            int scorePerPlayer = gameData.Side0TotalScore / side0Participants.Count;
-            foreach (var participant in side0Participants)
+            // GoldBars: Use PlayerScoresJson to assign individual targetScore to each participant
+            var playerScores = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, int>>(gameData.PlayerScoresJson);
+            if (playerScores != null)
             {
-                participant.TargetScore = scorePerPlayer;
-                participant.IsWinner = resolutionData.WinnerSide == 0;
-                await matchRepository.UpdateParticipantAsync(participant);
+                foreach (var participant in match.Participants)
+                {
+                    if (playerScores.TryGetValue(participant.Pubkey, out var targetScore))
+                    {
+                        participant.TargetScore = targetScore;
+                        participant.IsWinner = participant.Side == resolutionData.WinnerSide;
+                        await matchRepository.UpdateParticipantAsync(participant);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[ProcessMatchResolved] ⚠️ Participant {Pubkey} not found in PlayerScoresJson for GoldBars match", participant.Pubkey);
+                    }
+                }
+                _logger.LogInformation("[ProcessMatchResolved] Assigned individual target scores from PlayerScoresJson for {Count} GoldBars participants", match.Participants.Count);
+            }
+            else
+            {
+                _logger.LogError("[ProcessMatchResolved] ❌ Failed to deserialize PlayerScoresJson for GoldBars match");
             }
         }
-        
-        // Distribute side1 total score among side1 participants  
-        if (side1Participants.Any())
+        else
         {
-            int scorePerPlayer = gameData.Side1TotalScore / side1Participants.Count;
-            foreach (var participant in side1Participants)
+            // Other games (PickHigher, Plinko, Miner): Use existing logic
+            var side0Participants = match.Participants.Where(p => p.Side == 0).ToList();
+            var side1Participants = match.Participants.Where(p => p.Side == 1).ToList();
+            
+            // Distribute side0 total score among side0 participants
+            if (side0Participants.Any())
             {
-                participant.TargetScore = scorePerPlayer;
-                participant.IsWinner = resolutionData.WinnerSide == 1;
-                await matchRepository.UpdateParticipantAsync(participant);
+                int scorePerPlayer = gameData.Side0TotalScore / side0Participants.Count;
+                foreach (var participant in side0Participants)
+                {
+                    participant.TargetScore = scorePerPlayer;
+                    participant.IsWinner = resolutionData.WinnerSide == 0;
+                    await matchRepository.UpdateParticipantAsync(participant);
+                }
             }
+            
+            // Distribute side1 total score among side1 participants  
+            if (side1Participants.Any())
+            {
+                int scorePerPlayer = gameData.Side1TotalScore / side1Participants.Count;
+                foreach (var participant in side1Participants)
+                {
+                    participant.TargetScore = scorePerPlayer;
+                    participant.IsWinner = resolutionData.WinnerSide == 1;
+                    await matchRepository.UpdateParticipantAsync(participant);
+                }
+            }
+            
+            _logger.LogInformation("[ProcessMatchResolved] Assigned and saved target scores for {Count} participants", match.Participants.Count);
         }
-        
-        _logger.LogInformation("[ProcessMatchResolved] Assigned and saved target scores for {Count} participants", match.Participants.Count);
         
         // Update match to InProgress
         match.Status = MatchStatus.InProgress;

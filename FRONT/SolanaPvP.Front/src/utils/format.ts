@@ -20,6 +20,32 @@ export function formatRelativeTime(date: string | Date): string {
   return formatDistanceToNow(dateObj, { addSuffix: true });
 }
 
+// Parse a UTC-ish date value into milliseconds since epoch
+// Accepts ISO string (with or without Z) or Date instance
+export function parseUtc(date: string | Date | undefined | null): number | null {
+  if (!date) return null;
+  if (date instanceof Date) return date.getTime();
+
+  const timestamp = Date.parse(date);
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+// Compute remaining seconds from a UTC start time and duration, using local clock only for diff
+export function getRemainingSecondsUtc(
+  start: string | Date | undefined | null,
+  durationSec: number
+): number {
+  const startMs = parseUtc(start);
+  if (startMs == null || !Number.isFinite(durationSec) || durationSec <= 0) {
+    return 0;
+  }
+
+  const nowMs = Date.now();
+  const elapsedSec = (nowMs - startMs) / 1000;
+  const remaining = Math.ceil(durationSec - elapsedSec);
+  return remaining > 0 ? remaining : 0;
+}
+
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat("en-US").format(num);
 }

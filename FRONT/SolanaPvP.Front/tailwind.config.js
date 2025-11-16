@@ -79,6 +79,7 @@ module.exports = {
         glow: "0 0 24px rgba(153,69,255,.35), 0 0 12px rgba(20,241,149,.25), 0 0 8px rgba(153,69,255,.2)",
         'glow-purple': "0 0 20px rgba(153,69,255,.4), 0 0 8px rgba(153,69,255,.3)",
         'glow-mint': "0 0 20px rgba(20,241,149,.4), 0 0 8px rgba(20,241,149,.3)",
+        'glow-orange': "0 0 20px rgba(251,146,60,.4), 0 0 8px rgba(251,146,60,.3)",
         'glow-strong': "0 0 40px rgba(153,69,255,.5), 0 0 20px rgba(20,241,149,.3), 0 0 12px rgba(153,69,255,.4)",
       },
       borderRadius: {

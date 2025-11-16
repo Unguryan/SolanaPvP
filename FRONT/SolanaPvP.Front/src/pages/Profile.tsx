@@ -495,7 +495,7 @@ export const Profile: React.FC = () => {
                                     rel="noopener noreferrer"
                                     className="text-sol-mint hover:text-sol-purple transition-colors text-sm"
                                   >
-                                    View Match →
+                                    View Tx
                                   </a>
                                 </td>
                               </motion.tr>

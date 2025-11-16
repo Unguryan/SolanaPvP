@@ -24,12 +24,15 @@ import { matchesApi } from "@/services/api/matches";
 import { AuroraBackground } from "@/components/effects/AuroraBackground";
 import { cn } from "@/utils/cn";
 
-type GameCategory = "all" | "PickHigher" | "Plinko" | "Miner";
+type GameCategory = "all" | "PickHigher" | "GoldBars" | "Plinko" | "Miner";
 type GameModeFilter =
   | "all"
   | "PickHigher3v9"
   | "PickHigher5v16"
   | "PickHigher1v3"
+  | "GoldBars1v9"
+  | "GoldBars3v16"
+  | "GoldBars5v25"
   | "Plinko3Balls"
   | "Plinko5Balls"
   | "Plinko7Balls"
@@ -256,6 +259,15 @@ export const Matches: React.FC = () => {
       ) {
         return false;
       }
+    } else if (gameCategory === "GoldBars") {
+      // Only show GoldBars games
+      if (
+        !["GoldBars1v9", "GoldBars3v16", "GoldBars5v25"].includes(
+          match.gameMode
+        )
+      ) {
+        return false;
+      }
     } else if (gameCategory === "Plinko") {
       // Only show Plinko games
       if (
@@ -367,7 +379,7 @@ export const Matches: React.FC = () => {
         <AnimatePresence>
           {validationMessage && (
             <motion.div
-              className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[6vh] pt-[6vh] px-4 pointer-events-none"
+              className="fixed top-0 left-0 right-0 z-[100] flex justify-center md:pt-[14vh] pt-[12vh] px-4 pointer-events-none"
               initial={{ opacity: 0, y: -50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -50 }}
@@ -616,6 +628,25 @@ export const Matches: React.FC = () => {
                     </span>
                   </button>
 
+                  {/* GoldBars */}
+                  <button
+                    onClick={() => {
+                      setGameCategory("GoldBars");
+                      setGameModeFilter("all");
+                    }}
+                    className={cn(
+                      "flex-shrink-0 flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all min-w-[90px] md:min-w-[100px]",
+                      gameCategory === "GoldBars"
+                        ? "bg-gradient-to-br from-yellow-500 to-orange-600 border-yellow-400/50 shadow-lg"
+                        : "bg-white/5 border-white/10 hover:bg-white/10"
+                    )}
+                  >
+                    <div className="text-3xl md:text-4xl">🥇</div>
+                    <span className="text-xs md:text-sm font-semibold text-white">
+                      Gold Bars
+                    </span>
+                  </button>
+
                   {/* Plinko - ACTIVE! */}
                   <button
                     onClick={() => {
@@ -719,6 +750,52 @@ export const Matches: React.FC = () => {
                           <span className="flex items-center">
                             <span className="mr-1">🎴</span>
                             1v3
+                          </span>
+                        </GlowButton>
+                      </>
+                    )}
+                    {/* GoldBars modes */}
+                    {gameCategory === "GoldBars" && (
+                      <>
+                        <GlowButton
+                          variant={
+                            gameModeFilter === "GoldBars1v9" ? "mint" : "ghost"
+                          }
+                          size="sm"
+                          onClick={() => setGameModeFilter("GoldBars1v9")}
+                          className="text-xs"
+                        >
+                          <span className="flex items-center">
+                            <span className="mr-1">🥇</span>
+                            1v9
+                          </span>
+                        </GlowButton>
+                        <GlowButton
+                          variant={
+                            gameModeFilter === "GoldBars3v16"
+                              ? "orange"
+                              : "ghost"
+                          }
+                          size="sm"
+                          onClick={() => setGameModeFilter("GoldBars3v16")}
+                          className="text-xs"
+                        >
+                          <span className="flex items-center">
+                            <span className="mr-1">🥇</span>
+                            3v16
+                          </span>
+                        </GlowButton>
+                        <GlowButton
+                          variant={
+                            gameModeFilter === "GoldBars5v25" ? "blue" : "ghost"
+                          }
+                          size="sm"
+                          onClick={() => setGameModeFilter("GoldBars5v25")}
+                          className="text-xs"
+                        >
+                          <span className="flex items-center">
+                            <span className="mr-1">🥇</span>
+                            5v25
                           </span>
                         </GlowButton>
                       </>

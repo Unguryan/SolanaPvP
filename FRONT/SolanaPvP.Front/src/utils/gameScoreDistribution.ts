@@ -445,6 +445,36 @@ export function getGameModeConfig(gameMode: string) {
         name: "Miner: 5v25",
         tileCount: 25,
       };
+    case "GoldBars1v9":
+      return {
+        gridSize: 3,
+        maxSelections: 8, // Can open up to 8 tiles (8 gold bars, 1 bomb)
+        icon: "🥇",
+        name: "Gold Bars: 1v9",
+        tileCount: 9,
+        goldBars: 8,
+        bombs: 1,
+      };
+    case "GoldBars3v16":
+      return {
+        gridSize: 4,
+        maxSelections: 13, // Can open up to 13 tiles (13 gold bars, 3 bombs)
+        icon: "🥇",
+        name: "Gold Bars: 3v16",
+        tileCount: 16,
+        goldBars: 13,
+        bombs: 3,
+      };
+    case "GoldBars5v25":
+      return {
+        gridSize: 5,
+        maxSelections: 20, // Can open up to 20 tiles (20 gold bars, 5 bombs)
+        icon: "🥇",
+        name: "Gold Bars: 5v25",
+        tileCount: 25,
+        goldBars: 20,
+        bombs: 5,
+      };
     default:
       return {
         gridSize: 3,
