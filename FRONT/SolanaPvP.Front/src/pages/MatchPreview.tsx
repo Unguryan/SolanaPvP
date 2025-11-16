@@ -180,7 +180,7 @@ export const MatchPreview: React.FC = () => {
     if (pageMode === "game" && matchFromBackend?.gameStartTime) {
       const updateTimer = () => {
         const startTime = new Date(matchFromBackend.gameStartTime).getTime();
-        const endTime = startTime + 25000; // +25 seconds
+        const endTime = startTime + 20000; // +20 seconds
         const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
         setGameTimeRemaining(remaining);
       };

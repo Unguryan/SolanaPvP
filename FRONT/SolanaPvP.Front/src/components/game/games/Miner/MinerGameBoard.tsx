@@ -35,7 +35,7 @@ export const MinerGameBoard: React.FC<MinerGameBoardProps> = ({
   currentPlayer = "You",
   currentPlayerPubkey,
   matchFromBackend,
-  timeLimit = 30,
+  timeLimit = 20,
   onGameComplete,
   isDemoMode = false,
 }) => {

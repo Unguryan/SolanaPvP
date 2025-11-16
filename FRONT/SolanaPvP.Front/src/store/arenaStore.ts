@@ -20,6 +20,7 @@ export type MatchLobby = {
   playersReady: number;
   playersMax: number;
   endsAt: number;
+  gameStartTime?: number; // Timestamp when match entered InProgress (ms)
   gameType?: string; // NEW: "PickHigher", etc.
   gameMode: string; // CHANGED: now flexible ("PickHigher1v3", "PickHigher3v9", "PickHigher5v16", "Plinko3Balls", "Miner1v9", etc.)
   matchMode?: string; // NEW: "Team" or "DeathMatch"

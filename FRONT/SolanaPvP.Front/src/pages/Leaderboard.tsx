@@ -93,19 +93,25 @@ export const Leaderboard: React.FC = () => {
   const filteredLeaderboard = leaderboard;
 
   const formatWinRate = (rate: number) => {
-    return `${(rate * 100).toFixed(1)}%`;
+    const safeRate = Number.isFinite(rate) ? rate : 0;
+    return `${(safeRate * 100).toFixed(1)}%`;
   };
 
   const formatPnL = (earnings: number) => {
-    // Convert lamports to SOL
-    const sol = earnings / 1000000000;
-    const sign = sol >= 0 ? "+" : "";
-    return `${sign}${sol.toFixed(2)} SOL`;
+    // Convert lamports to SOL safely
+    const lamports = Number.isFinite(earnings) ? earnings : 0;
+    const sol = lamports / 1_000_000_000;
+    const safeSol = Number.isFinite(sol) ? sol : 0;
+    const sign = safeSol >= 0 ? "+" : "";
+    return `${sign}${safeSol.toFixed(2)} SOL`;
   };
 
-  const totalPlayers = leaderboard.length;
+  const totalPlayers = leaderboard.length || 0;
   const totalGamesPlayed = leaderboard.reduce(
-    (sum, p) => sum + p.totalMatches,
+    (sum, p) => {
+      const matches = Number.isFinite(p.totalMatches) ? p.totalMatches : 0;
+      return sum + matches;
+    },
     0
   );
 
@@ -258,10 +264,12 @@ export const Leaderboard: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-4 px-6 text-right">
-                      <span className="text-txt-base">
-                        {player.wonMatches}/
-                        {player.totalMatches - player.wonMatches}
-                      </span>
+                      {(() => {
+                        const wins = Number.isFinite(player.wonMatches) ? player.wonMatches : 0;
+                        const total = Number.isFinite(player.totalMatches) ? player.totalMatches : 0;
+                        const losses = Math.max(0, total - wins);
+                        return <span className="text-txt-base">{wins}/{losses}</span>;
+                      })()}
                     </td>
                     <td className="py-4 px-6 text-right">
                       <span
@@ -273,13 +281,14 @@ export const Leaderboard: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-4 px-6 text-right">
-                      <span
-                        className={`font-semibold ${getPnLColor(
-                          player.totalEarnings
-                        )}`}
-                      >
-                        {formatPnL(player.totalEarnings)}
-                      </span>
+                      {(() => {
+                        const earnings = Number.isFinite(player.totalEarnings) ? player.totalEarnings : 0;
+                        return (
+                          <span className={`font-semibold ${getPnLColor(earnings)}`}>
+                            {formatPnL(earnings)}
+                          </span>
+                        );
+                      })()}
                     </td>
                   </motion.tr>
                 ))}
@@ -316,22 +325,25 @@ export const Leaderboard: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div
-                      className={`text-lg font-bold ${getPnLColor(
-                        player.totalEarnings
-                      )}`}
-                    >
-                      {formatPnL(player.totalEarnings)}
-                    </div>
+                    {(() => {
+                      const earnings = Number.isFinite(player.totalEarnings) ? player.totalEarnings : 0;
+                      return (
+                        <div className={`text-lg font-bold ${getPnLColor(earnings)}`}>
+                          {formatPnL(earnings)}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <div className="text-txt-muted">W/L</div>
-                    <div className="text-txt-base font-medium">
-                      {player.wonMatches}/
-                      {player.totalMatches - player.wonMatches}
-                    </div>
+                    {(() => {
+                      const wins = Number.isFinite(player.wonMatches) ? player.wonMatches : 0;
+                      const total = Number.isFinite(player.totalMatches) ? player.totalMatches : 0;
+                      const losses = Math.max(0, total - wins);
+                      return <div className="text-txt-base font-medium">{wins}/{losses}</div>;
+                    })()}
                   </div>
                   <div className="text-right">
                     <div className="text-txt-muted">Win Rate</div>
@@ -340,7 +352,9 @@ export const Leaderboard: React.FC = () => {
                         player.winRate
                       )}`}
                     >
-                      {formatWinRate(player.winRate)}
+                      {formatWinRate(
+                        Number.isFinite(player.winRate) ? player.winRate : 0
+                      )}
                     </div>
                   </div>
                 </div>

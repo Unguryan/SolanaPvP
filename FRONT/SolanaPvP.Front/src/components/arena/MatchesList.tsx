@@ -58,6 +58,15 @@ export const MatchesList: React.FC<MatchesListProps> = ({
       const newTimeLeft: Record<string, number> = {};
 
       matches.forEach((match) => {
+        // For matches already in game, show time remaining out of 20s from gameStartTime
+        if (match.status === "InProgress" && match.gameStartTime) {
+          const endAt = match.gameStartTime + 20000; // 20s round
+          const remaining = Math.max(0, endAt - now);
+          newTimeLeft[match.id] = remaining;
+          return;
+        }
+
+        // Otherwise show time until deadline (Open/Pending)
         const remaining = Math.max(0, match.endsAt - now);
         newTimeLeft[match.id] = remaining;
       });
@@ -247,7 +256,13 @@ export const MatchesList: React.FC<MatchesListProps> = ({
                         {isInGame && (
                           <>
                             <span>•</span>
-                            <span className="text-blue-400">Playing...</span>
+                            {match.status === "InProgress" && (match.gameStartTime ?? 0) > 0 ? (
+                              <span className="text-blue-400">
+                                {formatTimeLeft(timeRemaining)}
+                              </span>
+                            ) : (
+                              <span className="text-blue-400">Playing...</span>
+                            )}
                           </>
                         )}
                       </div>

@@ -128,7 +128,7 @@ export function createDefaultConfig(
   const slotHeight = 64;
   const pinRadius = 8;
   const ballRadius = 12;
-  const gravity = 50; // Увеличена гравитация для более быстрого движения
+  const gravity = 40; // Reduced gravity by 20% for smoother fall
   const rowSpacingY = (height - slotHeight - topMargin - 40) / (rows + 1);
 
   // Последний ряд имеет rows + 1 пинов
